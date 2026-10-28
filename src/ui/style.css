@@ -299,7 +299,7 @@ button { font: inherit; color: inherit; }
 
 .banner.error {
   position: fixed;
-  top: 16px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
   max-width: min(640px, calc(100% - 32px));

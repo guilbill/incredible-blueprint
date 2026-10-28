@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeLevel, encodeLevel, levelFromFile, levelToFile, validateLevel } from '../../src/level/codec'
+import { asShared, decodeLevel, encodeLevel, levelFromFile, levelToFile, validateLevel } from '../../src/level/codec'
 import type { Level, Placement } from '../../src/level/types'
 
 const P = (o: Partial<Placement> & Pick<Placement, 'id' | 'kind'>): Placement => ({
@@ -106,5 +106,18 @@ describe('shipped levels', () => {
     for (const f of readdirSync('levels').filter((n) => n.endsWith('.json') && !n.endsWith('.solution.json'))) {
       expect([f, validateLevel(JSON.parse(readFileSync(`levels/${f}`, 'utf8')))]).toEqual([f, null])
     }
+  })
+})
+
+describe('shared ids', () => {
+  it('rejects unsafe ids', () => {
+    for (const id of ['', 'a b', '../x', 'x'.repeat(65)]) expect(validateLevel({ ...base(), id })).toEqual(expect.any(String))
+  })
+  it('namespaces a level whose id equals a built-in id', async () => {
+    const l = asShared({ ...base(), id: '00-sandbox' })
+    expect(l.id).toMatch(/^shared-[a-z0-9]+$/)
+    expect(l.id).toBe(asShared({ ...base(), id: '00-sandbox' }).id)
+    expect(validateLevel(l)).toBeNull()
+    expect(l.id).not.toBe('00-sandbox')
   })
 })

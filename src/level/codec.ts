@@ -34,7 +34,8 @@ export function validateLevel(x: unknown): string | null {
   try {
     if (!isObj(x)) return 'Ce niveau est illisible.'
     if (x.v !== 1) return 'Ce niveau vient d’une autre version du jeu.'
-    if (typeof x.id !== 'string' || typeof x.title !== 'string' || typeof x.goalText !== 'string') return 'Il manque le titre ou l’objectif du niveau.'
+    if (typeof x.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(x.id)) return 'L’identifiant du niveau est invalide.'
+    if (typeof x.title !== 'string' || typeof x.goalText !== 'string') return 'Il manque le titre ou l’objectif du niveau.'
     if (!Array.isArray(x.fixed) || !Array.isArray(x.fixedLinks) || !Array.isArray(x.inventory) || !Array.isArray(x.goals)) return 'Le niveau est incomplet.'
     const ids = new Set<string>()
     for (const p of x.fixed) {
@@ -142,6 +143,17 @@ export async function decodeLevel(s: string): Promise<DecodeResult> {
   } catch {
     return { ok: false, error: 'Ce lien est cassé ou incomplet : impossible de lire le niveau.' }
   }
+}
+
+/**
+ * Gives a level coming from a link or a file an id that cannot collide with a shipped or custom
+ * level (progress and drafts are keyed by id): `shared-` + FNV-1a hash of its content.
+ */
+export function asShared(level: Level): Level {
+  const text = JSON.stringify(level)
+  let h = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193)
+  return { ...level, id: `shared-${(h >>> 0).toString(36)}` }
 }
 
 export const shareUrl = (encoded: string, loc: { origin: string; pathname: string } = location): string => `${loc.origin}${loc.pathname}#l=${encoded}`
