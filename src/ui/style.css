@@ -294,3 +294,22 @@ button { font: inherit; color: inherit; }
 }
 .level-card .badge.draft { color: var(--cyan); border-color: var(--cyan); }
 .level-card.solved { border-color: var(--yellow); }
+
+/* ---------- error banner ---------- */
+
+.banner.error {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--bg-deep);
+  border: 1px solid var(--red);
+  color: var(--red);
+  box-shadow: 0 0 12px rgba(255, 107, 107, 0.35);
+  z-index: 10;
+}
