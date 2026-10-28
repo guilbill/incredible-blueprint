@@ -9,7 +9,7 @@ import { render } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
 import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
-import { stepsDue } from './loop'
+import { guarded, stepsDue } from './loop'
 import { el } from './dom'
 import { sound } from './sound'
 import { createImpactTracker } from './soundLogic'
@@ -302,11 +302,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   // ---- edits ----
-  function showToast(text: string): void {
+  function showToast(text: string, ms = 1200): void {
     toast.textContent = text
     toast.classList.add('show')
     window.clearTimeout(toastTimer)
-    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1200)
+    toastTimer = window.setTimeout(() => toast.classList.remove('show'), ms)
   }
 
   /** Every edit goes through here: the draft is saved each time. */
@@ -567,19 +567,33 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     prevGlow = next
   }
 
-  function frame(t: number): void {
+  /** A step or a draw threw: stop the run, say so, keep the loop alive (drawing errors are logged once). */
+  let drawFailed = false
+  function jammed(err: unknown, fromDraw: boolean): void {
+    if (!fromDraw || !drawFailed || sim) console.error(err)
+    if (fromDraw) drawFailed = true
     if (sim) {
-      const r = stepsDue(acc, lastT === undefined ? 0 : t - lastT)
-      acc = r.acc
-      for (let i = 0; i < r.steps; i++) {
-        sim.step()
-        listen(sim)
-        if (sim.goalsMet && !won) onGoalsMet()
-      }
+      stop()
+      showToast('La machine s’est enrayée… Modifiez-la puis relancez.', 3000)
     }
-    lastT = t
-    draw()
+  }
+
+  function advance(t: number): void {
+    if (!sim) return
+    const r = stepsDue(acc, lastT === undefined ? 0 : t - lastT)
+    acc = r.acc
+    for (let i = 0; i < r.steps; i++) {
+      sim.step()
+      listen(sim)
+      if (sim.goalsMet && !won) onGoalsMet()
+    }
+  }
+
+  function frame(t: number): void {
     raf = requestAnimationFrame(frame)
+    guarded(() => advance(t), (err) => jammed(err, false))
+    lastT = t
+    guarded(draw, (err) => jammed(err, true))
   }
 
   function draw(): void {

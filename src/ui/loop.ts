@@ -12,3 +12,17 @@ export function stepsDue(acc: number, dtMs: number): { steps: number; acc: numbe
   if (steps > MAX_STEPS_PER_FRAME) return { steps: MAX_STEPS_PER_FRAME, acc: 0 }
   return { steps, acc: total - steps * STEP_MS }
 }
+
+/**
+ * Runs one piece of a frame's work. A throw is handed to `onError` instead of escaping, so a part
+ * that crashes mid-run cannot kill the animation loop. Returns false when it threw.
+ */
+export function guarded(work: () => void, onError: (err: unknown) => void): boolean {
+  try {
+    work()
+    return true
+  } catch (err) {
+    onError(err)
+    return false
+  }
+}
