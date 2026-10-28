@@ -3,7 +3,7 @@ import { mountEditor } from './editor/editor'
 import { EditorModel, blankLevel } from './editor/model'
 import type { Level } from './level/types'
 import { asShared, decodeLevel, levelFromFile } from './level/codec'
-import { loadCustomLevels, saveCustomLevel } from './level/custom'
+import { deleteCustomLevel, loadCustomLevels, saveCustomLevel } from './level/custom'
 import { loadProgress } from './storage'
 import { type LevelTab, loadLevels, mountLevelList } from './ui/levels'
 import { mountPlay } from './ui/play'
@@ -25,7 +25,12 @@ function showList(error?: string): void {
       tab = t
       showList()
     },
-    custom: { levels: loadCustomLevels(), onEdit: edit, onNew: () => edit(blankLevel(newLevelId())), onImport: (f) => void importFile(f) },
+    custom: { levels: loadCustomLevels(), onEdit: edit, onNew: () => edit(blankLevel(newLevelId())), onImport: (f) => void importFile(f),
+      onDelete: (l) => {
+        if (deleteCustomLevel(l.id)) showList()
+        else showList('Impossible de supprimer ce niveau : le stockage du navigateur est indisponible.')
+      },
+    },
   })
   if (error) showBanner(error)
 }

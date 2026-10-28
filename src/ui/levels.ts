@@ -21,7 +21,7 @@ export type LevelTab = 'shipped' | 'mine'
 export interface LevelListOpts {
   onPlay(level: Level, list: Level[]): void
   /** "Mes niveaux" tab: levels made with the editor. */
-  custom: { levels: Level[]; onEdit(level: Level): void; onNew(): void; onImport(file: File): void }
+  custom: { levels: Level[]; onEdit(level: Level): void; onNew(): void; onImport(file: File): void; onDelete(level: Level): void }
   tab: LevelTab
   onTab(tab: LevelTab): void
 }
@@ -57,7 +57,7 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
     })
     if (levels.length === 0) grid.append(el('li', 'note', 'Aucun niveau trouvé.'))
   } else {
-    const { levels: mine, onEdit, onNew, onImport } = opts.custom
+    const { levels: mine, onEdit, onNew, onImport, onDelete } = opts.custom
     const tools = el('li', 'level-tools')
     const create = el('button', 'btn primary', '+ Nouveau niveau')
     create.addEventListener('click', onNew)
@@ -81,7 +81,13 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
       card.append(level.verified ? el('span', 'badge', 'Vérifié') : el('span', 'badge todo', 'À tester'))
       const playBtn = el('button', 'btn small', 'Jouer')
       playBtn.addEventListener('click', () => opts.onPlay(level, mine))
-      li.append(card, playBtn)
+      const delBtn = el('button', 'btn small danger', 'Supprimer')
+      delBtn.addEventListener('click', () => {
+        if (confirm(`Supprimer le niveau « ${level.title} » ? C’est définitif.`)) onDelete(level)
+      })
+      const actions = el('div', 'actions')
+      actions.append(playBtn, delBtn)
+      li.append(card, actions)
       grid.append(li)
     })
   }

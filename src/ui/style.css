@@ -335,7 +335,8 @@ button { font: inherit; color: inherit; }
 .level-tools { display: grid; align-content: center; gap: 10px; }
 .level-tools .btn { text-align: center; }
 .level-grid li.mine { position: relative; }
-.level-grid li.mine > .btn { position: absolute; right: 10px; bottom: 10px; background: var(--bg); }
+.level-grid li.mine > .actions { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+.level-grid li.mine > .actions .btn { background: var(--bg); }
 .level-card .badge.todo { color: var(--note); border-color: var(--note); }
 
 /* ---------- editor ---------- */

@@ -233,7 +233,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
   }
 
   window.addEventListener('keydown', onKey)
-  persist()
+  // Nothing is stored before the first real edit: an untouched "+ Nouveau niveau" leaves no empty level behind.
   showAuthor()
   return () => {
     window.removeEventListener('keydown', onKey)

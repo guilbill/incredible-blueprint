@@ -42,6 +42,14 @@ export function markSolved(levelId: string): boolean {
   return storage.set(PROGRESS_KEY, p)
 }
 
+/** Drops a level's solved mark and draft (used when a custom level is deleted). */
+export function forgetLevel(levelId: string): boolean {
+  const p = loadProgress()
+  const drafts = { ...p.drafts }
+  delete drafts[levelId]
+  return storage.set(PROGRESS_KEY, { solved: p.solved.filter((s) => s !== levelId), drafts })
+}
+
 export function saveDraft(levelId: string, sol: Solution): boolean {
   const p = loadProgress()
   p.drafts[levelId] = sol
