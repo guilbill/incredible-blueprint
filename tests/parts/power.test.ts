@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { hashWorld } from '../../src/engine/hash'
 import { rope } from '../../src/engine/joints'
 import { v } from '../../src/engine/vec'
-import { toU } from '../../src/engine/world'
+import { toM, toU } from '../../src/engine/world'
 import { Simulation } from '../../src/game/simulation'
 import type { Level, Link, PartKind, Placement, Solution } from '../../src/level/types'
 import { partDef } from '../../src/parts/registry'
@@ -126,16 +126,24 @@ describe('power parts', () => {
     expect(s.events).toEqual([expect.objectContaining({ name: 'balloon-ceiling', part: 'balloon' })])
   })
 
-  it('a balloon lower down rises over a lit candle, then hovers near it', () => {
-    const s = new Simulation(level([P('balloon', 'balloon', 400, 400), P('candle', 'candle', 400, 440)]), empty)
-    let minY = 400
-    for (let i = 0; i < 240; i++) {
-      s.step()
-      minY = Math.min(minY, yOf(s, 'balloon'))
-    }
-    expect(400 - minY).toBeGreaterThan(20)
-    expect(minY).toBeGreaterThan(300)
+  it('a balloon heated by a candle near the floor floats all the way up and emits balloon-ceiling', () => {
+    const s = new Simulation(level([P('balloon', 'balloon', 400, 700), P('candle', 'candle', 400, 740)]), empty)
+    run(s, 29)
+    expect(part(s, 'balloon').state.heated).toBe(0)
+    run(s, 2)
+    expect(part(s, 'balloon').state.heated).toBe(1)
     expect(part(s, 'balloon').glow).toBeGreaterThan(0)
+    run(s, 400)
+    expect(yOf(s, 'balloon')).toBeLessThan(60)
+    expect(s.events).toEqual([expect.objectContaining({ name: 'balloon-ceiling', part: 'balloon' })])
+  })
+
+  it('a balloon passing over a lit candle for under 30 steps does not heat', () => {
+    const s = new Simulation(level([P('balloon', 'balloon', 370, 400), P('candle', 'candle', 400, 440)]), empty)
+    part(s, 'balloon').bodies[0].setLinearVelocity({ x: toM(300), y: 0 })
+    run(s, 120)
+    expect(part(s, 'balloon').state.heated).toBe(0)
+    expect(yOf(s, 'balloon')).toBeGreaterThan(400)
     expect(s.events).toEqual([])
   })
 

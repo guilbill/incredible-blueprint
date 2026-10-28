@@ -14,11 +14,15 @@ const BASKET_WH = v(12, 8)
 const ANCHOR: AnchorDef = { key: 'basket', local: v(0, 30), role: 'rope' }
 /** Upward force while heated, in multiples of the balloon's weight. */
 const LIFT = 1.4
-/** Heated when a lit flame is within |dx| < 20 and 0 < dy < 80 of the balloon's centre. */
+/** A lit flame heats the balloon when within |dx| < 20 and 0 < dy < 80 of the balloon's centre. */
 const COLUMN = { dx: 20, dy: 80 }
+/** Consecutive steps over a lit flame after which the balloon stays heated for good. */
+const HEAT_STEPS = 30
 
 /**
- * Light dynamic hot-air balloon. Over a lit candle it gets an upward force of 1.4 × its weight.
+ * Light dynamic hot-air balloon. Over a lit candle it gets an upward force of 1.4 × its weight;
+ * after 30 consecutive steps over one it is heated (`state.heated`) and keeps that lift for good,
+ * so it floats away even once it has left the candle.
  * When the envelope top reaches the top edge of the field (y = 0) it emits `balloon-ceiling`
  * once, and the edge holds it there (no upward speed past it).
  */
@@ -61,6 +65,8 @@ export const balloon: PartDef = {
     )
     const inst = instance(p, [b], { basket: { body: b, local: ANCHOR.local, radius: 0 } })
     inst.state.ceiling = 0
+    inst.state.heat = 0
+    inst.state.heated = 0
     inst.onStep = (sim) => {
       const at = bodyPose(b)
       const top = at.y + ENVELOPE.y - R
@@ -73,16 +79,19 @@ export const balloon: PartDef = {
         if (vel.y < 0) b.setLinearVelocity({ x: vel.x, y: 0 })
         return
       }
-      for (const c of sim.parts) {
-        if (c.kind !== 'candle' || !c.state.lit) continue
+      const over = sim.parts.some((c) => {
+        if (c.kind !== 'candle' || !c.state.lit) return false
         const f = flameOf(c)
-        const dx = f.x - at.x
         const dy = f.y - at.y
-        if (Math.abs(dx) >= COLUMN.dx || dy <= 0 || dy >= COLUMN.dy) continue
-        b.applyForceToCenter({ x: 0, y: -LIFT * b.getMass() * toM(GRAVITY) }, true)
-        sim.activate(inst)
-        return
+        return Math.abs(f.x - at.x) < COLUMN.dx && dy > 0 && dy < COLUMN.dy
+      })
+      if (!inst.state.heated) {
+        inst.state.heat = over ? inst.state.heat + 1 : 0
+        if (inst.state.heat >= HEAT_STEPS) inst.state.heated = 1
       }
+      if (!over && !inst.state.heated) return
+      b.applyForceToCenter({ x: 0, y: -LIFT * b.getMass() * toM(GRAVITY) }, true)
+      sim.activate(inst)
     }
     return inst
   },
