@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { hashWorld } from '../../src/engine/hash'
 import { Simulation } from '../../src/game/simulation'
 import type { Level, Placement } from '../../src/level/types'
 import { render } from '../../src/render/renderer'
@@ -8,15 +9,22 @@ function fakeCtx() {
   const calls: string[] = []
   const props: Record<string, unknown> = {}
   const maxBlur = { v: 0 }
+  const trailStrokes = { v: 0 }
   const ctx = new Proxy({} as Record<string, unknown>, {
-    get: (_t, k: string) => (k in props ? props[k] : (...a: unknown[]) => { calls.push(`${k}(${a.join(',')})`) }),
+    get: (_t, k: string) =>
+      k in props
+        ? props[k]
+        : (...a: unknown[]) => {
+            calls.push(`${k}(${a.join(',')})`)
+            if (k === 'stroke' && props.lineWidth === 2 && props.strokeStyle === '#7fffd4') trailStrokes.v++
+          },
     set: (_t, k: string, val) => {
       props[k] = val
       if (k === 'shadowBlur') maxBlur.v = Math.max(maxBlur.v, val as number)
       return true
     },
   }) as unknown as CanvasRenderingContext2D
-  return { ctx, calls, maxBlur }
+  return { ctx, calls, maxBlur, trailStrokes }
 }
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number): Placement => ({ id, kind, x, y, rot: 0, flip: false, settings: {} })
@@ -59,16 +67,24 @@ describe('render', () => {
     expect(lit.maxBlur.v).toBe(12)
   })
 
-  it('keeps at most 40 trail points and does not touch the sim', () => {
+  it('caps the trail at 40 points (39 segments) and leaves the sim untouched', () => {
     const lvl = level()
     const sol = { placements: [P('b', 'ball-base', 200, 100)], links: [] }
     const sim = new Simulation(lvl, sol)
+    const early = fakeCtx()
     for (let i = 0; i < 100; i++) {
       sim.step()
-      render(fakeCtx().ctx, { level: lvl, sol, sim, zoom: 1 })
+      const f = fakeCtx()
+      render(f.ctx, { level: lvl, sol, sim, zoom: 1 })
+      if (i === 10) early.trailStrokes.v = f.trailStrokes.v
+      if (i === 99) expect(f.trailStrokes.v).toBe(39)
     }
-    const f = fakeCtx()
-    render(f.ctx, { level: lvl, sol, sim, zoom: 1 })
-    expect(f.calls.filter((c) => c.startsWith('lineTo')).length).toBeLessThan(400)
+    expect(early.trailStrokes.v).toBeLessThan(39)
+    const before = hashWorld(sim.world)
+    const steps = sim.stepIndex
+    render(fakeCtx().ctx, { level: lvl, sol, sim, zoom: 1 })
+    render(fakeCtx().ctx, { level: lvl, sol, sim, zoom: 2 })
+    expect(hashWorld(sim.world)).toBe(before)
+    expect(sim.stepIndex).toBe(steps)
   })
 })
