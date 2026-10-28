@@ -83,8 +83,12 @@ function anchorPos(a: Anchor, placements: Placement[], sim?: Simulation): Vec | 
 
 function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation, selected?: string): void {
   for (const l of links) {
-    // A cut rope disappears; a link the simulation could not build is not drawn while it runs.
-    if (sim && l.kind === 'rope' && sim.ropeOf.get(l.id)?.enabled !== true) continue
+    // A cut rope disappears, and so does one tied to a part taken out of play (an eaten cheese, a
+    // caught mouse): Planck no longer simulates it. A link the simulation could not build is not drawn while it runs.
+    if (sim && l.kind === 'rope') {
+      const r = sim.ropeOf.get(l.id)
+      if (r?.enabled !== true || !r.joint.getBodyA().isActive() || !r.joint.getBodyB().isActive()) continue
+    }
     const a = anchorPos(l.a, placements, sim)
     const b = anchorPos(l.b, placements, sim)
     if (!a || !b) continue
