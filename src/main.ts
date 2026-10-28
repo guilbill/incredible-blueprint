@@ -1,13 +1,16 @@
 import './ui/style.css'
+import { mountEditor } from './editor/editor'
+import { EditorModel, blankLevel } from './editor/model'
 import type { Level } from './level/types'
-import { asShared, decodeLevel } from './level/codec'
-import { loadCustomLevels } from './level/custom'
+import { asShared, decodeLevel, levelFromFile } from './level/codec'
+import { loadCustomLevels, saveCustomLevel } from './level/custom'
 import { loadProgress } from './storage'
-import { loadLevels, mountLevelList } from './ui/levels'
+import { type LevelTab, loadLevels, mountLevelList } from './ui/levels'
 import { mountPlay } from './ui/play'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
-const levels = [...loadLevels(), ...loadCustomLevels()]
+const levels = loadLevels()
+let tab: LevelTab = 'shipped'
 let unmount: () => void = () => {}
 
 let banner: HTMLElement | null = null
@@ -15,8 +18,35 @@ let banner: HTMLElement | null = null
 function showList(error?: string): void {
   unmount()
   banner?.remove()
-  unmount = mountLevelList(app, levels, loadProgress(), { onPlay: play })
+  unmount = mountLevelList(app, levels, loadProgress(), {
+    onPlay: play,
+    tab,
+    onTab: (t) => {
+      tab = t
+      showList()
+    },
+    custom: { levels: loadCustomLevels(), onEdit: edit, onNew: () => edit(blankLevel(newLevelId())), onImport: (f) => void importFile(f) },
+  })
   if (error) showBanner(error)
+}
+
+/** Wall-clock and random are fine here: ids are UI-side and never enter the simulation. */
+const newLevelId = (): string => `niveau-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+
+function edit(level: Level): void {
+  unmount()
+  banner?.remove()
+  tab = 'mine'
+  unmount = mountEditor(app, new EditorModel(level), { onTestWin: () => {}, onBack: () => showList() })
+}
+
+/** A `.tim.json` from someone else: new id (like a link), and the importer must win it again to share it. */
+async function importFile(f: File): Promise<void> {
+  const r = await levelFromFile(f)
+  if (!r.ok) return showList(r.error)
+  const level = { ...asShared(r.level), verified: false }
+  if (!saveCustomLevel(level)) return showList('Impossible d’enregistrer ce niveau : le stockage du navigateur est indisponible.')
+  edit(level)
 }
 
 function showBanner(message: string): void {
@@ -34,14 +64,14 @@ function showBanner(message: string): void {
   app.append(banner)
 }
 
-function play(level: Level): void {
+function play(level: Level, list: Level[] = []): void {
   unmount()
   banner?.remove()
   unmount = mountPlay(app, level, {
     onWin: () => {
-      const i = levels.indexOf(level)
-      const next = i >= 0 ? levels[i + 1] : undefined
-      if (next) play(next)
+      const i = list.indexOf(level)
+      const next = i >= 0 ? list[i + 1] : undefined
+      if (next) play(next, list)
       else showList()
     },
     onBack: () => showList(),

@@ -1,5 +1,5 @@
 import type { Vec } from '../engine/vec'
-import { FIELD } from '../level/placement'
+import { FIELD, SNAP, snap } from '../level/placement'
 
 export interface CanvasFit {
   /** CSS pixels of the canvas element. */
@@ -50,4 +50,19 @@ export function panelPosition(anchor: Vec, stage: Rect, panel: { w: number; h: n
     x: Math.max(margin, Math.min(anchor.x - stage.left + gap, maxX)),
     y: Math.max(margin, Math.min(anchor.y - stage.top, maxY)),
   }
+}
+
+/**
+ * Rectangle traced by dragging from `a` to `b` (units), in any direction: corners snapped to the
+ * grid and clamped to the field. Null when it is thinner than one grid step.
+ */
+export function rectFromDrag(a: Vec, b: Vec): { x: number; y: number; w: number; h: number } | null {
+  const cx = (x: number) => Math.min(FIELD.w, Math.max(0, snap(x)))
+  const cy = (y: number) => Math.min(FIELD.h, Math.max(0, snap(y)))
+  const x0 = Math.min(cx(a.x), cx(b.x))
+  const x1 = Math.max(cx(a.x), cx(b.x))
+  const y0 = Math.min(cy(a.y), cy(b.y))
+  const y1 = Math.max(cy(a.y), cy(b.y))
+  if (x1 - x0 < SNAP || y1 - y0 < SNAP) return null
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }

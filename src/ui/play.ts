@@ -1,17 +1,44 @@
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
 import { footprint } from '../level/placement'
-import type { Anchor, Level, PartKind, Placement, Solution } from '../level/types'
+import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
 import { setting } from '../parts/common'
 import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
 import { render } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
 import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
-import { clientToUnits, fitCanvas, insideField, panelPosition, unitsToClient } from './geometry'
+import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { stepsDue } from './loop'
+import { el } from './dom'
 
-export interface PlayOpts { onWin(): void; onBack(): void }
+export interface PlayOpts {
+  onWin(): void
+  onBack(): void
+  /** Called once when the goals are met, with the winning solution. */
+  onSolved?(sol: Solution): void
+  backLabel?: string
+  nextLabel?: string
+  /** Level editor: the same board edits the level's fixed parts instead of a player solution. */
+  author?: AuthorOpts
+}
+
+/**
+ * Author mode. The board edits `initial` (the level's fixed parts and links) as if it were a
+ * solution, with every kind in the drawer and no limit; there is no run button and no saved draft.
+ */
+export interface AuthorOpts {
+  initial: Solution
+  onChange(sol: Solution): void
+  /** Goals drawn on the field; read every frame. */
+  goals(): Goal[]
+  /** While true, a press and drag on the field traces a zone instead of editing parts. */
+  tracing(): boolean
+  onTraced(zone: { x: number; y: number; w: number; h: number }): void
+  /** Toolbar content after the back button, and the side panel left of the field. */
+  toolbar: HTMLElement[]
+  side: HTMLElement
+}
 
 interface Drag {
   kind: PartKind
@@ -28,13 +55,6 @@ interface Drag {
 
 /** Pixels the pointer must travel before a press on a placed part becomes a move (else it's a click). */
 const DRAG_THRESHOLD = 4
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag)
-  if (cls) e.className = cls
-  if (text) e.textContent = text
-  return e
-}
 
 /** Small line-art icon of a part for the drawer. */
 function partIcon(kind: PartKind): HTMLCanvasElement {
@@ -60,7 +80,10 @@ function partIcon(kind: PartKind): HTMLCanvasElement {
 }
 
 export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () => void {
-  let sol: Solution = sanitizeDraft(level, loadProgress().drafts[level.id])
+  const author = opts.author
+  let sol: Solution = author ? author.initial : sanitizeDraft(level, loadProgress().drafts[level.id])
+  /** Zone being traced (author mode), from press point to pointer. */
+  let trace: { a: Vec; b: Vec } | undefined
   let sim: Simulation | undefined
   let won = false
   let selected: string | undefined
@@ -80,10 +103,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   // ---- DOM ----
   const screen = el('div', 'play')
   const toolbar = el('header', 'toolbar')
-  const back = el('button', 'btn ghost', '← Niveaux')
+  const back = el('button', 'btn ghost', opts.backLabel ?? '← Niveaux')
   const title = el('h1', '', level.title)
   const goal = el('p', 'goal', level.goalText)
-  toolbar.append(back, title, goal)
+  if (author) toolbar.append(back, ...author.toolbar)
+  else toolbar.append(back, title, goal)
 
   const stage = el('main', 'stage')
   const canvas = el('canvas')
@@ -103,12 +127,16 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const winPanel = el('div', 'win')
   winPanel.hidden = true
   const winBox = el('div', 'win-box')
-  const next = el('button', 'btn primary', 'Suivant')
+  const next = el('button', 'btn primary', opts.nextLabel ?? 'Suivant')
   const replay = el('button', 'btn', 'Rejouer')
   winBox.append(el('h2', '', 'Réussi !'), el('p', '', level.goalText), next, replay)
   winPanel.append(winBox)
 
-  screen.append(toolbar, stage, drawer, launch, winPanel)
+  if (author) {
+    screen.classList.add('author')
+    author.side.classList.add('side')
+    screen.append(toolbar, author.side, stage, drawer)
+  } else screen.append(toolbar, stage, drawer, launch, winPanel)
   root.replaceChildren(screen)
 
   // ---- inventory drawer ----
@@ -134,7 +162,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const left = remaining(level, sol)
     for (const [kind, { li, count }] of items) {
       const n = left.get(kind) ?? 0
-      count.textContent = `×${n}`
+      count.textContent = author ? '∞' : `×${n}`
       li.classList.toggle('empty', n <= 0)
     }
   }
@@ -256,7 +284,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** Every edit goes through here: the draft is saved each time. */
   function commit(next: Solution): void {
     sol = next
-    saveDraft(level.id, sol)
+    if (author) author.onChange(sol)
+    else saveDraft(level.id, sol)
     refreshUi()
   }
 
@@ -334,6 +363,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || sim) return
     const pt = unitsAt(e)
+    if (author?.tracing()) {
+      e.preventDefault()
+      trace = { a: pt, b: pt }
+      return
+    }
     pressedAnchor = hitAnchor(level, sol, pt)
     const hit = hitPart(sol, pt)
     selected = pressedAnchor ? undefined : hit?.id
@@ -348,6 +382,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   })
 
   function onPointerMove(e: PointerEvent): void {
+    if (trace) {
+      trace.b = unitsAt(e)
+      return
+    }
     if (drag) {
       updateDrag(e)
       canvas.classList.toggle('dragging', drag.started)
@@ -355,11 +393,20 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     if (!sim && e.target === canvas) {
       const pt = unitsAt(e)
-      canvas.classList.toggle('over-part', !!(hitAnchor(level, sol, pt) || hitPart(sol, pt) || hitLink(level, sol, pt)))
+      canvas.classList.toggle('tracing', !!author?.tracing())
+      canvas.classList.toggle('over-part', !author?.tracing() && !!(hitAnchor(level, sol, pt) || hitPart(sol, pt) || hitLink(level, sol, pt)))
     }
   }
 
   function onPointerUp(e: PointerEvent): void {
+    if (trace) {
+      const zone = rectFromDrag(trace.a, unitsAt(e))
+      trace = undefined
+      if (!author?.tracing()) return
+      if (zone) author.onTraced(zone)
+      else showToast('Zone trop petite')
+      return
+    }
     const d = drag
     const a = pressedAnchor
     pressedAnchor = undefined
@@ -388,7 +435,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   // ---- run / stop ----
   function start(): void {
-    if (sim) return
+    if (sim || author) return
     drag = undefined
     pendingAnchor = undefined
     pressedAnchor = undefined
@@ -416,6 +463,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function onGoalsMet(): void {
     won = true
     markSolved(level.id)
+    opts.onSolved?.(sol)
     winPanel.hidden = false
   }
 
@@ -428,7 +476,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   replay.addEventListener('click', stop)
 
   function onKey(e: KeyboardEvent): void {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return
     if (e.code === 'Space') {
       e.preventDefault()
       if (!e.repeat) toggle()
@@ -441,6 +489,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       e.preventDefault()
       removeSelected()
     } else if (e.key === 'Escape') {
+      trace = undefined
       selected = undefined
       selectedLink = undefined
       pendingAnchor = undefined
@@ -483,9 +532,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const moving = drag?.started ? drag.moving?.id : undefined
     const viewSol = moving ? { ...sol, placements: sol.placements.filter((p) => p.id !== moving) } : sol
     const ghost: PartDrawState | undefined = drag?.started && drag.ghost ? { placement: drag.ghost, ghost: drag.ok ? 'ok' : 'bad' } : undefined
+    let view = level
+    if (author) {
+      const zone = trace && rectFromDrag(trace.a, trace.b)
+      const traced: Goal[] = zone ? [{ type: 'inZone', part: '', zone }] : []
+      view = { ...level, goals: [...author.goals(), ...traced] }
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     render(ctx, {
-      level, sol: viewSol, sim, ghost, selected: sim ? undefined : selected, won, zoom: fit.zoom,
+      level: view, sol: viewSol, sim, ghost, selected: sim ? undefined : selected, won, zoom: fit.zoom,
       showAnchors: !sim, pendingAnchor, selectedLink: sim ? undefined : selectedLink,
     })
   }
