@@ -96,6 +96,16 @@ describe('custom levels', () => {
     expect(JSON.parse(mem.getItem(LEVELS_KEY)!)).toEqual([{ id: 'future', v: 2 }, 'junk'])
   })
 
+  it('saveCustomLevel keeps stored entries it cannot read', () => {
+    const mem = memoryStorage()
+    vi.stubGlobal('localStorage', mem)
+    mem.setItem(LEVELS_KEY, JSON.stringify([lvl('mine-1'), { id: 'future', v: 2 }, 'junk']))
+    saveCustomLevel({ ...lvl('mine-1'), title: 'Renamed' })
+    saveCustomLevel(lvl('mine-2'))
+    const stored = JSON.parse(mem.getItem(LEVELS_KEY)!)
+    expect(stored).toEqual([{ id: 'future', v: 2 }, 'junk', { ...lvl('mine-1'), title: 'Renamed' }, lvl('mine-2')])
+  })
+
   it('deleteCustomLevel reports failure when storage is unavailable', () => {
     vi.stubGlobal('localStorage', undefined)
     expect(deleteCustomLevel('x')).toBe(false)

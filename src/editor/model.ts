@@ -1,5 +1,7 @@
+import { LIMITS } from '../level/codec'
 import { canPlace, snap } from '../level/placement'
 import type { Goal, Level, Link, PartKind, Placement, Solution } from '../level/types'
+import { canLink } from '../parts/mech/links'
 import { PART_DEFS } from '../parts/registry'
 
 /** Every registered part kind, in registry order (the order of the editor's lists). */
@@ -65,12 +67,13 @@ export class EditorModel {
 
   /**
    * Replaces the fixed parts and links at once (the editor canvas works on whole solutions). Links
-   * and goals aiming at a part that is gone are dropped, so the level stays valid.
+   * aiming at a part that is gone (or a belt between gears that now mesh) are dropped, and so are
+   * goals aiming at anything dropped, so the level stays valid.
    */
   setFixed(placements: Placement[], links: Link[]): void {
     const ids = new Set(placements.map((p) => p.id))
     this.level.fixed = structuredClone(placements)
-    this.level.fixedLinks = structuredClone(links.filter((l) => ids.has(l.a.part) && ids.has(l.b.part)))
+    this.level.fixedLinks = structuredClone(links.filter((l) => ids.has(l.a.part) && ids.has(l.b.part) && canLink(l.a, l.b, placements)))
     const targets = new Set([...ids, ...this.level.fixedLinks.map((l) => l.id)])
     this.level.goals = this.level.goals.filter((g) => g.part === undefined || targets.has(g.part))
     this.markDirty()
@@ -90,8 +93,9 @@ export class EditorModel {
     return this.level.fixed.some((p) => p.id === id) || this.level.fixedLinks.some((l) => l.id === id)
   }
 
-  /** Refuses (false, nothing changed) a goal aiming at a part that is not there: the level would no longer load. */
+  /** Refuses (false, nothing changed) a goal aiming at a part that is not there, or past the goal cap: the level would no longer load. */
   addGoal(g: Goal): boolean {
+    if (this.level.goals.length >= LIMITS.goals) return false
     if (g.part !== undefined && !this.hasTarget(g.part)) return false
     this.level.goals.push(structuredClone(g))
     this.markDirty()

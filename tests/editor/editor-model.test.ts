@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateLevel } from '../../src/level/codec'
+import { LIMITS, validateLevel } from '../../src/level/codec'
 import type { Placement } from '../../src/level/types'
 import { EditorModel, blankLevel } from '../../src/editor/model'
 import { rectFromDrag } from '../../src/ui/geometry'
@@ -148,5 +148,22 @@ describe('goals always aim at existing parts', () => {
     m.onTestWin({ placements: [], links: [] })
     expect(m.addGoal({ ...zoneGoal, part: 'ghost' })).toBe(false)
     expect(m.canShare).toBe(true)
+  })
+})
+
+describe('the editor never builds a level validateLevel rejects', () => {
+  it('setFixed drops a belt between gears that now mesh', () => {
+    const m = ready()
+    const link = { id: 'l1', kind: 'belt' as const, a: { part: 'a', anchor: 'belt' }, b: { part: 'b', anchor: 'belt' } }
+    m.setFixed([...m.level.fixed, P('a', 'gear-small', 400, 400), P('b', 'gear-small', 440, 400)], [link])
+    expect(m.level.fixedLinks).toEqual([])
+    expect(validateLevel(m.level)).toBeNull()
+  })
+
+  it('addGoal refuses goals past the cap', () => {
+    const m = ready()
+    for (let i = m.level.goals.length; i < LIMITS.goals; i++) expect(m.addGoal({ type: 'event', event: 'rope-cut' })).toBe(true)
+    expect(m.addGoal({ type: 'event', event: 'rope-cut' })).toBe(false)
+    expect(validateLevel(m.level)).toBeNull()
   })
 })

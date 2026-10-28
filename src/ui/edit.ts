@@ -1,4 +1,5 @@
 import { dot, len, pointSegmentDistance, sub, type Vec } from '../engine/vec'
+import { LIMITS } from '../level/codec'
 import { anchorPoint, canPlace, footprint, snap } from '../level/placement'
 import type { Anchor, Level, Link, PartKind, Placement, Solution } from '../level/types'
 import { anchorDef, canLink } from '../parts/mech/links'
@@ -49,20 +50,26 @@ export function drawerDefaults(level: Level, sol: Solution, p: Placement): Place
   return { ...p, settings: { ...p.settings, channel } }
 }
 
-/** Adds a part from the drawer (see drawerDefaults); null when none is left, the id is taken or it doesn't fit. */
+/** Adds a part from the drawer (see drawerDefaults); null when none is left, the id is taken, it doesn't fit or the level is full. */
 export function addPart(level: Level, sol: Solution, part: Placement): Solution | null {
   const p = drawerDefaults(level, sol, part)
   if ((remaining(level, sol).get(p.kind) ?? 0) <= 0) return null
   if (all(level, sol).some((q) => q.id === p.id)) return null
+  if (all(level, sol).length >= LIMITS.fixed) return null
   if (!canPlace(p, all(level, sol))) return null
   return { ...sol, placements: [...sol.placements, p] }
 }
 
-/** Replaces the player placement with the same id, if the new one can be placed. */
+/**
+ * Replaces the player placement with the same id, if the new one can be placed. Links it no longer
+ * allows (a belt between two gears that now mesh) are dropped.
+ */
 export function updatePart(level: Level, sol: Solution, p: Placement): Solution | null {
   if (!sol.placements.some((q) => q.id === p.id)) return null
   if (!canPlace(p, all(level, sol))) return null
-  return { ...sol, placements: sol.placements.map((q) => (q.id === p.id ? p : q)) }
+  const placements = sol.placements.map((q) => (q.id === p.id ? p : q))
+  const parts = [...level.fixed, ...placements]
+  return { placements, links: sol.links.filter((l) => canLink(l.a, l.b, parts)) }
 }
 
 /** Removes a player placement and any link attached to it. */
@@ -129,10 +136,11 @@ function nextLinkId(level: Level, sol: Solution): string {
   return `l${n}`
 }
 
-/** Adds a rope or a belt (from the anchors' role) between two anchors; null if they can't be linked or already are. */
+/** Adds a rope or a belt (from the anchors' role) between two anchors; null if they can't be linked, already are, or the level is full. */
 export function addLink(level: Level, sol: Solution, a: Anchor, b: Anchor): Solution | null {
   const parts = all(level, sol)
   if (!canLink(a, b, parts)) return null
+  if (level.fixedLinks.length + sol.links.length >= LIMITS.fixedLinks) return null
   const dup = (l: Link) => (sameAnchor(l.a, a) && sameAnchor(l.b, b)) || (sameAnchor(l.a, b) && sameAnchor(l.b, a))
   if ([...level.fixedLinks, ...sol.links].some(dup)) return null
   const kind = anchorDef(a, parts)!.role

@@ -8,12 +8,14 @@ export function loadCustomLevels(): Level[] {
   return Array.isArray(raw) ? raw.filter((l): l is Level => validateLevel(l) === null) : []
 }
 
-/** Adds or replaces (same id) a custom level. */
+/** Adds or replaces (same id) a custom level. Other stored entries are kept, even ones this version cannot read. */
 export function saveCustomLevel(level: Level): boolean {
-  const all = loadCustomLevels().filter((l) => l.id !== level.id)
-  all.push(level)
-  return storage.set(LEVELS_KEY, all)
+  const raw = storage.get<unknown>(LEVELS_KEY, [])
+  const rest = Array.isArray(raw) ? raw.filter((l) => !hasId(l, level.id)) : []
+  return storage.set(LEVELS_KEY, [...rest, level])
 }
+
+const hasId = (l: unknown, id: string): boolean => typeof l === 'object' && l !== null && (l as { id?: unknown }).id === id
 
 /**
  * Removes a custom level and its progress (solved mark, draft). Other stored entries are kept as
@@ -21,7 +23,7 @@ export function saveCustomLevel(level: Level): boolean {
  */
 export function deleteCustomLevel(id: string): boolean {
   const raw = storage.get<unknown>(LEVELS_KEY, [])
-  const rest = Array.isArray(raw) ? raw.filter((l) => !(typeof l === 'object' && l !== null && (l as { id?: unknown }).id === id)) : []
+  const rest = Array.isArray(raw) ? raw.filter((l) => !hasId(l, id)) : []
   const ok = storage.set(LEVELS_KEY, rest)
   return forgetLevel(id) && ok
 }

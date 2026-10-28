@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Level, Placement, Solution } from '../../src/level/types'
 import { clientToUnits, fitCanvas, panelPosition, unitsToClient } from '../../src/ui/geometry'
 import { addLink, addPart, draftPlacement, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
+import { LIMITS } from '../../src/level/codec'
 import { MAX_STEPS_PER_FRAME, STEP_MS, stepsDue } from '../../src/ui/loop'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number, extra: Partial<Placement> = {}): Placement =>
@@ -184,5 +185,29 @@ describe('links', () => {
       ],
     }
     expect(sanitizeDraft(lv, draft).links.map((l) => l.id)).toEqual(['l1', 'l4'])
+  })
+})
+
+describe('links stay valid when parts move', () => {
+  const gears: Level = { ...level, fixed: [], inventory: [{ kind: 'gear-small', count: 2 }] }
+  const belt = (a: string, b: string) => [{ part: a, anchor: 'belt' }, { part: b, anchor: 'belt' }] as const
+
+  it('moving a gear into mesh drops the belt between them', () => {
+    let sol: Solution = { placements: [P('a', 'gear-small', 100, 100), P('b', 'gear-small', 200, 100)], links: [] }
+    const [ea, eb] = belt('a', 'b')
+    sol = addLink(gears, sol, ea, eb)!
+    expect(sol.links).toHaveLength(1)
+    const moved = updatePart(gears, sol, { ...sol.placements[1], x: 140 })!
+    expect(moved.links).toEqual([])
+  })
+
+  it('refuses parts and links past the level caps', () => {
+    const many: Level = { ...level, fixed: [], inventory: [{ kind: 'ball-tennis', count: LIMITS.fixed + 1 }] }
+    const placements = Array.from({ length: LIMITS.fixed }, (_, i) => P(`p${i}`, 'ball-tennis', 20 + (i % 60) * 20, 20 + Math.floor(i / 60) * 40))
+    expect(addPart(many, { placements, links: [] }, P('extra', 'ball-tennis', 600, 700))).toBeNull()
+    const sol: Solution = { placements: [P('a', 'gear-small', 100, 100), P('b', 'gear-small', 200, 100)], links: [] }
+    const full: Solution = { ...sol, links: Array.from({ length: LIMITS.fixedLinks }, (_, i) => ({ id: `x${i}`, kind: 'belt' as const, a: { part: 'a', anchor: 'belt' }, b: { part: 'b', anchor: 'belt' } })) }
+    const [ea, eb] = belt('b', 'a')
+    expect(addLink(gears, full, { ...ea }, { ...eb })).toBeNull()
   })
 })
