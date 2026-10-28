@@ -2,6 +2,8 @@ import { dynamicCircle } from '../../engine/bodies'
 import type { PartKind } from '../../level/types'
 import { CELL, DENSITY, instance, pos } from '../common'
 import type { PartDef } from '../types'
+import { v } from '../../engine/vec'
+import { applyGlow, poseOf, toWorld } from '../drawing'
 
 function ball(kind: PartKind, label: string, r: number, density: number, restitution: number): PartDef {
   const d = (2 * r) / CELL
@@ -13,6 +15,16 @@ function ball(kind: PartKind, label: string, r: number, density: number, restitu
     flippable: false,
     settings: [],
     anchors: [],
+    draw(pen, s) {
+      pen.reset()
+      applyGlow(pen, s)
+      const pose = poseOf(s)
+      pen.circle(pose, r)
+      const [a, b] = toWorld(pose, [v(-r, 0), v(r, 0)])
+      pen.line(a, b)
+      const [c, d] = toWorld(pose, [v(0, -r), v(0, r)])
+      pen.line(c, d)
+    },
     build({ world }, p) {
       const b = dynamicCircle(world, pos(p), r, {
         density: density * DENSITY,

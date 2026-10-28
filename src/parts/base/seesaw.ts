@@ -3,6 +3,7 @@ import { pin } from '../../engine/joints'
 import { v } from '../../engine/vec'
 import { CELL, DENSITY, ROT_ANGLE, instance, pos } from '../common'
 import type { PartDef } from '../types'
+import { applyGlow, poseOf, rectPts, toWorld } from '../drawing'
 
 const LEN = 6 * CELL
 const THICK = 10
@@ -18,6 +19,16 @@ export const seesaw: PartDef = {
   flippable: false,
   settings: [],
   anchors: [],
+  draw(pen, s) {
+    pen.reset()
+    applyGlow(pen, s)
+    const pose = poseOf(s)
+    pen.poly(toWorld(pose, rectPts(LEN, THICK)))
+    pen.reset()
+    const c = { x: s.placement.x, y: s.placement.y }
+    pen.poly([v(c.x, c.y), v(c.x - 14, c.y + 20), v(c.x + 14, c.y + 20)])
+    pen.circle(c, 3)
+  },
   build({ world }, p) {
     const b = dynamicBox(world, pos(p), v(LEN, THICK), 0, {
       density: DENSITY,

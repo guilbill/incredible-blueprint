@@ -2,6 +2,7 @@ import { compound } from '../../engine/bodies'
 import { v } from '../../engine/vec'
 import { CELL, DENSITY, instance, pos } from '../common'
 import type { AnchorDef, PartDef } from '../types'
+import { applyGlow, poseOf, toWorld } from '../drawing'
 
 const W = 2 * CELL
 const H = 2 * CELL
@@ -18,6 +19,16 @@ export const bucket: PartDef = {
   flippable: false,
   settings: [],
   anchors: [HANDLE],
+  draw(pen, s) {
+    pen.reset()
+    applyGlow(pen, s)
+    const pose = poseOf(s)
+    const hw = W / 2
+    const hh = H / 2
+    pen.path(toWorld(pose, [v(-hw, -hh), v(-hw, hh), v(hw, hh), v(hw, -hh)]))
+    pen.path(toWorld(pose, [v(-hw + T, -hh), v(-hw + T, hh - T), v(hw - T, hh - T), v(hw - T, -hh)]))
+    pen.circle(toWorld(pose, [HANDLE.local])[0], 3)
+  },
   build({ world }, p) {
     const b = compound(
       world,

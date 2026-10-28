@@ -10,6 +10,12 @@ export const toU = (m: number): number => m / SCALE
 export const toMV = (a: Vec): Vec => v(a.x * SCALE, a.y * SCALE)
 export const toUV = (a: Vec): Vec => v(a.x / SCALE, a.y / SCALE)
 
+/** Position (units) and angle (radians, clockwise on screen) of a body, for rendering. */
+export function bodyPose(b: Body): { x: number; y: number; angle: number } {
+  const p = b.getPosition()
+  return { x: toU(p.x), y: toU(p.y), angle: b.getAngle() }
+}
+
 export const GRAVITY = 900 // units/s², y down
 export const MAX_SPEED = 1000 // units/s
 export const MAX_ANG = 40 // rad/s
