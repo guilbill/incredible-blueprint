@@ -520,6 +520,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if (sim) return
+    // Leave browser and system shortcuts (Ctrl+R, Cmd+F, Alt+Backspace…) alone.
+    if (e.ctrlKey || e.metaKey || e.altKey) return
     if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
     else if (e.key === 'f' || e.key === 'F') edit(flipped)
     else if (e.key === 'Delete' || e.key === 'Backspace') {

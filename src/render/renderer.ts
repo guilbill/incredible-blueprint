@@ -133,7 +133,8 @@ function drawLockMark(pen: Pen, p: Placement): void {
   }
 }
 
-function drawPart(pen: Pen, s: PartDrawState, fig: number): void {
+/** `fig` is the part's FIG. number, or null to leave the label out (while the machine runs). */
+function drawPart(pen: Pen, s: PartDrawState, fig: number | null): void {
   const def = partDef(s.placement.kind)
   const ctx = pen.ctx
   ctx.save()
@@ -153,7 +154,7 @@ function drawPart(pen: Pen, s: PartDrawState, fig: number): void {
     pen.dashed(false)
   }
   const top = footprint(s.placement).reduce((m, p) => (p.y < m.y ? p : m))
-  pen.label(`FIG. ${fig} · ${def.label.toUpperCase()}`, v(top.x + 4, top.y - 4))
+  if (fig !== null) pen.label(`FIG. ${fig} · ${def.label.toUpperCase()}`, v(top.x + 4, top.y - 4))
   if (s.fixed) drawLockMark(pen, s.placement)
 }
 
@@ -202,7 +203,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   const fixedIds = new Set(level.fixed.map((p) => p.id))
   placements.forEach((placement, i) => {
     const inst = sim?.parts.find((p) => p.id === placement.id)
-    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected }, i + 1)
+    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected }, sim ? null : i + 1)
   })
   if (sim) drawTrails(pen, sim)
   if (!sim && view.showAnchors) drawAnchors(pen, placements, view.pendingAnchor)

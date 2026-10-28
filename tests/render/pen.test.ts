@@ -53,6 +53,18 @@ describe('render', () => {
     }
   })
 
+  it('labels parts FIG. n while editing, and hides the labels while the machine runs', () => {
+    const lvl = level([P('b', 'ball-base', 200, 200)])
+    const sol = { placements: [P('r', 'ramp', 400, 300)], links: [] }
+    const figs = (calls: string[]) => calls.filter((c) => c.startsWith('fillText(FIG.'))
+    const edit = fakeCtx()
+    render(edit.ctx, { level: lvl, sol, zoom: 1 })
+    expect(figs(edit.calls)).toHaveLength(2)
+    const run = fakeCtx()
+    render(run.ctx, { level: lvl, sol, sim: new Simulation(lvl, sol), zoom: 1 })
+    expect(figs(run.calls)).toEqual([])
+  })
+
   it('glows a part whose glow is above zero', () => {
     const b = P('b', 'ball-base', 200, 200)
     const lvl = level()

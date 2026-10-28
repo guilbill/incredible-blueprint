@@ -9,6 +9,8 @@
   --red: #ff6b6b;
   --drawer-w: 232px;
   --toolbar-h: 56px;
+  --launch-h: 64px;
+  --launch-gap: 16px;
   --mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -104,7 +106,8 @@ button { font: inherit; color: inherit; }
 .drawer {
   grid-area: drawer;
   border-left: 1px solid var(--grid);
-  padding: 12px 12px 96px;
+  /* Room for the fixed LANCER button plus its glow, so the last item can always scroll clear of it. */
+  padding: 12px 12px calc(var(--launch-h) + 3 * var(--launch-gap));
   overflow-y: auto;
 }
 .drawer h2 {
@@ -135,10 +138,10 @@ button { font: inherit; color: inherit; }
 
 .launch {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
-  width: calc(var(--drawer-w) - 32px);
-  height: 64px;
+  right: var(--launch-gap);
+  bottom: var(--launch-gap);
+  width: calc(var(--drawer-w) - 2 * var(--launch-gap));
+  height: var(--launch-h);
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.2em;
