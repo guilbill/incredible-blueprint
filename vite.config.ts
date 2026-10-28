@@ -3,6 +3,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // Relative URLs, so the game also works from a sub-path (e.g. GitHub Pages /incredible-machine-tribute/).
+  base: './',
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
