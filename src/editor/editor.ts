@@ -38,6 +38,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
   let unmountView: () => void = () => {}
   let tracing: { part: string; hold: number } | undefined
   let saved = true
+  let noticeTimer = 0
 
   function persist(): void {
     saved = saveCustomLevel(model.level)
@@ -131,6 +132,10 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
       counts.set(kind, value)
       inv.append(row)
     }
+    const notice = el('p', 'notice')
+    notice.setAttribute('role', 'status')
+    notice.hidden = true
+    goals.el.insertBefore(notice, goals.el.children[1] ?? null)
     side.append(levelBox, goals.el, inv)
 
     refresh = () => {
@@ -148,6 +153,16 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
       status.textContent = !saved ? 'Non enregistré (stockage indisponible)' : !model.canTest ? 'Ajoutez un objectif' : model.canShare ? 'Vérifié' : 'À tester'
     }
 
+    /** The traced part was removed: drop the zone in progress and say why. */
+    function cancelTracing(): void {
+      tracing = undefined
+      notice.textContent = 'La pièce visée a été retirée : tracé de la zone annulé.'
+      notice.hidden = false
+      window.clearTimeout(noticeTimer)
+      noticeTimer = window.setTimeout(() => (notice.hidden = true), 3000)
+      refresh()
+    }
+
     function changed(): void {
       persist()
       refresh()
@@ -160,13 +175,15 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
         initial: structuredClone({ placements: model.level.fixed, links: model.level.fixedLinks }),
         onChange: (sol) => {
           model.setFixed(sol.placements, sol.links)
+          if (tracing && !model.hasTarget(tracing.part)) cancelTracing()
           changed()
         },
         goals: () => model.level.goals,
         tracing: () => !!tracing,
         onTraced: (zone) => {
           if (!tracing) return
-          model.addGoal({ type: 'inZone', part: tracing.part, zone, hold: tracing.hold })
+          const added = model.addGoal({ type: 'inZone', part: tracing.part, zone, hold: tracing.hold })
+          if (!added) return cancelTracing()
           tracing = undefined
           changed()
         },
@@ -219,6 +236,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
   showAuthor()
   return () => {
     window.removeEventListener('keydown', onKey)
+    window.clearTimeout(noticeTimer)
     unmountView()
   }
 }

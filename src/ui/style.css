@@ -413,3 +413,5 @@ button { font: inherit; color: inherit; }
 .sharebox[hidden] { display: none; }
 .sharebox .ok { color: var(--cyan); }
 .sharebox input { width: 360px; }
+.side .notice { margin: 0; padding: 4px 6px; color: var(--red); border: 1px solid var(--red); border-radius: 2px; }
+.side .notice[hidden] { display: none; }

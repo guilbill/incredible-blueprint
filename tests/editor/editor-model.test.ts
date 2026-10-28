@@ -120,3 +120,33 @@ describe('rectFromDrag', () => {
     expect(rectFromDrag({ x: 100, y: 100 }, { x: 103, y: 300 })).toBeNull()
   })
 })
+
+describe('goals always aim at existing parts', () => {
+  it('addGoal refuses a goal on a missing part and accepts parts, links and part-less events', () => {
+    const m = ready()
+    expect(m.addGoal({ ...zoneGoal, part: 'ghost' })).toBe(false)
+    expect(m.addGoal({ type: 'event', event: 'rope-cut', part: 'ghost' })).toBe(false)
+    expect(m.addGoal({ type: 'event', event: 'rope-cut' })).toBe(true)
+    expect(m.addGoal({ type: 'event', event: 'rope-cut', part: 'ball' })).toBe(true)
+    expect(validateLevel(m.level)).toBeNull()
+  })
+
+  it('a zone traced for a part removed meanwhile is refused and the level stays valid', () => {
+    const m = ready()
+    m.addFixed(P('w', 'wall-brick', 600, 400))
+    const traced = 'w'
+    m.setFixed(m.level.fixed.filter((p) => p.id !== traced), m.level.fixedLinks)
+    expect(m.addGoal({ type: 'inZone', part: traced, zone: { x: 0, y: 0, w: 50, h: 50 }, hold: 30 })).toBe(false)
+    m.removeFixed('ball')
+    expect(m.addGoal(zoneGoal)).toBe(false)
+    expect(m.level.goals).toEqual([])
+    expect(validateLevel(m.level)).toBeNull()
+  })
+
+  it('a refused goal does not clear verification', () => {
+    const m = ready()
+    m.onTestWin({ placements: [], links: [] })
+    expect(m.addGoal({ ...zoneGoal, part: 'ghost' })).toBe(false)
+    expect(m.canShare).toBe(true)
+  })
+})

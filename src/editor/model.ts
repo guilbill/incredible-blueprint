@@ -85,9 +85,17 @@ export class EditorModel {
     this.markDirty()
   }
 
-  addGoal(g: Goal): void {
+  /** Ids a goal may aim at (the same set validateLevel accepts): fixed parts and fixed links. */
+  hasTarget(id: string): boolean {
+    return this.level.fixed.some((p) => p.id === id) || this.level.fixedLinks.some((l) => l.id === id)
+  }
+
+  /** Refuses (false, nothing changed) a goal aiming at a part that is not there: the level would no longer load. */
+  addGoal(g: Goal): boolean {
+    if (g.part !== undefined && !this.hasTarget(g.part)) return false
     this.level.goals.push(structuredClone(g))
     this.markDirty()
+    return true
   }
 
   removeGoal(i: number): void {

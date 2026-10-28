@@ -71,8 +71,7 @@ export function goalsPanel(model: EditorModel, opts: GoalsPanelOpts): GoalsPanel
   addEvent.addEventListener('click', () => {
     const g: Goal = { type: 'event', event: eventName.value as SimEventName }
     if (eventPart.value) g.part = eventPart.value
-    model.addGoal(g)
-    opts.changed()
+    if (model.addGoal(g)) opts.changed()
   })
 
   const zoneForm = el('div', 'goal-form')
