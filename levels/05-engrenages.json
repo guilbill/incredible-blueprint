@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "id": "05-engrenages",
+  "title": "Engrenages",
+  "goalText": "Reliez les deux engrenages pour que le tapis emporte la balle vers le seau.",
+  "fixed": [
+    { "id": "floor-left", "kind": "wall-brick", "x": 320, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-right", "kind": "wall-brick", "x": 640, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "cage", "kind": "mouse-cage", "x": 620, "y": 300, "rot": 0, "flip": false, "settings": { "start": 1 } },
+    { "id": "gear-a", "kind": "gear-small", "x": 700, "y": 300, "rot": 0, "flip": false, "settings": {} },
+    { "id": "gear-b", "kind": "gear-small", "x": 820, "y": 300, "rot": 0, "flip": false, "settings": {} },
+    { "id": "conveyor", "kind": "conveyor", "x": 480, "y": 560, "rot": 0, "flip": false, "settings": {} },
+    { "id": "ball", "kind": "ball-base", "x": 500, "y": 540, "rot": 0, "flip": false, "settings": {} },
+    { "id": "bucket", "kind": "bucket", "x": 370, "y": 740, "rot": 0, "flip": false, "settings": {} }
+  ],
+  "fixedLinks": [
+    { "id": "belt-cage", "kind": "belt", "a": { "part": "cage", "anchor": "belt" }, "b": { "part": "gear-a", "anchor": "belt" } },
+    { "id": "belt-conveyor", "kind": "belt", "a": { "part": "gear-b", "anchor": "belt" }, "b": { "part": "conveyor", "anchor": "belt" } }
+  ],
+  "inventory": [
+    { "kind": "gear-large", "count": 1 },
+    { "kind": "gear-small", "count": 2 },
+    { "kind": "pulley", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 354, "y": 720, "w": 32, "h": 36 } }
+  ]
+}

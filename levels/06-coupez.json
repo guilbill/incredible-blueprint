@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "id": "06-coupez",
+  "title": "Coupez !",
+  "goalText": "Coupez la corde pour faire tomber le seau sur la marque.",
+  "fixed": [
+    { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "crane", "kind": "seesaw", "x": 600, "y": 160, "rot": 0, "flip": false, "settings": {} },
+    { "id": "bucket", "kind": "bucket", "x": 660, "y": 420, "rot": 0, "flip": false, "settings": {} },
+    { "id": "ball", "kind": "ball-base", "x": 160, "y": 80, "rot": 0, "flip": false, "settings": {} }
+  ],
+  "fixedLinks": [
+    { "id": "rope", "kind": "rope", "a": { "part": "crane", "anchor": "right" }, "b": { "part": "bucket", "anchor": "handle" } }
+  ],
+  "inventory": [
+    { "kind": "scissors", "count": 1 },
+    { "kind": "ramp", "count": 2 },
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "wall-wood", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "bucket", "zone": { "x": 630, "y": 700, "w": 60, "h": 60 } }
+  ]
+}

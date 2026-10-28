@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "id": "03-la-bascule",
+  "title": "La bascule",
+  "goalText": "Lancez la balle de baseball dans le seau.",
+  "fixed": [
+    { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "seesaw", "kind": "seesaw", "x": 400, "y": 740, "rot": 0, "flip": false, "settings": {} },
+    { "id": "stop", "kind": "wall-wood", "x": 330, "y": 740, "rot": 0, "flip": false, "settings": { "length": 2 } },
+    { "id": "ball", "kind": "ball-base", "x": 350, "y": 710, "rot": 0, "flip": false, "settings": {} },
+    { "id": "bucket", "kind": "bucket", "x": 270, "y": 740, "rot": 0, "flip": false, "settings": {} },
+    { "id": "backstop", "kind": "wall-wood", "x": 230, "y": 700, "rot": 0, "flip": false, "settings": { "length": 6 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "ball-bowling", "count": 1 },
+    { "kind": "ball-basket", "count": 1 },
+    { "kind": "ball-tennis", "count": 1 },
+    { "kind": "ramp", "count": 2 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 254, "y": 720, "w": 32, "h": 36 } }
+  ]
+}

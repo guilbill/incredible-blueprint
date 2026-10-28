@@ -1,0 +1,40 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "scissors",
+        "x": 650,
+        "y": 300,
+        "rot": 0,
+        "flip": true,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "ramp",
+        "x": 240,
+        "y": 160,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 10
+        }
+      },
+      {
+        "id": "p3",
+        "kind": "ramp",
+        "x": 460,
+        "y": 240,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 10
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 425,
+  "hash": "d3136554"
+}

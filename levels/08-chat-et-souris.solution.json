@@ -1,0 +1,42 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "wall-wood",
+        "x": 250,
+        "y": 370,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "length": 2
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "wall-wood",
+        "x": 640,
+        "y": 770,
+        "rot": 6,
+        "flip": false,
+        "settings": {
+          "length": 4
+        }
+      },
+      {
+        "id": "p3",
+        "kind": "wall-wood",
+        "x": 840,
+        "y": 720,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "length": 4
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 823,
+  "hash": "99c550b8"
+}

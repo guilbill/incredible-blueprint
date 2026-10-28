@@ -1,0 +1,29 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "trampoline",
+        "x": 580,
+        "y": 750,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "ramp",
+        "x": 240,
+        "y": 200,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 10
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 584,
+  "hash": "41eca5e9"
+}

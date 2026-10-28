@@ -1,0 +1,20 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "ramp",
+        "x": 400,
+        "y": 550,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 8
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 369,
+  "hash": "b05eadd1"
+}

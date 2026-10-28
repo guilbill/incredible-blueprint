@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "id": "07-montgolfiere",
+  "title": "Montgolfière",
+  "goalText": "Faites monter la montgolfière jusqu’en haut.",
+  "fixed": [
+    { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "shelf", "kind": "wall-brick", "x": 400, "y": 610, "rot": 6, "flip": false, "settings": { "length": 10 } },
+    { "id": "cheese", "kind": "cheese", "x": 470, "y": 590, "rot": 0, "flip": false, "settings": {} },
+    { "id": "stop", "kind": "wall-wood", "x": 490, "y": 580, "rot": 0, "flip": false, "settings": { "length": 2 } },
+    { "id": "stand", "kind": "ramp", "x": 640, "y": 600, "rot": 0, "flip": false, "settings": { "length": 2 } },
+    { "id": "balloon", "kind": "balloon", "x": 640, "y": 560, "rot": 0, "flip": false, "settings": {} }
+  ],
+  "fixedLinks": [
+    { "id": "mooring", "kind": "rope", "a": { "part": "balloon", "anchor": "basket" }, "b": { "part": "cheese", "anchor": "rope" } }
+  ],
+  "inventory": [
+    { "kind": "candle", "count": 1 },
+    { "kind": "mouse", "count": 1 },
+    { "kind": "scissors", "count": 1 },
+    { "kind": "ramp", "count": 1 },
+    { "kind": "ball-tennis", "count": 1 }
+  ],
+  "goals": [
+    { "type": "event", "event": "balloon-ceiling", "part": "balloon" }
+  ]
+}

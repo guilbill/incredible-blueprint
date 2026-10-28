@@ -1,0 +1,27 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "candle",
+        "x": 640,
+        "y": 620,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "mouse",
+        "x": 340,
+        "y": 590,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 324,
+  "hash": "e0856e74"
+}

@@ -1,0 +1,49 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "mousetrap",
+        "x": 400,
+        "y": 750,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "portal",
+        "x": 400,
+        "y": 600,
+        "rot": 6,
+        "flip": false,
+        "settings": {
+          "channel": 1
+        }
+      },
+      {
+        "id": "p3",
+        "kind": "portal",
+        "x": 800,
+        "y": 200,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "channel": 1
+        }
+      },
+      {
+        "id": "p4",
+        "kind": "magnet",
+        "x": 1050,
+        "y": 410,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 511,
+  "hash": "82043b0a"
+}

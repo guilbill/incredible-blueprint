@@ -1,0 +1,26 @@
+{
+  "v": 1,
+  "id": "09-attraction",
+  "title": "Attraction",
+  "goalText": "Envoyez la balle de baseball dans le panier, tout en haut à droite.",
+  "fixed": [
+    { "id": "floor-left", "kind": "wall-brick", "x": 240, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-right", "kind": "wall-brick", "x": 560, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "mouse", "kind": "mouse", "x": 140, "y": 750, "rot": 0, "flip": false, "settings": {} },
+    { "id": "ball", "kind": "ball-base", "x": 400, "y": 680, "rot": 0, "flip": false, "settings": {} },
+    { "id": "cup-floor", "kind": "wall-brick", "x": 1050, "y": 430, "rot": 6, "flip": false, "settings": { "length": 5 } },
+    { "id": "cup-left", "kind": "wall-brick", "x": 990, "y": 400, "rot": 0, "flip": false, "settings": { "length": 3 } },
+    { "id": "cup-right", "kind": "wall-brick", "x": 1110, "y": 400, "rot": 0, "flip": false, "settings": { "length": 3 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "mousetrap", "count": 1 },
+    { "kind": "portal", "count": 2 },
+    { "kind": "magnet", "count": 1 },
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "ramp", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 1000, "y": 360, "w": 100, "h": 60 } }
+  ]
+}

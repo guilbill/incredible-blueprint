@@ -2,9 +2,15 @@ import type { Level } from '../level/types'
 import type { Progress } from '../storage'
 import { el } from './dom'
 
-/** Shipped levels: every levels/*.json except the reference solutions, sorted by file name. */
+/**
+ * Shipped levels: every levels/*.json except the reference solutions and the dev sandbox
+ * (00-sandbox, kept for tests), sorted by file name.
+ */
 export function loadLevels(): Level[] {
-  const mods = import.meta.glob<Level>(['../../levels/*.json', '!../../levels/*.solution.json'], { eager: true, import: 'default' })
+  const mods = import.meta.glob<Level>(['../../levels/*.json', '!../../levels/*.solution.json', '!../../levels/00-sandbox.json'], {
+    eager: true,
+    import: 'default',
+  })
   return Object.keys(mods)
     .sort()
     .map((k) => mods[k])

@@ -1,0 +1,23 @@
+{
+  "v": 1,
+  "id": "02-rebond",
+  "title": "Rebond",
+  "goalText": "Faites passer la balle par-dessus le mur, jusque dans le seau.",
+  "fixed": [
+    { "id": "ball", "kind": "ball-base", "x": 160, "y": 150, "rot": 0, "flip": false, "settings": {} },
+    { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-far", "kind": "wall-brick", "x": 1040, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall", "kind": "wall-brick", "x": 760, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "bucket", "kind": "bucket", "x": 1040, "y": 740, "rot": 0, "flip": false, "settings": {} },
+    { "id": "backstop", "kind": "wall-wood", "x": 1080, "y": 640, "rot": 0, "flip": false, "settings": { "length": 10 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "ramp", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 1024, "y": 720, "w": 32, "h": 36 } }
+  ]
+}

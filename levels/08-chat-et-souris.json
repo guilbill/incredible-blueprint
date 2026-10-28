@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "id": "08-chat-et-souris",
+  "title": "Chat et souris",
+  "goalText": "Menez la souris jusqu’au fromage sans réveiller le chat.",
+  "fixed": [
+    { "id": "shelf", "kind": "wall-brick", "x": 360, "y": 400, "rot": 6, "flip": false, "settings": { "length": 12 } },
+    { "id": "mouse", "kind": "mouse", "x": 300, "y": 380, "rot": 0, "flip": true, "settings": {} },
+    { "id": "floor-a", "kind": "wall-brick", "x": 500, "y": 770, "rot": 6, "flip": false, "settings": { "length": 10 } },
+    { "id": "floor-b", "kind": "wall-brick", "x": 840, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "cheese", "kind": "cheese", "x": 800, "y": 750, "rot": 0, "flip": false, "settings": {} },
+    { "id": "cushion", "kind": "wall-brick", "x": 900, "y": 750, "rot": 6, "flip": false, "settings": { "length": 4 } },
+    { "id": "cat", "kind": "cat", "x": 900, "y": 720, "rot": 0, "flip": true, "settings": {} }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "wall-wood", "count": 3 },
+    { "kind": "ramp", "count": 1 },
+    { "kind": "fishbowl", "count": 1 },
+    { "kind": "ball-tennis", "count": 1 }
+  ],
+  "goals": [
+    { "type": "event", "event": "cheese-eaten", "part": "cheese" }
+  ]
+}

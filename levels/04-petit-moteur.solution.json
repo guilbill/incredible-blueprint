@@ -1,0 +1,42 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "mouse-cage",
+        "x": 760,
+        "y": 600,
+        "rot": 0,
+        "flip": true,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "ramp",
+        "x": 300,
+        "y": 640,
+        "rot": 23,
+        "flip": false,
+        "settings": {
+          "length": 8
+        }
+      }
+    ],
+    "links": [
+      {
+        "id": "l1",
+        "kind": "belt",
+        "a": {
+          "part": "p1",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "conveyor",
+          "anchor": "belt"
+        }
+      }
+    ]
+  },
+  "step": 515,
+  "hash": "3c40c818"
+}

@@ -1,0 +1,27 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "gear-small",
+        "x": 740,
+        "y": 300,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "gear-small",
+        "x": 780,
+        "y": 300,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 318,
+  "hash": "9d435774"
+}
