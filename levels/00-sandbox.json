@@ -20,7 +20,11 @@
     { "kind": "gear-large", "count": 1 },
     { "kind": "pulley", "count": 2 },
     { "kind": "conveyor", "count": 1 },
-    { "kind": "scissors", "count": 1 }
+    { "kind": "scissors", "count": 1 },
+    { "kind": "mouse-cage", "count": 1 },
+    { "kind": "monkey-bike", "count": 1 },
+    { "kind": "candle", "count": 2 },
+    { "kind": "balloon", "count": 1 }
   ],
   "goals": [
     { "type": "inZone", "part": "ball", "zone": { "x": 695, "y": 730, "w": 50, "h": 50 } }
