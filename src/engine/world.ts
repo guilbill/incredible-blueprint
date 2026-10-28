@@ -116,7 +116,11 @@ export class World {
     const bB = c.getFixtureB().getBody()
     const sA = data(bA).surfaceSpeed
     const sB = data(bB).surfaceSpeed
-    if (sA === 0 && sB === 0) return
+    // Always set it: Planck keeps the last tangent speed on a live contact, so a stopped conveyor must write 0.
+    if (sA === 0 && sB === 0) {
+      c.setTangentSpeed(0)
+      return
+    }
     const n = worldNormal(c)
     // Planck's solver tangent is cross(n, 1) and it targets dot(vB - vA, tangent) = tangentSpeed.
     const t = v(n.y, -n.x)

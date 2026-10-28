@@ -32,8 +32,8 @@ function toShape(s: ShapeSpec): Shape {
   }
 }
 
-function make(w: World, type: BodyType, pos: Vec, angle: number, shapes: ShapeSpec[], o: BodyOpts): Body {
-  const b = w.pl.createBody({ type, position: toMV(pos), angle, bullet: o.bullet ?? false })
+function make(w: World, type: BodyType, pos: Vec, angle: number, shapes: ShapeSpec[], o: BodyOpts, bullet = false): Body {
+  const b = w.pl.createBody({ type, position: toMV(pos), angle, bullet: o.bullet ?? bullet })
   Object.assign(data(b), o.data)
   for (const s of shapes) {
     b.createFixture(toShape(s), {
@@ -46,9 +46,9 @@ function make(w: World, type: BodyType, pos: Vec, angle: number, shapes: ShapeSp
   return b
 }
 
-/** r in units. Balls should pass bullet: true. */
+/** r in units. Bullet (continuous collision against dynamic bodies) by default; pass bullet: false to opt out. */
 export const dynamicCircle = (w: World, pos: Vec, r: number, o: BodyOpts): Body =>
-  make(w, 'dynamic', pos, 0, [{ kind: 'circle', r }], o)
+  make(w, 'dynamic', pos, 0, [{ kind: 'circle', r }], o, true)
 
 /** wh is the full width and height in units. */
 export const dynamicBox = (w: World, pos: Vec, wh: Vec, angle: number, o: BodyOpts): Body =>

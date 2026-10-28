@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { World, toU, toUV, toMV, MAX_SPEED, MAX_ANG } from '../../src/engine/world'
-import { dynamicBox, dynamicCircle, staticBox } from '../../src/engine/bodies'
+import { data, dynamicBox, dynamicCircle, staticBox } from '../../src/engine/bodies'
 import { hashWorld } from '../../src/engine/hash'
 import { v } from '../../src/engine/vec'
 import type { Body } from 'planck'
@@ -79,6 +79,22 @@ describe('World', () => {
     expect(maxX).toBeLessThan(295)
   })
 
+  it('a ball is a bullet by default and does not pass a 10-unit dynamic plank', () => {
+    // Head-on at 1000 units/s each: without CCD the ball skips the plank in one step (checked below).
+    const shoot = (bullet?: boolean) => {
+      const w = new World()
+      w.pl.setGravity({ x: 0, y: 0 })
+      const plank = dynamicBox(w, v(200, 0), v(10, 200), 0, { density: 5 })
+      plank.setLinearVelocity(toMV(v(-1000, 0)))
+      const ball = dynamicCircle(w, v(0, 0), 5, bullet === undefined ? {} : { bullet })
+      ball.setLinearVelocity(toMV(v(1000, 0)))
+      run(w, 0.25)
+      return pos(ball).x - pos(plank).x
+    }
+    expect(shoot()).toBeLessThan(0)
+    expect(shoot(false)).toBeGreaterThan(0)
+  })
+
   it('speed is clamped to MAX_SPEED', () => {
     const w = new World()
     w.pl.setGravity({ x: 0, y: 0 })
@@ -100,6 +116,17 @@ describe('World', () => {
     expect(pos(box).x).toBeGreaterThan(100)
     expect(vel(box).x).toBeGreaterThan(90)
     expect(vel(box).x).toBeLessThan(110)
+  })
+
+  it('conveyor set back to surfaceSpeed 0 stops carrying the box', () => {
+    const w = new World()
+    const belt = staticBox(w, v(0, 100), v(800, 20), 0, { friction: 0.8, data: { surfaceSpeed: 100 } })
+    const box = dynamicBox(w, v(0, 79), v(20, 20), 0, { friction: 0.8 })
+    run(w, 1)
+    expect(vel(box).x).toBeGreaterThan(90)
+    data(belt).surfaceSpeed = 0
+    run(w, 1)
+    expect(Math.abs(vel(box).x)).toBeLessThan(1)
   })
 
   it('reports contacts with impulses in units', () => {
