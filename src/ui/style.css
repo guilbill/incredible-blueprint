@@ -347,6 +347,8 @@ button { font: inherit; color: inherit; }
 }
 .play.author .drawer { padding-bottom: 12px; }
 .toolbar .spacer { flex: 1; }
+.toolbar .mute { margin-left: auto; padding: 4px 10px; flex: none; }
+.toolbar .spacer ~ .mute { margin-left: 0; }
 .toolbar .status { color: var(--note); font-size: 12px; border: 1px dashed var(--note); padding: 2px 8px; border-radius: 2px; white-space: nowrap; }
 .toolbar .status.ok { color: var(--yellow); border: 1px solid var(--yellow); }
 .stage canvas.tracing { cursor: crosshair; }

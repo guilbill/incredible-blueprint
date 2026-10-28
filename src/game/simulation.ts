@@ -2,7 +2,7 @@ import type { Body } from 'planck'
 import { data } from '../engine/bodies'
 import { hashWorld } from '../engine/hash'
 import type { Rope } from '../engine/joints'
-import { World } from '../engine/world'
+import { World, type ContactEvent } from '../engine/world'
 import type { Goal, Level, SimEventName, Solution } from '../level/types'
 import { meshGears } from '../parts/mech/gear'
 import { buildLink } from '../parts/mech/links'
@@ -25,6 +25,8 @@ export class Simulation {
   readonly ropes: Rope[] = []
   /** Rope of each built rope link, by link id (the renderer hides cut ones). */
   readonly ropeOf = new Map<string, Rope>()
+  /** Contact events of the last step. Read-only observation for sound; nothing in the simulation reads it. */
+  lastContacts: readonly ContactEvent[] = []
   stepIndex = 0
   goalsMet = false
   private readonly goals: Goal[]
@@ -67,7 +69,9 @@ export class Simulation {
 
   step(): void {
     for (const p of this.parts) p.onStep?.(this.ctx)
-    for (const ev of this.world.step()) {
+    const contacts = this.world.step()
+    this.lastContacts = contacts
+    for (const ev of contacts) {
       const pa = this.owner(ev.a)
       const pb = this.owner(ev.b)
       pa?.onContact?.(ev, ev.a, ev.b, this.ctx)

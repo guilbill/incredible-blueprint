@@ -11,6 +11,8 @@ import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, hi
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { stepsDue } from './loop'
 import { el } from './dom'
+import { sound } from './sound'
+import { createImpactTracker } from './soundLogic'
 
 export interface PlayOpts {
   onWin(): void
@@ -99,6 +101,18 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let fit = fitCanvas(1, 1, 1)
   let raf = 0
   let toastTimer = 0
+  sound.arm()
+  const impacts = createImpactTracker()
+  let nextBodyId = 0
+  const bodyIds = new WeakMap<object, number>()
+  const bodyId = (b: object): number => {
+    const known = bodyIds.get(b)
+    if (known !== undefined) return known
+    const id = ++nextBodyId
+    bodyIds.set(b, id)
+    return id
+  }
+  let prevGlow = new Map<string, number>()
 
   // ---- DOM ----
   const screen = el('div', 'play')
@@ -106,8 +120,22 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const back = el('button', 'btn ghost', opts.backLabel ?? '← Niveaux')
   const title = el('h1', '', level.title)
   const goal = el('p', 'goal', level.goalText)
-  if (author) toolbar.append(back, ...author.toolbar)
-  else toolbar.append(back, title, goal)
+  const mute = el('button', 'btn ghost mute')
+  const refreshMute = (): void => {
+    const m = sound.isMuted()
+    mute.textContent = m ? '🔇' : '🔊'
+    mute.title = m ? 'Activer le son' : 'Couper le son'
+    mute.setAttribute('aria-label', mute.title)
+    mute.setAttribute('aria-pressed', String(m))
+  }
+  refreshMute()
+  mute.addEventListener('click', () => {
+    sound.setMuted(!sound.isMuted())
+    refreshMute()
+    sound.click()
+  })
+  if (author) toolbar.append(back, ...author.toolbar, mute)
+  else toolbar.append(back, title, goal, mute)
 
   const stage = el('main', 'stage')
   const canvas = el('canvas')
@@ -295,12 +323,16 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const np = fn(p)
     if (!np) return
     const r = updatePart(level, sol, np)
-    if (r) commit(r)
+    if (r) {
+      sound.click()
+      commit(r)
+    }
     else showToast('Pas la place ici')
   }
 
   function removeSelected(): void {
     if (sim) return
+    sound.click()
     if (selectedLink) {
       const id = selectedLink
       selectedLink = undefined
@@ -421,10 +453,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (d.started) {
       updateDrag(e)
       if (d.ghost && d.ok) {
+        sound.click()
         commit((d.moving ? updatePart(level, sol, d.ghost) : addPart(level, sol, d.ghost))!)
         selected = d.id
       } else if (d.moving && drawer.contains(e.target as Node)) {
         selected = undefined
+        sound.click()
         commit(removePart(sol, d.id))
       } else if (d.ghost) {
         showToast('Pas la place ici')
@@ -441,6 +475,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     pressedAnchor = undefined
     // Always a fresh Simulation from the saved solution: nothing is carried over between runs.
     sim = new Simulation(level, sol)
+    prevGlow = new Map()
+    sound.click()
     won = false
     acc = 0
     lastT = undefined
@@ -462,6 +498,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function onGoalsMet(): void {
     won = true
+    sound.win()
     markSolved(level.id)
     opts.onSolved?.(sol)
     winPanel.hidden = false
@@ -514,12 +551,29 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const ro = new ResizeObserver(resize)
   ro.observe(stage)
 
+  /** Sound only reads the sim after a step: new impacts and parts whose glow just jumped. */
+  function listen(s: Simulation): void {
+    const hit = impacts(s.lastContacts.filter((c) => !c.began).map((c) => {
+      const a = bodyId(c.a)
+      const b = bodyId(c.b)
+      return { key: a < b ? `${a}:${b}` : `${b}:${a}`, impulse: c.impulse }
+    }))
+    if (hit > 0) sound.tick(hit)
+    const next = new Map<string, number>()
+    for (const p of s.parts) {
+      next.set(p.id, p.glow)
+      if (p.glow > (prevGlow.get(p.id) ?? 0)) sound.activate(p.kind)
+    }
+    prevGlow = next
+  }
+
   function frame(t: number): void {
     if (sim) {
       const r = stepsDue(acc, lastT === undefined ? 0 : t - lastT)
       acc = r.acc
       for (let i = 0; i < r.steps; i++) {
         sim.step()
+        listen(sim)
         if (sim.goalsMet && !won) onGoalsMet()
       }
     }
