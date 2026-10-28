@@ -8,7 +8,7 @@
     { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "bucket", "kind": "bucket", "x": 800, "y": 740, "rot": 0, "flip": false, "settings": {} },
-    { "id": "backstop", "kind": "wall-wood", "x": 840, "y": 640, "rot": 0, "flip": false, "settings": { "length": 10 } }
+    { "id": "backstop", "kind": "wall-wood", "x": 830, "y": 640, "rot": 0, "flip": false, "settings": { "length": 10 } }
   ],
   "fixedLinks": [],
   "inventory": [

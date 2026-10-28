@@ -3,12 +3,14 @@
     "placements": [
       {
         "id": "p1",
-        "kind": "monkey-bike",
-        "x": 960,
-        "y": 740,
-        "rot": 0,
-        "flip": true,
-        "settings": {}
+        "kind": "ramp",
+        "x": 340,
+        "y": 240,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 6
+        }
       },
       {
         "id": "p2",
@@ -24,14 +26,30 @@
       },
       {
         "id": "p3",
-        "kind": "ramp",
-        "x": 340,
-        "y": 240,
-        "rot": 1,
+        "kind": "monkey-bike",
+        "x": 960,
+        "y": 740,
+        "rot": 0,
         "flip": false,
-        "settings": {
-          "length": 6
-        }
+        "settings": {}
+      },
+      {
+        "id": "p4",
+        "kind": "gear-small",
+        "x": 840,
+        "y": 120,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p5",
+        "kind": "gear-small",
+        "x": 880,
+        "y": 120,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
       }
     ],
     "links": [
@@ -39,16 +57,16 @@
         "id": "l1",
         "kind": "belt",
         "a": {
-          "part": "p1",
+          "part": "p3",
           "anchor": "belt"
         },
         "b": {
-          "part": "conveyor",
+          "part": "gear-a",
           "anchor": "belt"
         }
       }
     ]
   },
-  "step": 1086,
-  "hash": "3a31687b"
+  "step": 1228,
+  "hash": "50723984"
 }

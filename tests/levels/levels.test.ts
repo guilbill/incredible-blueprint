@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { runUntilGoal } from '../../src/game/simulation'
 import { validateLevel } from '../../src/level/codec'
 import { canPlace, snap } from '../../src/level/placement'
-import type { Level, Solution } from '../../src/level/types'
+import type { Level, PartKind, Solution } from '../../src/level/types'
 import { canLink } from '../../src/parts/mech/links'
 import { remaining } from '../../src/ui/edit'
 import { loadLevels } from '../../src/ui/levels'
@@ -14,6 +14,9 @@ const refOf = (l: Level): Reference | undefined => refs[`../../levels/${l.id}.so
 
 /** 60 s at 120 steps per second. */
 const MINUTE = 120 * 60
+
+const GEARS: PartKind[] = ['gear-small', 'gear-large']
+const NUDGES = [[-10, 0], [10, 0], [0, -10], [0, 10]] as const
 
 const levels = loadLevels()
 
@@ -47,6 +50,26 @@ describe('the 10 shipped levels', () => {
 
     it('is solved by its reference solution at the stored step, with the stored hash', () => {
       expect(runUntilGoal(level, ref.solution)).toEqual({ met: true, step: ref.step, hash: ref.hash })
+    })
+
+    it('still wins with each player part nudged by one snap step (at least 2 of 4 neighbours)', () => {
+      const { placements } = ref.solution
+      const fragile: string[] = []
+      placements.forEach((p, i) => {
+        // A gear only turns its neighbour at the exact mesh distance (40 or 60, on the snap grid): moving it is meant to break the train.
+        if (GEARS.includes(p.kind)) return
+        let tried = 0
+        let wins = 0
+        for (const [dx, dy] of NUDGES) {
+          const moved = { ...p, x: p.x + dx, y: p.y + dy }
+          if (!canPlace(moved, [...level.fixed, ...placements.filter((_, j) => j !== i)])) continue
+          tried++
+          const sol = { ...ref.solution, placements: placements.map((q, j) => (j === i ? moved : q)) }
+          if (runUntilGoal(level, sol, MINUTE).met) wins++
+        }
+        if (wins < Math.min(2, tried)) fragile.push(`${p.id} (${p.kind}): ${wins}/${tried}`)
+      })
+      expect(fragile).toEqual([])
     })
 
     it('is not solved within 60 s without the player’s parts', () => {

@@ -13,18 +13,26 @@
     { "id": "shelf", "kind": "wall-brick", "x": 560, "y": 310, "rot": 6, "flip": false, "settings": { "length": 12 } },
     { "id": "conveyor", "kind": "conveyor", "x": 620, "y": 200, "rot": 0, "flip": false, "settings": {} },
     { "id": "ball", "kind": "ball-base", "x": 650, "y": 180, "rot": 0, "flip": false, "settings": {} },
-    { "id": "bucket", "kind": "bucket", "x": 1100, "y": 740, "rot": 0, "flip": false, "settings": {} },
-    { "id": "backstop", "kind": "wall-wood", "x": 1130, "y": 640, "rot": 0, "flip": false, "settings": { "length": 10 } }
+    { "id": "gear-a", "kind": "gear-small", "x": 800, "y": 120, "rot": 0, "flip": false, "settings": {} },
+    { "id": "gear-b", "kind": "gear-small", "x": 920, "y": 120, "rot": 0, "flip": false, "settings": {} },
+    { "id": "bay-wall", "kind": "wall-brick", "x": 1020, "y": 660, "rot": 0, "flip": false, "settings": { "length": 10 } },
+    { "id": "funnel-left", "kind": "ramp", "x": 1080, "y": 690, "rot": 1, "flip": false, "settings": { "length": 4 } },
+    { "id": "funnel-right", "kind": "ramp", "x": 1200, "y": 690, "rot": 23, "flip": false, "settings": { "length": 4 } },
+    { "id": "bucket", "kind": "bucket", "x": 1140, "y": 740, "rot": 0, "flip": false, "settings": {} },
+    { "id": "end-wall", "kind": "wall-brick", "x": 1260, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } }
   ],
-  "fixedLinks": [],
+  "fixedLinks": [
+    { "id": "belt-conveyor", "kind": "belt", "a": { "part": "gear-b", "anchor": "belt" }, "b": { "part": "conveyor", "anchor": "belt" } }
+  ],
   "inventory": [
     { "kind": "monkey-bike", "count": 1 },
     { "kind": "fan", "count": 1 },
     { "kind": "ramp", "count": 2 },
-    { "kind": "trampoline", "count": 1 },
-    { "kind": "gear-small", "count": 2 }
+    { "kind": "gear-small", "count": 2 },
+    { "kind": "gear-large", "count": 1 },
+    { "kind": "trampoline", "count": 1 }
   ],
   "goals": [
-    { "type": "inZone", "part": "ball", "zone": { "x": 1084, "y": 720, "w": 32, "h": 36 } }
+    { "type": "inZone", "part": "ball", "zone": { "x": 1124, "y": 720, "w": 32, "h": 36 } }
   ]
 }

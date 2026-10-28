@@ -10,7 +10,7 @@
     { "id": "stop", "kind": "wall-wood", "x": 330, "y": 740, "rot": 0, "flip": false, "settings": { "length": 2 } },
     { "id": "ball", "kind": "ball-base", "x": 350, "y": 710, "rot": 0, "flip": false, "settings": {} },
     { "id": "bucket", "kind": "bucket", "x": 270, "y": 740, "rot": 0, "flip": false, "settings": {} },
-    { "id": "backstop", "kind": "wall-wood", "x": 230, "y": 700, "rot": 0, "flip": false, "settings": { "length": 6 } }
+    { "id": "backstop", "kind": "wall-wood", "x": 240, "y": 700, "rot": 0, "flip": false, "settings": { "length": 6 } }
   ],
   "fixedLinks": [],
   "inventory": [

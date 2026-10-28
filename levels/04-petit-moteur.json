@@ -11,7 +11,7 @@
     { "id": "ball", "kind": "ball-base", "x": 460, "y": 460, "rot": 0, "flip": false, "settings": {} },
     { "id": "kicker", "kind": "ball-base", "x": 760, "y": 120, "rot": 0, "flip": false, "settings": {} },
     { "id": "bucket", "kind": "bucket", "x": 180, "y": 740, "rot": 0, "flip": false, "settings": {} },
-    { "id": "backstop", "kind": "wall-wood", "x": 140, "y": 660, "rot": 0, "flip": false, "settings": { "length": 8 } }
+    { "id": "backstop", "kind": "wall-wood", "x": 150, "y": 660, "rot": 0, "flip": false, "settings": { "length": 8 } }
   ],
   "fixedLinks": [],
   "inventory": [

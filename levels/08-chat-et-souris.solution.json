@@ -16,7 +16,7 @@
         "id": "p2",
         "kind": "wall-wood",
         "x": 640,
-        "y": 770,
+        "y": 780,
         "rot": 6,
         "flip": false,
         "settings": {
@@ -27,7 +27,7 @@
         "id": "p3",
         "kind": "wall-wood",
         "x": 840,
-        "y": 720,
+        "y": 740,
         "rot": 0,
         "flip": false,
         "settings": {
@@ -37,6 +37,6 @@
     ],
     "links": []
   },
-  "step": 823,
-  "hash": "99c550b8"
+  "step": 822,
+  "hash": "eba5c287"
 }
