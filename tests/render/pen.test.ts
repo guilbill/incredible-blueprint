@@ -87,4 +87,17 @@ describe('render', () => {
     expect(hashWorld(sim.world)).toBe(before)
     expect(sim.stepIndex).toBe(steps)
   })
+
+  it('outlines the selected placement and makes goal zones glow yellow when won', () => {
+    const sol = { placements: [P('s', 'ball-tennis', 300, 300)], links: [] }
+    const plain = fakeCtx()
+    render(plain.ctx, { level: level(), sol, zoom: 1 })
+    const sel = fakeCtx()
+    render(sel.ctx, { level: level(), sol, selected: 's', zoom: 1 })
+    expect(sel.calls.filter((c) => c.startsWith('stroke(')).length).toBeGreaterThan(plain.calls.filter((c) => c.startsWith('stroke(')).length)
+    const won = fakeCtx()
+    render(won.ctx, { level: level(), sol, won: true, zoom: 1 })
+    expect(won.calls).toContain('fillRect(100,100,60,60)')
+    expect(won.maxBlur.v).toBeGreaterThan(plain.maxBlur.v)
+  })
 })

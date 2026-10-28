@@ -13,6 +13,10 @@ export interface RenderView {
   sol: Solution
   sim?: Simulation
   ghost?: PartDrawState
+  /** Id of the selected player placement (yellow dashed outline). */
+  selected?: string
+  /** Goals met: goal zones glow yellow. */
+  won?: boolean
   zoom: number
 }
 
@@ -42,15 +46,21 @@ function drawGrid(ctx: CanvasRenderingContext2D): void {
   }
 }
 
-function drawGoals(pen: Pen, level: Level): void {
-  pen.reset(COLORS.yellow, 1.5)
-  pen.dashed(true)
+function drawGoals(pen: Pen, level: Level, won: boolean): void {
+  pen.reset(COLORS.yellow, won ? 3 : 1.5)
+  if (won) pen.glow(1.5, 'yellow')
+  pen.dashed(!won)
   for (const g of level.goals) {
     if (g.type !== 'inZone') continue
     const { x, y, w, h } = g.zone
     pen.poly([v(x, y), v(x + w, y), v(x + w, y + h), v(x, y + h)])
+    if (won) {
+      pen.ctx.globalAlpha = 0.18
+      pen.ctx.fillRect(x, y, w, h)
+      pen.ctx.globalAlpha = 1
+    }
   }
-  pen.dashed(false)
+  pen.reset()
 }
 
 function anchorPos(a: Anchor, placements: Placement[], sim?: Simulation): Vec | undefined {
@@ -161,13 +171,13 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   ctx.save()
   ctx.scale(view.zoom, view.zoom)
   drawGrid(ctx)
-  drawGoals(pen, level)
+  drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
   drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim)
   const fixedIds = new Set(level.fixed.map((p) => p.id))
   placements.forEach((placement, i) => {
     const inst = sim?.parts.find((p) => p.id === placement.id)
-    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id) }, i + 1)
+    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected }, i + 1)
   })
   if (sim) drawTrails(pen, sim)
   if (view.ghost) drawPart(pen, view.ghost, placements.length + 1)

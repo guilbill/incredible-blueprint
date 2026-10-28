@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "id": "00-sandbox",
+  "title": "Bac à sable",
+  "goalText": "Faites tomber la balle de baseball dans le seau.",
+  "fixed": [
+    { "id": "ball", "kind": "ball-base", "x": 200, "y": 80, "rot": 0, "flip": false, "settings": {} },
+    { "id": "floor", "kind": "wall-brick", "x": 720, "y": 790, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "bucket", "kind": "bucket", "x": 720, "y": 760, "rot": 0, "flip": false, "settings": {} }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "ramp", "count": 3 },
+    { "kind": "wall-wood", "count": 2 },
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "ball-tennis", "count": 2 },
+    { "kind": "ball-bowling", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 695, "y": 730, "w": 50, "h": 50 } }
+  ]
+}

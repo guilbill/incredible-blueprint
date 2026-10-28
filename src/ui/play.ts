@@ -1,0 +1,413 @@
+import { Simulation } from '../game/simulation'
+import type { Vec } from '../engine/vec'
+import { footprint } from '../level/placement'
+import type { Level, PartKind, Placement, Solution } from '../level/types'
+import { setting } from '../parts/common'
+import { partDef } from '../parts/registry'
+import { Pen, type PartDrawState } from '../render/pen'
+import { render } from '../render/renderer'
+import { loadProgress, markSolved, saveDraft } from '../storage'
+import { addPart, draftPlacement, flipped, hitPart, nextId, remaining, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
+import { clientToUnits, fitCanvas, insideField, unitsToClient } from './geometry'
+import { stepsDue } from './loop'
+
+export interface PlayOpts { onWin(): void; onBack(): void }
+
+interface Drag {
+  kind: PartKind
+  /** Set when moving an already placed part (its pose before the drag). */
+  moving?: Placement
+  id: string
+  /** Part centre minus pointer, in units, so the part does not jump under the cursor. */
+  offset: Vec
+  start: { x: number; y: number }
+  started: boolean
+  ghost?: Placement
+  ok: boolean
+}
+
+/** Pixels the pointer must travel before a press on a placed part becomes a move (else it's a click). */
+const DRAG_THRESHOLD = 4
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag)
+  if (cls) e.className = cls
+  if (text) e.textContent = text
+  return e
+}
+
+/** Small line-art icon of a part for the drawer. */
+function partIcon(kind: PartKind): HTMLCanvasElement {
+  const size = 44
+  const dpr = window.devicePixelRatio || 1
+  const c = el('canvas', 'icon')
+  c.width = size * dpr
+  c.height = size * dpr
+  c.style.width = c.style.height = `${size}px`
+  const ctx = c.getContext('2d')
+  const def = partDef(kind)
+  if (!ctx || !def.draw) return c
+  const p: Placement = { id: 'icon', kind, x: 0, y: 0, rot: 0, flip: false, settings: {} }
+  const fp = footprint(p)
+  const w = Math.max(...fp.map((q) => q.x)) - Math.min(...fp.map((q) => q.x))
+  const h = Math.max(...fp.map((q) => q.y)) - Math.min(...fp.map((q) => q.y))
+  const s = Math.min(1.2, (size - 8) / Math.max(w, h))
+  ctx.scale(dpr, dpr)
+  ctx.translate(size / 2, size / 2)
+  ctx.scale(s, s)
+  def.draw(new Pen(ctx), { placement: p })
+  return c
+}
+
+export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () => void {
+  let sol: Solution = sanitizeDraft(level, loadProgress().drafts[level.id])
+  let sim: Simulation | undefined
+  let won = false
+  let selected: string | undefined
+  let drag: Drag | undefined
+  let acc = 0
+  let lastT: number | undefined
+  let fit = fitCanvas(1, 1, 1)
+  let raf = 0
+  let toastTimer = 0
+
+  // ---- DOM ----
+  const screen = el('div', 'play')
+  const toolbar = el('header', 'toolbar')
+  const back = el('button', 'btn ghost', '← Niveaux')
+  const title = el('h1', '', level.title)
+  const goal = el('p', 'goal', level.goalText)
+  toolbar.append(back, title, goal)
+
+  const stage = el('main', 'stage')
+  const canvas = el('canvas')
+  const selPanel = el('div', 'selpanel')
+  const toast = el('div', 'toast')
+  stage.append(canvas, selPanel, toast)
+  const ctx = canvas.getContext('2d')!
+
+  const drawer = el('aside', 'drawer')
+  drawer.append(el('h2', '', 'Pièces'))
+  const list = el('ul', 'inventory')
+  drawer.append(list)
+
+  const launch = el('button', 'launch', 'Lancer')
+  launch.title = 'Lancer / Stop (Espace)'
+
+  const winPanel = el('div', 'win')
+  winPanel.hidden = true
+  const winBox = el('div', 'win-box')
+  const next = el('button', 'btn primary', 'Suivant')
+  const replay = el('button', 'btn', 'Rejouer')
+  winBox.append(el('h2', '', 'Réussi !'), el('p', '', level.goalText), next, replay)
+  winPanel.append(winBox)
+
+  screen.append(toolbar, stage, drawer, launch, winPanel)
+  root.replaceChildren(screen)
+
+  // ---- inventory drawer ----
+  const items = new Map<PartKind, { li: HTMLLIElement; count: HTMLSpanElement }>()
+  for (const { kind } of level.inventory) {
+    if (items.has(kind)) continue
+    const li = el('li', 'item')
+    const count = el('span', 'count')
+    li.append(partIcon(kind), el('span', 'name', partDef(kind).label), count)
+    li.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || sim || (remaining(level, sol).get(kind) ?? 0) <= 0) return
+      e.preventDefault()
+      selected = undefined
+      drag = { kind, id: nextId(level, sol), offset: { x: 0, y: 0 }, start: { x: e.clientX, y: e.clientY }, started: true, ok: false }
+      updateDrag(e)
+      refreshUi()
+    })
+    list.append(li)
+    items.set(kind, { li, count })
+  }
+
+  function refreshDrawer(): void {
+    const left = remaining(level, sol)
+    for (const [kind, { li, count }] of items) {
+      const n = left.get(kind) ?? 0
+      count.textContent = `×${n}`
+      li.classList.toggle('empty', n <= 0)
+    }
+  }
+
+  // ---- selection panel ----
+  const selectedPart = (): Placement | undefined => sol.placements.find((p) => p.id === selected)
+
+  function stepper(label: string, value: string, onDec: () => void, onInc: () => void): HTMLElement {
+    const row = el('div', 'row')
+    const dec = el('button', 'btn small', '−')
+    const inc = el('button', 'btn small', '+')
+    dec.addEventListener('click', onDec)
+    inc.addEventListener('click', onInc)
+    row.append(el('span', 'label', label), dec, el('span', 'value', value), inc)
+    return row
+  }
+
+  function refreshSelPanel(): void {
+    const p = selectedPart()
+    if (!p || sim || drag?.started) {
+      selPanel.hidden = true
+      return
+    }
+    const def = partDef(p.kind)
+    selPanel.replaceChildren()
+    selPanel.append(el('div', 'title', def.label))
+    if (def.rotStep) {
+      selPanel.append(stepper('Rotation', `${p.rot * 15}°`, () => edit((q) => rotated(q, -1)), () => edit((q) => rotated(q, 1))))
+    }
+    for (const s of def.settings) {
+      const cur = setting(p, s)
+      selPanel.append(stepper(s.label, String(cur), () => edit((q) => withSetting(q, s.key, cur - s.step)), () => edit((q) => withSetting(q, s.key, cur + s.step))))
+    }
+    const actions = el('div', 'row')
+    if (def.flippable) {
+      const flip = el('button', 'btn small', 'Miroir (F)')
+      flip.addEventListener('click', () => edit(flipped))
+      actions.append(flip)
+    }
+    const del = el('button', 'btn small danger', 'Retirer')
+    del.addEventListener('click', removeSelected)
+    actions.append(del)
+    selPanel.append(actions)
+    selPanel.hidden = false
+    positionSelPanel(p)
+  }
+
+  function positionSelPanel(p: Placement): void {
+    const fp = footprint(p)
+    const right = Math.max(...fp.map((q) => q.x))
+    const top = Math.min(...fp.map((q) => q.y))
+    const cr = canvas.getBoundingClientRect()
+    const sr = stage.getBoundingClientRect()
+    const at = unitsToClient({ x: right, y: top }, cr)
+    const x = Math.min(at.x - sr.left + 10, sr.width - selPanel.offsetWidth - 8)
+    const y = Math.max(8, Math.min(at.y - sr.top, sr.height - selPanel.offsetHeight - 8))
+    selPanel.style.left = `${Math.max(8, x)}px`
+    selPanel.style.top = `${y}px`
+  }
+
+  // ---- edits ----
+  function showToast(text: string): void {
+    toast.textContent = text
+    toast.classList.add('show')
+    window.clearTimeout(toastTimer)
+    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1200)
+  }
+
+  /** Every edit goes through here: the draft is saved each time. */
+  function commit(next: Solution): void {
+    sol = next
+    saveDraft(level.id, sol)
+    refreshUi()
+  }
+
+  function edit(fn: (p: Placement) => Placement | null): void {
+    const p = selectedPart()
+    if (!p || sim) return
+    const np = fn(p)
+    if (!np) return
+    const r = updatePart(level, sol, np)
+    if (r) commit(r)
+    else showToast('Pas la place ici')
+  }
+
+  function removeSelected(): void {
+    if (!selected || sim) return
+    const id = selected
+    selected = undefined
+    commit(removePart(sol, id))
+  }
+
+  function refreshUi(): void {
+    refreshDrawer()
+    refreshSelPanel()
+    canvas.classList.toggle('dragging', !!drag?.started)
+  }
+
+  // ---- pointer ----
+  const unitsAt = (e: { clientX: number; clientY: number }): Vec => clientToUnits(e.clientX, e.clientY, canvas.getBoundingClientRect())
+
+  function updateDrag(e: PointerEvent): void {
+    if (!drag) return
+    if (!drag.started) {
+      const dx = e.clientX - drag.start.x
+      const dy = e.clientY - drag.start.y
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return
+      drag.started = true
+      refreshSelPanel()
+    }
+    const pt = unitsAt(e)
+    if (!insideField(pt)) {
+      drag.ghost = undefined
+      drag.ok = false
+      return
+    }
+    const at = { x: pt.x + drag.offset.x, y: pt.y + drag.offset.y }
+    const base = drag.moving ?? draftPlacement(drag.kind, at, drag.id)
+    const ghost = { ...draftPlacement(drag.kind, at, drag.id), rot: base.rot, flip: base.flip, settings: base.settings }
+    drag.ghost = ghost
+    drag.ok = (drag.moving ? updatePart(level, sol, ghost) : addPart(level, sol, ghost)) !== null
+  }
+
+  // TODO(Task 8): rope/belt links. Click an anchor, then another anchor, to add a Link to `sol.links`
+  // (hit-test partDef(kind).anchors here, before hitPart). Not wired yet: no part with anchors is
+  // available in inventories and the link inventory rules come with Task 8.
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || sim) return
+    const pt = unitsAt(e)
+    const hit = hitPart(sol, pt)
+    selected = hit?.id
+    if (hit) {
+      e.preventDefault()
+      drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start: { x: e.clientX, y: e.clientY }, started: false, ok: false }
+    }
+    refreshUi()
+  })
+
+  function onPointerMove(e: PointerEvent): void {
+    if (drag) {
+      updateDrag(e)
+      canvas.classList.toggle('dragging', drag.started)
+      return
+    }
+    if (!sim && e.target === canvas) canvas.classList.toggle('over-part', !!hitPart(sol, unitsAt(e)))
+  }
+
+  function onPointerUp(e: PointerEvent): void {
+    const d = drag
+    if (!d) return
+    drag = undefined
+    if (d.started) {
+      updateDrag(e)
+      if (d.ghost && d.ok) {
+        commit((d.moving ? updatePart(level, sol, d.ghost) : addPart(level, sol, d.ghost))!)
+        selected = d.id
+      } else if (d.moving && drawer.contains(e.target as Node)) {
+        selected = undefined
+        commit(removePart(sol, d.id))
+      } else if (d.ghost) {
+        showToast('Pas la place ici')
+      }
+    }
+    refreshUi()
+  }
+
+  // ---- run / stop ----
+  function start(): void {
+    if (sim) return
+    drag = undefined
+    // Always a fresh Simulation from the saved solution: nothing is carried over between runs.
+    sim = new Simulation(level, sol)
+    won = false
+    acc = 0
+    lastT = undefined
+    screen.classList.add('running')
+    launch.textContent = 'Stop'
+    refreshUi()
+  }
+
+  function stop(): void {
+    sim = undefined
+    won = false
+    winPanel.hidden = true
+    screen.classList.remove('running')
+    launch.textContent = 'Lancer'
+    refreshUi()
+  }
+
+  const toggle = (): void => (sim ? stop() : start())
+
+  function onGoalsMet(): void {
+    won = true
+    markSolved(level.id)
+    winPanel.hidden = false
+  }
+
+  launch.addEventListener('click', () => {
+    launch.blur()
+    toggle()
+  })
+  back.addEventListener('click', () => opts.onBack())
+  next.addEventListener('click', () => opts.onWin())
+  replay.addEventListener('click', stop)
+
+  function onKey(e: KeyboardEvent): void {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+    if (e.code === 'Space') {
+      e.preventDefault()
+      if (!e.repeat) toggle()
+      return
+    }
+    if (sim) return
+    if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
+    else if (e.key === 'f' || e.key === 'F') edit(flipped)
+    else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault()
+      removeSelected()
+    } else if (e.key === 'Escape') {
+      selected = undefined
+      refreshUi()
+    }
+  }
+  /** Stops a focused button from also "clicking" on Space keyup. */
+  const onKeyUp = (e: KeyboardEvent): void => {
+    if (e.code === 'Space') e.preventDefault()
+  }
+
+  // ---- sizing & frame loop ----
+  function resize(): void {
+    fit = fitCanvas(stage.clientWidth - 16, stage.clientHeight - 16, window.devicePixelRatio || 1)
+    canvas.style.width = `${fit.cssW}px`
+    canvas.style.height = `${fit.cssH}px`
+    canvas.width = fit.pxW
+    canvas.height = fit.pxH
+    const p = selectedPart()
+    if (p && !selPanel.hidden) positionSelPanel(p)
+  }
+  const ro = new ResizeObserver(resize)
+  ro.observe(stage)
+
+  function frame(t: number): void {
+    if (sim) {
+      const r = stepsDue(acc, lastT === undefined ? 0 : t - lastT)
+      acc = r.acc
+      for (let i = 0; i < r.steps; i++) {
+        sim.step()
+        if (sim.goalsMet && !won) onGoalsMet()
+      }
+    }
+    lastT = t
+    draw()
+    raf = requestAnimationFrame(frame)
+  }
+
+  function draw(): void {
+    const moving = drag?.started ? drag.moving?.id : undefined
+    const viewSol = moving ? { ...sol, placements: sol.placements.filter((p) => p.id !== moving) } : sol
+    const ghost: PartDrawState | undefined = drag?.started && drag.ghost ? { placement: drag.ghost, ghost: drag.ok ? 'ok' : 'bad' } : undefined
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    render(ctx, { level, sol: viewSol, sim, ghost, selected: sim ? undefined : selected, won, zoom: fit.zoom })
+  }
+
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('keydown', onKey)
+  window.addEventListener('keyup', onKeyUp)
+  resize()
+  refreshUi()
+  raf = requestAnimationFrame(frame)
+
+  return () => {
+    cancelAnimationFrame(raf)
+    window.clearTimeout(toastTimer)
+    ro.disconnect()
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    window.removeEventListener('keydown', onKey)
+    window.removeEventListener('keyup', onKeyUp)
+    root.replaceChildren()
+  }
+}
