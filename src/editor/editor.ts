@@ -86,6 +86,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
     const goalIn = el('textarea')
     goalIn.value = model.level.goalText
     goalIn.rows = 3
+    goalIn.maxLength = 300
     goalIn.placeholder = 'Ce que le joueur doit faire…'
     goalIn.addEventListener('input', () => {
       model.setGoalText(goalIn.value)

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { asShared, decodeLevel, encodeLevel, levelFromFile, levelToFile, validateLevel } from '../../src/level/codec'
+import { FIELD } from '../../src/level/placement'
 import type { Level, Placement } from '../../src/level/types'
 
 const P = (o: Partial<Placement> & Pick<Placement, 'id' | 'kind'>): Placement => ({
@@ -64,6 +65,14 @@ describe('codec', () => {
     const bad = await levelFromFile(new File(['{nope'], 'x.tim.json'))
     expect(bad.ok).toBe(false)
   })
+
+  it('refuses a file over 1 MB without reading it', async () => {
+    const f = new File(['x'.repeat(1_000_001)], 'big.tim.json')
+    let read = false
+    f.text = () => { read = true; return Promise.resolve('{}') }
+    expect(await levelFromFile(f)).toEqual({ ok: false, error: expect.stringMatching(/trop gros/) })
+    expect(read).toBe(false)
+  })
 })
 
 describe('validateLevel', () => {
@@ -98,6 +107,47 @@ describe('validateLevel', () => {
   bad('an unknown inventory kind', (l) => l.inventory.push({ kind: 'laser' as never, count: 1 }))
   bad('a negative inventory count', (l) => (l.inventory[0].count = -1))
   bad('a missing title', (l) => ((l as { title: unknown }).title = 3))
+  bad('a title over 60 chars', (l) => (l.title = 'x'.repeat(61)))
+  bad('a goal text over 300 chars', (l) => (l.goalText = 'x'.repeat(301)))
+  bad('more than 100 fixed links', (l) => {
+    for (let i = 0; i < 101; i++) l.fixedLinks.push({ id: `k${i}`, kind: 'belt', a: { part: 'g1', anchor: 'belt' }, b: { part: 'g2', anchor: 'belt' } })
+  })
+  bad('more than 20 goals', (l) => {
+    for (let i = 0; i < 18; i++) l.goals.push({ type: 'event', event: 'rope-cut' })
+  })
+  bad('an inventory count over 99', (l) => (l.inventory[0].count = 100))
+  bad('a fractional inventory count', (l) => (l.inventory[0].count = 1.5))
+  bad('a hold of 0', (l) => ((l.goals[0] as { hold: number }).hold = 0))
+  bad('a fractional hold', (l) => ((l.goals[0] as { hold: number }).hold = 1.5))
+  bad('a hold over 3600', (l) => ((l.goals[0] as { hold: number }).hold = 3601))
+  bad('a zone sticking out of the field', (l) => ((l.goals[0] as { zone: { x: number } }).zone.x = 1270))
+  bad('a zone with a negative corner', (l) => ((l.goals[0] as { zone: { y: number } }).zone.y = -1))
+  bad('an empty zone', (l) => ((l.goals[0] as { zone: { w: number } }).zone.w = 0))
+  bad('a flipped part that cannot flip', (l) => (l.fixed[3].flip = true))
+  bad('a fixed part overlapping an earlier one', (l) => l.fixed.push(P({ id: 'ball2', kind: 'ball-base', x: 200, y: 80 })))
+  bad('a fixed part whose footprint leaves the field', (l) => l.fixed.push(P({ id: 'edge', kind: 'ball-bowling', x: 0, y: 400 })))
+  it('accepts edge values: 99 in stock, hold 1 and 3600, a zone filling the field', () => {
+    const l = base()
+    l.inventory[0].count = 99
+    l.goals[0] = { type: 'inZone', part: 'ball', zone: { x: 0, y: 0, w: FIELD.w, h: FIELD.h }, hold: 1 }
+    l.goals.push({ type: 'inZone', part: 'ball', zone: { x: 0, y: 0, w: 10, h: 10 }, hold: 3600 })
+    expect(validateLevel(l)).toBeNull()
+  })
+  it('rejects a level of ~5000 walls quickly, without checking them all against each other', () => {
+    const l = base()
+    for (let i = 0; i < 5000; i++) l.fixed.push(P({ id: `w${i}`, kind: 'wall-brick', x: 20 + (i % 60) * 20, y: 20 + Math.floor(i / 60) * 9, settings: { length: 1 } }))
+    const t = Date.now()
+    expect(validateLevel(l)).toMatch(/trop de pièces/)
+    expect(Date.now() - t).toBeLessThan(200)
+  })
+  it('rejects more than 300 fixed parts even when they do not overlap', () => {
+    const l = base()
+    l.fixed = l.fixed.slice(0, 1)
+    for (let i = 0; i < 300; i++) l.fixed.push(P({ id: `b${i}`, kind: 'ball-tennis', x: 20 + (i % 30) * 40, y: 200 + Math.floor(i / 30) * 40 }))
+    expect(validateLevel(l)).toMatch(/trop de pièces/)
+    l.fixed.pop()
+    expect(validateLevel(l)).toBeNull()
+  })
 })
 
 describe('shipped levels', () => {

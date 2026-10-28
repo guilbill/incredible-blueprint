@@ -1,5 +1,5 @@
 import { PART_DEFS } from '../parts/registry'
-import { rotAllowed, FIELD } from './placement'
+import { canPlace, rotAllowed, FIELD } from './placement'
 import type { Level, PartKind, Placement } from './types'
 
 export type DecodeResult = { ok: true; level: Level } | { ok: false; error: string }
@@ -7,6 +7,8 @@ export type DecodeResult = { ok: true; level: Level } | { ok: false; error: stri
 const EVENTS = ['rope-cut', 'cheese-eaten', 'trap-snapped', 'balloon-ceiling', 'bowl-broken', 'mouse-caught']
 /** Decompressed payloads above this are refused (a tiny link must not inflate into gigabytes). */
 const MAX_BYTES = 1_000_000
+/** Caps on what a level may hold, so a crafted link or file cannot freeze the game. */
+export const LIMITS = { fixed: 300, fixedLinks: 100, goals: 20, inventoryCount: 99, title: 60, goalText: 300, hold: 3600 }
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
@@ -21,6 +23,7 @@ function validatePlacement(p: unknown, where: string): string | null {
   const pl = p as unknown as Placement
   if (!rotAllowed(pl)) return `La pièce « ${p.id} » a une rotation interdite.`
   const def = PART_DEFS[pl.kind]!
+  if (pl.flip && !def.flippable) return `La pièce « ${p.id} » ne peut pas être retournée.`
   for (const [key, val] of Object.entries(pl.settings)) {
     const s = def.settings.find((d) => d.key === key)
     if (!s) return `La pièce « ${p.id} » a un réglage inconnu : « ${key} ».`
@@ -36,14 +39,22 @@ export function validateLevel(x: unknown): string | null {
     if (x.v !== 1) return 'Ce niveau vient d’une autre version du jeu.'
     if (typeof x.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(x.id)) return 'L’identifiant du niveau est invalide.'
     if (typeof x.title !== 'string' || typeof x.goalText !== 'string') return 'Il manque le titre ou l’objectif du niveau.'
+    if (x.title.length > LIMITS.title) return `Le titre est trop long (${LIMITS.title} caractères au plus).`
+    if (x.goalText.length > LIMITS.goalText) return `L’objectif est trop long (${LIMITS.goalText} caractères au plus).`
     if (!Array.isArray(x.fixed) || !Array.isArray(x.fixedLinks) || !Array.isArray(x.inventory) || !Array.isArray(x.goals)) return 'Le niveau est incomplet.'
+    if (x.fixed.length > LIMITS.fixed) return `Ce niveau a trop de pièces (${LIMITS.fixed} au plus).`
+    if (x.fixedLinks.length > LIMITS.fixedLinks) return `Ce niveau a trop de liens (${LIMITS.fixedLinks} au plus).`
+    if (x.goals.length > LIMITS.goals) return `Ce niveau a trop d’objectifs (${LIMITS.goals} au plus).`
     const ids = new Set<string>()
+    const placed: Placement[] = []
     for (const p of x.fixed) {
       const err = validatePlacement(p, 'Pièce fixe')
       if (err) return err
-      const id = (p as Placement).id
-      if (ids.has(id)) return `Identifiant en double : « ${id} ».`
-      ids.add(id)
+      const pl = p as Placement
+      if (ids.has(pl.id)) return `Identifiant en double : « ${pl.id} ».`
+      if (!canPlace(pl, placed)) return `La pièce « ${pl.id} » chevauche une autre pièce ou sort du terrain.`
+      ids.add(pl.id)
+      placed.push(pl)
     }
     const parts = x.fixed as Placement[]
     for (const l of x.fixedLinks) {
@@ -64,7 +75,8 @@ export function validateLevel(x: unknown): string | null {
       if (g.type === 'inZone') {
         const z = g.zone
         if (!isObj(z) || !isNum(z.x) || !isNum(z.y) || !isNum(z.w) || !isNum(z.h)) return 'Une zone d’objectif est mal formée.'
-        if (g.hold !== undefined && !isNum(g.hold)) return 'Un objectif a une durée invalide.'
+        if (z.w <= 0 || z.h <= 0 || z.x < 0 || z.y < 0 || z.x + z.w > FIELD.w || z.y + z.h > FIELD.h) return 'Une zone d’objectif sort du terrain.'
+        if (g.hold !== undefined && (!Number.isInteger(g.hold) || (g.hold as number) < 1 || (g.hold as number) > LIMITS.hold)) return 'Un objectif a une durée invalide.'
         if (!ids.has(g.part as string)) return 'Un objectif vise une pièce absente.'
       } else if (g.type === 'event') {
         if (typeof g.event !== 'string' || !EVENTS.includes(g.event)) return 'Un objectif a un événement inconnu.'
@@ -73,7 +85,7 @@ export function validateLevel(x: unknown): string | null {
     }
     for (const it of x.inventory) {
       if (!isObj(it) || !isKind(it.kind)) return `Pièce d’inventaire inconnue : « ${isObj(it) ? String(it.kind) : '?'} ».`
-      if (!Number.isInteger(it.count) || (it.count as number) < 0) return 'Une quantité d’inventaire est invalide.'
+      if (!Number.isInteger(it.count) || (it.count as number) < 0 || (it.count as number) > LIMITS.inventoryCount) return 'Une quantité d’inventaire est invalide.'
     }
     return null
   } catch {
@@ -163,6 +175,7 @@ export function levelToFile(l: Level): Blob {
 }
 
 export async function levelFromFile(f: File): Promise<DecodeResult> {
+  if (f.size > MAX_BYTES) return { ok: false, error: 'Ce fichier est trop gros pour être un niveau.' }
   try {
     return parseLevel(await f.text())
   } catch {

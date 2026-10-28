@@ -29,7 +29,7 @@ export function evaluateGoals(goals: Goal[], sim: Simulation, holdCounters: numb
       return
     }
     holdCounters[i] = holds ? (holdCounters[i] ?? 0) + 1 : 0
-    if (holdCounters[i] < (g.hold ?? DEFAULT_HOLD)) all = false
+    if (holdCounters[i] < Math.max(1, g.hold ?? DEFAULT_HOLD)) all = false
   })
   return all
 }

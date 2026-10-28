@@ -46,3 +46,16 @@ describe('simulation', () => {
     expect(part.glow).toBeCloseTo(1 - 0.02)
   })
 })
+
+describe('goals', () => {
+  it('treats a hold below 1 as 1: the part must actually be in the zone', () => {
+    const away = { ...level, goals: [{ type: 'inZone' as const, part: 'ball', zone: { x: 0, y: 0, w: 10, h: 10 }, hold: 0 }] }
+    const s = new Simulation(away, empty)
+    s.step()
+    expect(s.goalsMet).toBe(false)
+    const inside = { ...level, goals: [{ type: 'inZone' as const, part: 'ball', zone: { x: 150, y: 50, w: 100, h: 100 }, hold: 0 }] }
+    const t = new Simulation(inside, empty)
+    t.step()
+    expect(t.goalsMet).toBe(true)
+  })
+})
