@@ -61,7 +61,7 @@ describe('render', () => {
     const quiet = fakeCtx()
     render(quiet.ctx, { level: lvl, sol, sim, zoom: 1 })
     expect(quiet.maxBlur.v).toBe(0)
-    sim.parts[0].glow = 1
+    sim.parts.find((p) => p.id === 'b')!.glow = 1
     const lit = fakeCtx()
     render(lit.ctx, { level: lvl, sol, sim, zoom: 1 })
     expect(lit.maxBlur.v).toBe(12)

@@ -52,6 +52,18 @@ describe('the 10 shipped levels', () => {
       expect(runUntilGoal(level, ref.solution)).toEqual({ met: true, step: ref.step, hash: ref.hash })
     })
 
+    it('gives the same run whatever order the placements and links are listed in', () => {
+      const { placements, links } = ref.solution
+      // Deterministic shuffle: odd indexes first, then even ones (reversed, so it differs from a plain reverse).
+      const shuffle = <T,>(xs: T[]): T[] => [...xs.filter((_, i) => i % 2 === 1), ...xs.filter((_, i) => i % 2 === 0).reverse()]
+      for (const sol of [
+        { placements: [...placements].reverse(), links: [...links].reverse() },
+        { placements: shuffle(placements), links: shuffle(links) },
+      ]) {
+        expect(runUntilGoal(level, sol)).toEqual({ met: true, step: ref.step, hash: ref.hash })
+      }
+    })
+
     it('still wins with each player part nudged by one snap step (at least 2 of 4 neighbours)', () => {
       const { placements } = ref.solution
       const fragile: string[] = []

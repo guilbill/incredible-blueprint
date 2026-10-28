@@ -222,12 +222,12 @@ describe('modern parts', () => {
         iron: xOf(s, 'iron'),
         hash: hashWorld(s.world),
         events: s.events,
-        state: s.parts.map((p) => ({ ...p.state })),
+        state: Object.fromEntries(s.parts.map((p) => [p.id, { ...p.state }])),
       }
     }
     const first = go()
     expect(first.still).toBeCloseTo(300, 3)
-    const st = (id: string) => first.state[lv.fixed.findIndex((p) => p.id === id)]
+    const st = (id: string) => first.state[id]
     expect(st('fan').on).toBe(1)
     expect(st('a').teleports).toBeGreaterThan(0)
     expect(st('spring').launches).toBeGreaterThan(0)

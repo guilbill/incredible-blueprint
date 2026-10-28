@@ -39,7 +39,7 @@ describe('simulation', () => {
   it('emit records the step and activate sets glow, which decays', () => {
     const s = new Simulation(level, empty)
     s.step()
-    const part = s.parts[1]
+    const part = s.parts.find((p) => p.id === 'ball')!
     part.onStep = (c) => { c.emit('cheese-eaten', part.id); c.activate(part) }
     s.step()
     expect(s.events).toEqual([{ name: 'cheese-eaten', part: 'ball', step: 1 }])

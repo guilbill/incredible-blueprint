@@ -227,12 +227,12 @@ describe('power parts', () => {
     const go = () => {
       const s = new Simulation(lv, empty)
       run(s, 300)
-      return { hash: hashWorld(s.world), events: s.events, state: s.parts.map((p) => ({ ...p.state })) }
+      return { hash: hashWorld(s.world), events: s.events, state: Object.fromEntries(s.parts.map((p) => [p.id, { ...p.state }])) }
     }
     const first = go()
     expect(first.events.map((e) => e.name).sort()).toEqual(['balloon-ceiling', 'rope-cut'])
-    expect(first.state[0].running).toBe(1)
-    expect(first.state[3].running).toBe(1)
+    expect(first.state.cage.running).toBe(1)
+    expect(first.state.bike.running).toBe(1)
     expect(go()).toEqual(first)
     expect(lv).toEqual(before)
   })

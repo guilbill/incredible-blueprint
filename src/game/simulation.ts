@@ -3,7 +3,7 @@ import { data } from '../engine/bodies'
 import { hashWorld } from '../engine/hash'
 import type { Rope } from '../engine/joints'
 import { World, type ContactEvent } from '../engine/world'
-import type { Goal, Level, SimEventName, Solution } from '../level/types'
+import type { Goal, Level, Link, Placement, SimEventName, Solution } from '../level/types'
 import { meshGears } from '../parts/mech/gear'
 import { buildLink } from '../parts/mech/links'
 import { partDef } from '../parts/registry'
@@ -18,6 +18,29 @@ const GLOW_DECAY = 0.02
  * One run of a level plus the player's solution. Everything is rebuilt from the inputs, nothing is
  * carried over between runs, and the Level and Solution are only read.
  */
+const cmp = (a: number | string, b: number | string): number => (a < b ? -1 : a > b ? 1 : 0)
+
+const settingsKey = (s: Record<string, number>): string =>
+  JSON.stringify(Object.keys(s).sort().map((k) => [k, s[k]]))
+
+/**
+ * Placements in a canonical order (kind, x, y, rot, flip, settings, then id as a last resort), so
+ * the order a player placed parts in never changes the run: same layout, same result.
+ */
+export function canonicalPlacements(ps: readonly Placement[]): Placement[] {
+  return [...ps].sort((a, b) =>
+    cmp(a.kind, b.kind) || cmp(a.x, b.x) || cmp(a.y, b.y) || cmp(a.rot, b.rot) ||
+    cmp(Number(a.flip), Number(b.flip)) || cmp(settingsKey(a.settings), settingsKey(b.settings)) || cmp(a.id, b.id))
+}
+
+/** Links in a canonical order: kind, then each end by the canonical rank of its part and its anchor key. */
+export function canonicalLinks(ls: readonly Link[], rank: ReadonlyMap<string, number>): Link[] {
+  const r = (id: string): number => rank.get(id) ?? Number.MAX_SAFE_INTEGER
+  return [...ls].sort((a, b) =>
+    cmp(a.kind, b.kind) || cmp(r(a.a.part), r(b.a.part)) || cmp(a.a.anchor, b.a.anchor) ||
+    cmp(r(a.b.part), r(b.b.part)) || cmp(a.b.anchor, b.b.anchor) || cmp(a.id, b.id))
+}
+
 export class Simulation {
   readonly world = new World()
   readonly parts: PartInstance[] = []
@@ -39,7 +62,8 @@ export class Simulation {
     this.goals = level.goals
     this.holds = level.goals.map(() => 0)
     const buildCtx = { world: this.world, ground: this.world.ground }
-    for (const p of [...level.fixed, ...sol.placements]) {
+    const ordered = [...canonicalPlacements(level.fixed), ...canonicalPlacements(sol.placements)]
+    for (const p of ordered) {
       const inst = partDef(p.kind).build(buildCtx, p)
       this.parts.push(inst)
       this.byId.set(inst.id, inst)
@@ -55,7 +79,8 @@ export class Simulation {
       emit: (name, part) => { this.events.push({ name, part, step: this.stepIndex }) },
       activate: (part) => { part.glow = 1 },
     }
-    this.buildLinks([...level.fixedLinks, ...sol.links])
+    const rank = new Map(ordered.map((p, i) => [p.id, i]))
+    this.buildLinks([...canonicalLinks(level.fixedLinks, rank), ...canonicalLinks(sol.links, rank)])
   }
 
   /** After all parts exist: meshes touching gears, then builds ropes and belts in link order (invalid links are skipped). */

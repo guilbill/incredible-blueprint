@@ -20,6 +20,8 @@ const level = (fixed: Placement[], fixedLinks: Link[] = []): Level => ({
 })
 const empty: Solution = { placements: [], links: [] }
 
+const part = (s: Simulation, id: string) => s.parts.find((p) => p.id === id)!
+
 const run = (s: Simulation, n: number) => {
   for (let i = 0; i < n; i++) s.step()
 }
@@ -38,7 +40,8 @@ describe('mechanics', () => {
 
   it('two meshing gears turn opposite ways at the expected ratio', () => {
     const s = new Simulation(level([P('a', 'gear-small', 400, 400), P('b', 'gear-large', 460, 400)]), empty)
-    const [a, b] = s.parts
+    const a = part(s, 'a')
+    const b = part(s, 'b')
     motor(a.anchors.belt.pin!, 4, 1e7)
     run(s, 60)
     const wa = a.bodies[0].getAngularVelocity()
@@ -50,9 +53,9 @@ describe('mechanics', () => {
 
   it('gears that do not touch do not mesh', () => {
     const s = new Simulation(level([P('a', 'gear-small', 400, 400), P('b', 'gear-large', 480, 400)]), empty)
-    motor(s.parts[0].anchors.belt.pin!, 4, 1e7)
+    motor(part(s, 'a').anchors.belt.pin!, 4, 1e7)
     run(s, 60)
-    expect(Math.abs(s.parts[1].bodies[0].getAngularVelocity())).toBeLessThan(0.01)
+    expect(Math.abs(part(s, 'b').bodies[0].getAngularVelocity())).toBeLessThan(0.01)
   })
 
   it('a belt makes the conveyor move a box', () => {
@@ -61,14 +64,14 @@ describe('mechanics', () => {
       [L('l1', 'belt', ['drive', 'belt'], ['belt', 'belt'])],
     )
     const s = new Simulation(lv, empty)
-    const box = s.parts[2].bodies[0]
+    const box = part(s, 'box').bodies[0]
     const x0 = toU(box.getPosition().x)
-    motor(s.parts[0].anchors.belt.pin!, 3, 1e7)
+    motor(part(s, 'drive').anchors.belt.pin!, 3, 1e7)
     run(s, 120)
     // Pulley r 20, conveyor wheel r 10: the wheel turns twice as fast as the pulley.
-    expect(s.parts[1].bodies[1].getAngularVelocity()).toBeCloseTo(6, 1)
+    expect(part(s, 'belt').bodies[1].getAngularVelocity()).toBeCloseTo(6, 1)
     expect(toU(box.getPosition().x) - x0).toBeGreaterThan(40)
-    expect(s.parts[1].glow).toBeGreaterThan(0)
+    expect(part(s, 'belt').glow).toBeGreaterThan(0)
   })
 
   it('a conveyor that starts late still moves a box that fell asleep on it', () => {
@@ -77,11 +80,11 @@ describe('mechanics', () => {
       [L('l1', 'belt', ['drive', 'belt'], ['belt', 'belt'])],
     )
     const s = new Simulation(lv, empty)
-    const box = s.parts[2].bodies[0]
+    const box = part(s, 'box').bodies[0]
     run(s, 240)
     expect(box.isAwake()).toBe(false)
     const x0 = toU(box.getPosition().x)
-    motor(s.parts[0].anchors.belt.pin!, 3, 1e7)
+    motor(part(s, 'drive').anchors.belt.pin!, 3, 1e7)
     run(s, 60)
     expect(toU(box.getPosition().x) - x0).toBeGreaterThan(10)
   })
@@ -93,12 +96,12 @@ describe('mechanics', () => {
     )
     const s = new Simulation(lv, empty)
     expect(s.ropes).toHaveLength(1)
-    const bucket = s.parts[1].bodies[0]
-    s.parts[3].bodies[0].setLinearVelocity({ x: toM(-400), y: 0 })
+    const bucket = part(s, 'bucket').bodies[0]
+    part(s, 'ball').bodies[0].setLinearVelocity({ x: toM(-400), y: 0 })
     run(s, 5)
-    expect(s.parts[2].state.closed).toBe(0)
+    expect(part(s, 'cut').state.closed).toBe(0)
     run(s, 25)
-    expect(s.parts[2].state.closed).toBe(1)
+    expect(part(s, 'cut').state.closed).toBe(1)
     expect(s.ropes[0].enabled).toBe(false)
     expect(s.events).toEqual([expect.objectContaining({ name: 'rope-cut', part: 'cut' })])
     run(s, 60)
@@ -113,7 +116,7 @@ describe('mechanics', () => {
     const s = new Simulation(lv, empty)
     run(s, 240)
     expect(s.ropes[0].enabled).toBe(true)
-    expect(toU(s.parts[1].bodies[0].getPosition().y)).toBeLessThan(450)
+    expect(toU(part(s, 'bucket').bodies[0].getPosition().y)).toBeLessThan(450)
   })
 
   it('canLink refuses rope to belt, same part and unknown anchors', () => {
@@ -141,11 +144,11 @@ describe('mechanics', () => {
     const go = () => {
       const s = new Simulation(lv, empty)
       run(s, 600)
-      return { hash: hashWorld(s.world), events: s.events, state: s.parts.map((p) => p.state) }
+      return { hash: hashWorld(s.world), events: s.events, state: Object.fromEntries(s.parts.map((p) => [p.id, p.state])) }
     }
     const first = go()
     expect(first.events.map((e) => e.name)).toEqual(['rope-cut'])
-    expect(first.state[2]).toEqual({ closed: 1 })
+    expect(first.state.cut).toEqual({ closed: 1 })
     expect(go()).toEqual(first)
     expect(lv).toEqual(before)
   })
