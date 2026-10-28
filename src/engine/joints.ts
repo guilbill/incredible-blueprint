@@ -1,3 +1,4 @@
+import './dmath'
 import { GearJoint, RevoluteJoint, RopeJoint } from 'planck'
 import type { Body } from 'planck'
 import type { Vec } from './vec'

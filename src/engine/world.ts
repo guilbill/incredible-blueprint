@@ -1,3 +1,4 @@
+import './dmath'
 import * as planck from 'planck'
 import type { Body, Contact, ContactImpulse } from 'planck'
 import { type Vec, v } from './vec'
@@ -74,7 +75,7 @@ export class World {
     for (const b of this.list) {
       if (!b.isDynamic()) continue
       const lv = b.getLinearVelocity()
-      const s = Math.hypot(lv.x, lv.y)
+      const s = Math.sqrt(lv.x * lv.x + lv.y * lv.y)
       if (s > maxV) b.setLinearVelocity({ x: (lv.x * maxV) / s, y: (lv.y * maxV) / s })
       const av = b.getAngularVelocity()
       if (Math.abs(av) > MAX_ANG) b.setAngularVelocity(Math.sign(av) * MAX_ANG)

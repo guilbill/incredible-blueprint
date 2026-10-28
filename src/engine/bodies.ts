@@ -1,3 +1,4 @@
+import './dmath'
 import { Box, Circle, Polygon, Vec2 } from 'planck'
 import type { Body, BodyType, Shape } from 'planck'
 import type { Vec } from './vec'
