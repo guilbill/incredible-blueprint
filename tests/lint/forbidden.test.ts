@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOTS = ['src/engine', 'src/parts', 'src/game', 'src/level']
-const FORBIDDEN = /Math\.random|\bDate\b|performance\.now/
+const FORBIDDEN = /Math\.random|\bDate\b|performance\.now|Math\.(hypot|pow|tan|exp|log)\b/
 
 function listTs(dir: string): string[] {
   if (!existsSync(dir)) return []

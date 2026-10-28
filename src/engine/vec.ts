@@ -6,7 +6,7 @@ export const sub = (a: Vec, b: Vec): Vec => v(a.x - b.x, a.y - b.y)
 export const scale = (a: Vec, s: number): Vec => v(a.x * s, a.y * s)
 export const dot = (a: Vec, b: Vec): number => a.x * b.x + a.y * b.y
 export const cross = (a: Vec, b: Vec): number => a.x * b.y - a.y * b.x
-export const len = (a: Vec): number => Math.hypot(a.x, a.y)
+export const len = (a: Vec): number => Math.sqrt(a.x * a.x + a.y * a.y)
 
 export function normalize(a: Vec): Vec {
   const l = len(a)
