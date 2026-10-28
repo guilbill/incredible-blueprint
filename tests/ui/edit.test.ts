@@ -73,6 +73,23 @@ describe('edit', () => {
     expect(addPart(level, empty, P('p3', 'cat', 600, 600))).toBeNull()
   })
 
+  it('gives drawer portals in pairs: each new portal joins the first channel with fewer than two', () => {
+    const lv: Level = {
+      ...level,
+      fixed: [P('w', 'wall-brick', 400, 400), P('f', 'portal', 900, 100, { settings: { channel: 2 } })],
+      inventory: [{ kind: 'portal', count: 4 }],
+    }
+    let sol = empty
+    const channels: number[] = []
+    for (const x of [100, 200, 300, 500]) {
+      sol = addPart(lv, sol, P(nextId(lv, sol), 'portal', x, 100))!
+      channels.push(sol.placements[sol.placements.length - 1].settings.channel)
+    }
+    expect(channels).toEqual([1, 1, 2, 3])
+    // An explicit channel (moved part, restored draft) is kept.
+    expect(addPart(lv, empty, P('p9', 'portal', 100, 100, { settings: { channel: 3 } }))!.placements[0].settings.channel).toBe(3)
+  })
+
   it('picks ids not used by fixed parts or the solution', () => {
     const lv = { ...level, fixed: [P('p1', 'wall-brick', 400, 400)] }
     expect(nextId(lv, { placements: [P('p2', 'ramp', 100, 100)], links: [] })).toBe('p3')

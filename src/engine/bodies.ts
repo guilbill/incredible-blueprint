@@ -121,3 +121,23 @@ export function setVelocityX(b: Body, vx: number): void {
 /** Impulse in kg·units/s at the centre of mass. */
 export const applyImpulse = (b: Body, imp: Vec): void =>
   b.applyLinearImpulse(toMV(imp), b.getWorldCenter(), true)
+
+/** World centre of mass in units. */
+export const centreOf = (b: Body): Vec => toUV(b.getWorldCenter())
+
+/** Force in kg·units/s² at the centre of mass; wakes the body. */
+export const applyForce = (b: Body, f: Vec): void => b.applyForceToCenter(toMV(f), true)
+
+/** Sets the linear velocity (units/s) and wakes the body. */
+export function setVelocity(b: Body, vel: Vec): void {
+  b.setLinearVelocity(toMV(vel))
+  b.setAwake(true)
+}
+
+/** Moves the body so its centre of mass lands on `centre` (units), keeping its angle, and sets its velocity. */
+export function teleport(b: Body, centre: Vec, vel: Vec): void {
+  const p = b.getPosition()
+  const c = b.getWorldCenter()
+  b.setTransform({ x: toM(centre.x) + p.x - c.x, y: toM(centre.y) + p.y - c.y }, b.getAngle())
+  setVelocity(b, vel)
+}

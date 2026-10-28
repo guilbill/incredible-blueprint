@@ -43,7 +43,7 @@ describe('base parts', () => {
   })
 
   it('throws a clear error for an unregistered kind', () => {
-    expect(() => partDef('magnet')).toThrow(/magnet/)
+    expect(() => partDef('nope' as PartKind)).toThrow(/nope/)
   })
 
   it('a ball bounces higher on a trampoline than on a wall', () => {

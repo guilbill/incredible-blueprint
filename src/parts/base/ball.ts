@@ -5,7 +5,8 @@ import type { PartDef } from '../types'
 import { v } from '../../engine/vec'
 import { applyGlow, poseOf, toWorld } from '../drawing'
 
-function ball(kind: PartKind, label: string, r: number, density: number, restitution: number): PartDef {
+/** `metal` balls are pulled by magnets. */
+function ball(kind: PartKind, label: string, r: number, density: number, restitution: number, metal = false): PartDef {
   const d = (2 * r) / CELL
   return {
     kind,
@@ -30,7 +31,7 @@ function ball(kind: PartKind, label: string, r: number, density: number, restitu
         density: density * DENSITY,
         restitution,
         friction: 0.4,
-        data: { part: p.id, tags: ['ball'] },
+        data: { part: p.id, tags: metal ? ['ball', 'metal'] : ['ball'] },
       })
       return instance(p, [b], { center: { body: b, local: v(0, 0), radius: 0 } })
     },
@@ -38,8 +39,8 @@ function ball(kind: PartKind, label: string, r: number, density: number, restitu
 }
 
 export const BALLS: PartDef[] = [
-  ball('ball-bowling', 'Boule de bowling', 14, 3, 0.1),
-  ball('ball-base', 'Balle de baseball', 8, 1, 0.5),
+  ball('ball-bowling', 'Boule de bowling', 14, 3, 0.1, true),
+  ball('ball-base', 'Balle de baseball', 8, 1, 0.5, true),
   ball('ball-basket', 'Ballon de basket', 14, 0.3, 0.8),
   ball('ball-tennis', 'Balle de tennis', 7, 0.4, 0.75),
 ]

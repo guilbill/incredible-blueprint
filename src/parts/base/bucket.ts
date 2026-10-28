@@ -38,7 +38,7 @@ export const bucket: PartDef = {
         { kind: 'box', wh: v(T, H - T), offset: v(-W / 2 + T / 2, -T / 2) },
         { kind: 'box', wh: v(T, H - T), offset: v(W / 2 - T / 2, -T / 2) },
       ],
-      { density: DENSITY, friction: 0.5, restitution: 0.1, data: { part: p.id, tags: ['bucket'] } },
+      { density: DENSITY, friction: 0.5, restitution: 0.1, data: { part: p.id, tags: ['bucket', 'metal'] } },
     )
     return instance(p, [b], { handle: { body: b, local: HANDLE.local, radius: 0 } })
   },

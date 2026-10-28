@@ -29,7 +29,11 @@
     { "kind": "mouse", "count": 2 },
     { "kind": "cheese", "count": 2 },
     { "kind": "mousetrap", "count": 1 },
-    { "kind": "fishbowl", "count": 1 }
+    { "kind": "fishbowl", "count": 1 },
+    { "kind": "magnet", "count": 1 },
+    { "kind": "portal", "count": 2 },
+    { "kind": "spring", "count": 2 },
+    { "kind": "fan", "count": 1 }
   ],
   "goals": [
     { "type": "inZone", "part": "ball", "zone": { "x": 695, "y": 730, "w": 50, "h": 50 } }

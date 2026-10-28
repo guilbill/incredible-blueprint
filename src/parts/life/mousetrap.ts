@@ -41,7 +41,7 @@ export const mousetrap: PartDef = {
   build({ world }, p) {
     const plate = staticBox(world, v(p.x, p.y + PLATE_Y), PLATE, 0, {
       friction: 0.5,
-      data: { part: p.id, tags: ['mousetrap'] },
+      data: { part: p.id, tags: ['mousetrap', 'metal'] },
     })
     const inst = instance(p, [plate])
     inst.state.snapped = 0

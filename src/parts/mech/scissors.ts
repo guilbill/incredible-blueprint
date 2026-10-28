@@ -61,7 +61,7 @@ export const scissors: PartDef = {
       // Heavy, so the pin barely gives and a hit reads close to a hit on a wall.
       density: 5 * DENSITY,
       friction: 0.4,
-      data: { part: p.id, tags: ['scissors-handle'] },
+      data: { part: p.id, tags: ['scissors-handle', 'metal'] },
     })
     const j = pin(world, handle, handleAt)
     j.setLimits(0, 0)

@@ -29,7 +29,29 @@ export function draftPlacement(kind: PartKind, at: Vec, id: string): Placement {
   return { id, kind, x: snap(at.x), y: snap(at.y), rot: 0, flip: false, settings: {} }
 }
 
-export function addPart(level: Level, sol: Solution, p: Placement): Solution | null {
+const PORTAL_CHANNELS = 3
+
+/**
+ * Settings a part gets when it comes out of the drawer. Portals come in pairs: a portal with no
+ * channel joins the first channel (1..3) holding fewer than two portals, fixed ones included, so
+ * two portals placed one after the other share a channel. Explicit settings are kept.
+ */
+export function drawerDefaults(level: Level, sol: Solution, p: Placement): Placement {
+  if (p.kind !== 'portal' || p.settings.channel !== undefined) return p
+  const used = new Map<number, number>()
+  for (const q of all(level, sol)) {
+    if (q.kind !== 'portal' || q.id === p.id) continue
+    const ch = q.settings.channel ?? 1
+    used.set(ch, (used.get(ch) ?? 0) + 1)
+  }
+  let channel = 1
+  while (channel < PORTAL_CHANNELS && (used.get(channel) ?? 0) >= 2) channel++
+  return { ...p, settings: { ...p.settings, channel } }
+}
+
+/** Adds a part from the drawer (see drawerDefaults); null when none is left, the id is taken or it doesn't fit. */
+export function addPart(level: Level, sol: Solution, part: Placement): Solution | null {
+  const p = drawerDefaults(level, sol, part)
   if ((remaining(level, sol).get(p.kind) ?? 0) <= 0) return null
   if (all(level, sol).some((q) => q.id === p.id)) return null
   if (!canPlace(p, all(level, sol))) return null

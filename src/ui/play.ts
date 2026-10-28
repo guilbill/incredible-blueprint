@@ -7,7 +7,7 @@ import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
 import { render } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
-import { addLink, addPart, anchorAt, draftPlacement, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
+import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, unitsToClient } from './geometry'
 import { stepsDue } from './loop'
 
@@ -309,7 +309,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     const at = { x: pt.x + drag.offset.x, y: pt.y + drag.offset.y }
-    const base = drag.moving ?? draftPlacement(drag.kind, at, drag.id)
+    const base = drag.moving ?? drawerDefaults(level, sol, draftPlacement(drag.kind, at, drag.id))
     const ghost = { ...draftPlacement(drag.kind, at, drag.id), rot: base.rot, flip: base.flip, settings: base.settings }
     drag.ghost = ghost
     drag.ok = (drag.moving ? updatePart(level, sol, ghost) : addPart(level, sol, ghost)) !== null
