@@ -1,13 +1,13 @@
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
 import { footprint } from '../level/placement'
-import type { Level, PartKind, Placement, Solution } from '../level/types'
+import type { Anchor, Level, PartKind, Placement, Solution } from '../level/types'
 import { setting } from '../parts/common'
 import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
 import { render } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
-import { addPart, draftPlacement, flipped, hitPart, nextId, remaining, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
+import { addLink, addPart, anchorAt, draftPlacement, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, unitsToClient } from './geometry'
 import { stepsDue } from './loop'
 
@@ -64,6 +64,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let sim: Simulation | undefined
   let won = false
   let selected: string | undefined
+  /** Selected player link (rope or belt), exclusive with `selected`. */
+  let selectedLink: string | undefined
+  /** First anchor clicked when making a link. */
+  let pendingAnchor: Anchor | undefined
+  /** Anchor under the last press, turned into an anchor click on release unless the press became a drag. */
+  let pressedAnchor: Anchor | undefined
   let drag: Drag | undefined
   let acc = 0
   let lastT: number | undefined
@@ -179,11 +185,44 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     for (const s of partDef(p.kind).settings) panelValues.get(s.key)?.replaceChildren(String(setting(p, s)))
   }
 
+  const selectedLinkObj = () => sol.links.find((l) => l.id === selectedLink)
+
+  function buildLinkPanel(kind: 'rope' | 'belt'): void {
+    panelValues.clear()
+    const del = el('button', 'btn small danger', 'Retirer')
+    del.addEventListener('click', removeSelected)
+    const actions = el('div', 'row')
+    actions.append(del)
+    selPanel.replaceChildren(el('div', 'title', kind === 'rope' ? 'Corde' : 'Courroie'), actions)
+  }
+
+  /** Link panel, next to the link's midpoint. */
+  function refreshLinkPanel(): boolean {
+    const l = selectedLinkObj()
+    if (!l || sim) return false
+    const a = anchorAt(level, sol, l.a)
+    const b = anchorAt(level, sol, l.b)
+    if (!a || !b) return false
+    const key = `link:${l.id}`
+    if (panelFor !== key) {
+      buildLinkPanel(l.kind)
+      selPanel.hidden = false
+      const anchor = unitsToClient({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, canvas.getBoundingClientRect())
+      const at = panelPosition(anchor, stage.getBoundingClientRect(), { w: selPanel.offsetWidth, h: selPanel.offsetHeight })
+      selPanel.style.left = `${at.x}px`
+      selPanel.style.top = `${at.y}px`
+      panelFor = key
+    }
+    selPanel.hidden = false
+    return true
+  }
+
   /**
    * Built and positioned when the selection changes or after a move; edits only update the values,
    * so the buttons stay put under the pointer while the part grows or rotates.
    */
   function refreshSelPanel(): void {
+    if (!drag?.started && refreshLinkPanel()) return
     const p = selectedPart()
     if (!p || drag?.started) panelFor = undefined
     if (!p || sim || drag?.started) {
@@ -232,7 +271,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function removeSelected(): void {
-    if (!selected || sim) return
+    if (sim) return
+    if (selectedLink) {
+      const id = selectedLink
+      selectedLink = undefined
+      commit(removeLink(sol, id))
+      return
+    }
+    if (!selected) return
     const id = selected
     selected = undefined
     commit(removePart(sol, id))
@@ -269,14 +315,31 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     drag.ok = (drag.moving ? updatePart(level, sol, ghost) : addPart(level, sol, ghost)) !== null
   }
 
-  // TODO(Task 8): rope/belt links. Click an anchor, then another anchor, to add a Link to `sol.links`
-  // (hit-test partDef(kind).anchors here, before hitPart). Not wired yet: no part with anchors is
-  // available in inventories and the link inventory rules come with Task 8.
+  /** Links: click an anchor, then a second one; a rope or a belt is made from their role. */
+  function anchorClicked(a: Anchor): void {
+    selected = undefined
+    selectedLink = undefined
+    const first = pendingAnchor
+    if (!first || (first.part === a.part && first.anchor === a.anchor)) {
+      pendingAnchor = first ? undefined : a
+      if (pendingAnchor) showToast("Cliquez un second point d'attache")
+      return
+    }
+    pendingAnchor = undefined
+    const next = addLink(level, sol, first, a)
+    if (next) commit(next)
+    else showToast('Liaison impossible')
+  }
+
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || sim) return
     const pt = unitsAt(e)
+    pressedAnchor = hitAnchor(level, sol, pt)
     const hit = hitPart(sol, pt)
-    selected = hit?.id
+    selected = pressedAnchor ? undefined : hit?.id
+    selectedLink = !pressedAnchor && !hit ? hitLink(level, sol, pt) : undefined
+    if (!pressedAnchor) pendingAnchor = undefined
+    if (pressedAnchor) e.preventDefault()
     if (hit) {
       e.preventDefault()
       drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start: { x: e.clientX, y: e.clientY }, started: false, ok: false }
@@ -290,11 +353,22 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       canvas.classList.toggle('dragging', drag.started)
       return
     }
-    if (!sim && e.target === canvas) canvas.classList.toggle('over-part', !!hitPart(sol, unitsAt(e)))
+    if (!sim && e.target === canvas) {
+      const pt = unitsAt(e)
+      canvas.classList.toggle('over-part', !!(hitAnchor(level, sol, pt) || hitPart(sol, pt) || hitLink(level, sol, pt)))
+    }
   }
 
   function onPointerUp(e: PointerEvent): void {
     const d = drag
+    const a = pressedAnchor
+    pressedAnchor = undefined
+    if (a && !d?.started) {
+      drag = undefined
+      anchorClicked(a)
+      refreshUi()
+      return
+    }
     if (!d) return
     drag = undefined
     if (d.started) {
@@ -316,6 +390,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function start(): void {
     if (sim) return
     drag = undefined
+    pendingAnchor = undefined
+    pressedAnchor = undefined
     // Always a fresh Simulation from the saved solution: nothing is carried over between runs.
     sim = new Simulation(level, sol)
     won = false
@@ -366,6 +442,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       removeSelected()
     } else if (e.key === 'Escape') {
       selected = undefined
+      selectedLink = undefined
+      pendingAnchor = undefined
       refreshUi()
     }
   }
@@ -406,7 +484,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const viewSol = moving ? { ...sol, placements: sol.placements.filter((p) => p.id !== moving) } : sol
     const ghost: PartDrawState | undefined = drag?.started && drag.ghost ? { placement: drag.ghost, ghost: drag.ok ? 'ok' : 'bad' } : undefined
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    render(ctx, { level, sol: viewSol, sim, ghost, selected: sim ? undefined : selected, won, zoom: fit.zoom })
+    render(ctx, {
+      level, sol: viewSol, sim, ghost, selected: sim ? undefined : selected, won, zoom: fit.zoom,
+      showAnchors: !sim, pendingAnchor, selectedLink: sim ? undefined : selectedLink,
+    })
   }
 
   window.addEventListener('pointermove', onPointerMove)

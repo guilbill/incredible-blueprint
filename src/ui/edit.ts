@@ -1,6 +1,7 @@
-import { dot, sub, type Vec } from '../engine/vec'
-import { canPlace, footprint, snap } from '../level/placement'
-import type { Level, PartKind, Placement, Solution } from '../level/types'
+import { dot, len, pointSegmentDistance, sub, type Vec } from '../engine/vec'
+import { anchorPoint, canPlace, footprint, snap } from '../level/placement'
+import type { Anchor, Level, Link, PartKind, Placement, Solution } from '../level/types'
+import { anchorDef, canLink } from '../parts/mech/links'
 import { partDef } from '../parts/registry'
 
 /** Pure edit operations on a player's solution. Each returns a new Solution, or null when refused. */
@@ -92,6 +93,69 @@ export function hitPart(sol: Solution, pt: Vec): Placement | undefined {
   return undefined
 }
 
+/** Click tolerance (units) around an anchor point and along a link. */
+export const ANCHOR_HIT = 6
+export const LINK_HIT = 5
+
+const sameAnchor = (a: Anchor, b: Anchor): boolean => a.part === b.part && a.anchor === b.anchor
+
+/** First free link id `l1`, `l2`… among the level's fixed links and the solution's links. */
+function nextLinkId(level: Level, sol: Solution): string {
+  const used = new Set([...level.fixedLinks, ...sol.links].map((l) => l.id))
+  let n = 1
+  while (used.has(`l${n}`)) n++
+  return `l${n}`
+}
+
+/** Adds a rope or a belt (from the anchors' role) between two anchors; null if they can't be linked or already are. */
+export function addLink(level: Level, sol: Solution, a: Anchor, b: Anchor): Solution | null {
+  const parts = all(level, sol)
+  if (!canLink(a, b, parts)) return null
+  const dup = (l: Link) => (sameAnchor(l.a, a) && sameAnchor(l.b, b)) || (sameAnchor(l.a, b) && sameAnchor(l.b, a))
+  if ([...level.fixedLinks, ...sol.links].some(dup)) return null
+  const kind = anchorDef(a, parts)!.role
+  return { ...sol, links: [...sol.links, { id: nextLinkId(level, sol), kind, a: { ...a }, b: { ...b } }] }
+}
+
+export function removeLink(sol: Solution, id: string): Solution {
+  return { ...sol, links: sol.links.filter((l) => l.id !== id) }
+}
+
+/** World point of an anchor before simulation, if the part and anchor exist. */
+export function anchorAt(level: Level, sol: Solution, a: Anchor): Vec | undefined {
+  const p = all(level, sol).find((q) => q.id === a.part)
+  const d = p && partDef(p.kind).anchors.find((q) => q.key === a.anchor)
+  return p && d ? anchorPoint(p, d) : undefined
+}
+
+/** Anchor under the point (topmost part first), fixed parts included. */
+export function hitAnchor(level: Level, sol: Solution, pt: Vec): Anchor | undefined {
+  const parts = all(level, sol)
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]
+    for (const d of partDef(p.kind).anchors) {
+      if (len(sub(anchorPoint(p, d), pt)) <= ANCHOR_HIT) return { part: p.id, anchor: d.key }
+    }
+  }
+  return undefined
+}
+
+/** Id of the player link passing under the point (last added first). */
+export function hitLink(level: Level, sol: Solution, pt: Vec): string | undefined {
+  for (let i = sol.links.length - 1; i >= 0; i--) {
+    const l = sol.links[i]
+    const a = anchorAt(level, sol, l.a)
+    const b = anchorAt(level, sol, l.b)
+    if (a && b && pointSegmentDistance(pt, a, b) <= LINK_HIT) return l.id
+  }
+  return undefined
+}
+
+const isAnchor = (x: unknown): x is Anchor => {
+  const a = x as Partial<Anchor> | null
+  return !!a && typeof a === 'object' && typeof a.part === 'string' && typeof a.anchor === 'string'
+}
+
 /**
  * Keeps only the draft placements that still fit the level (kind in the inventory, within counts,
  * placeable, unique id). Used when restoring a saved draft, which may come from an older level.
@@ -107,6 +171,16 @@ export function sanitizeDraft(level: Level, draft: unknown): Solution {
     const settings = p.settings && typeof p.settings === 'object' ? p.settings : {}
     const next = addPart(level, sol, { id: p.id, kind: p.kind, x: p.x!, y: p.y!, rot: p.rot!, flip: p.flip, settings })
     if (next) sol = next
+  }
+  // Links are re-added through addLink, so each must still join two compatible anchors of kept parts.
+  for (const l of Array.isArray(d.links) ? (d.links as Partial<Link>[]) : []) {
+    if (!l || typeof l !== 'object' || !isAnchor(l.a) || !isAnchor(l.b)) continue
+    const next = addLink(level, sol, l.a, l.b)
+    const added = next?.links[next.links.length - 1]
+    if (!next || !added || added.kind !== l.kind) continue
+    // Keep the saved id when it is still free.
+    if (typeof l.id === 'string' && ![...level.fixedLinks, ...sol.links].some((q) => q.id === l.id)) added.id = l.id
+    sol = next
   }
   return sol
 }

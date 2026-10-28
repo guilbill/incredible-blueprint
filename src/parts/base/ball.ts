@@ -14,7 +14,7 @@ function ball(kind: PartKind, label: string, r: number, density: number, restitu
     rotStep: 0,
     flippable: false,
     settings: [],
-    anchors: [],
+    anchors: [{ key: 'center', local: v(0, 0), role: 'rope' }],
     draw(pen, s) {
       pen.reset()
       applyGlow(pen, s)
@@ -32,7 +32,7 @@ function ball(kind: PartKind, label: string, r: number, density: number, restitu
         friction: 0.4,
         data: { part: p.id, tags: ['ball'] },
       })
-      return instance(p, [b])
+      return instance(p, [b], { center: { body: b, local: v(0, 0), radius: 0 } })
     },
   }
 }

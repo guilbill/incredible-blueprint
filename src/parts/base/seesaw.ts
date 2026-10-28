@@ -9,8 +9,10 @@ const LEN = 6 * CELL
 const THICK = 10
 /** ±15°: the plank ends move about 16 units, inside the 2-cell high footprint. */
 const LIMIT = ROT_ANGLE
+const LEFT = v(-LEN / 2, 0)
+const RIGHT = v(LEN / 2, 0)
 
-/** Dynamic plank pinned to the ground at its centre, tilt limited to ±15°. */
+/** Dynamic plank pinned to the ground at its centre, tilt limited to ±15°, rope anchors at both ends. */
 export const seesaw: PartDef = {
   kind: 'seesaw',
   label: 'Bascule',
@@ -18,7 +20,10 @@ export const seesaw: PartDef = {
   rotStep: 0,
   flippable: false,
   settings: [],
-  anchors: [],
+  anchors: [
+    { key: 'left', local: LEFT, role: 'rope' },
+    { key: 'right', local: RIGHT, role: 'rope' },
+  ],
   draw(pen, s) {
     pen.reset()
     applyGlow(pen, s)
@@ -39,6 +44,6 @@ export const seesaw: PartDef = {
     const j = pin(world, b, pos(p))
     j.setLimits(-LIMIT, LIMIT)
     j.enableLimit(true)
-    return instance(p, [b])
+    return instance(p, [b], { left: { body: b, local: LEFT, radius: 0 }, right: { body: b, local: RIGHT, radius: 0 } })
   },
 }

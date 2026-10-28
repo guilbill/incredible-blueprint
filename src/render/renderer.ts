@@ -2,9 +2,9 @@ import type { Body } from 'planck'
 import { type Vec, add, rotate, v } from '../engine/vec'
 import { bodyPose } from '../engine/world'
 import type { Simulation } from '../game/simulation'
-import { FIELD, footprint } from '../level/placement'
+import { FIELD, anchorPoint, footprint } from '../level/placement'
 import type { Anchor, Level, Link, Placement, Solution } from '../level/types'
-import { angleOf, CELL } from '../parts/common'
+import { CELL } from '../parts/common'
 import { partDef } from '../parts/registry'
 import { COLORS, type PartDrawState, Pen } from './pen'
 
@@ -17,6 +17,12 @@ export interface RenderView {
   selected?: string
   /** Goals met: goal zones glow yellow. */
   won?: boolean
+  /** Edit mode: show every anchor (rope: ring, belt: square). */
+  showAnchors?: boolean
+  /** First anchor of a link being made (yellow). */
+  pendingAnchor?: Anchor
+  /** Id of the selected player link (yellow). */
+  selectedLink?: string
   zoom: number
 }
 
@@ -72,21 +78,36 @@ function anchorPos(a: Anchor, placements: Placement[], sim?: Simulation): Vec | 
   }
   const p = placements.find((q) => q.id === a.part)
   const def = p && partDef(p.kind).anchors.find((d) => d.key === a.anchor)
-  if (!p || !def) return undefined
-  const local = v(p.flip ? -def.local.x : def.local.x, def.local.y)
-  return add(v(p.x, p.y), rotate(local, angleOf(p)))
+  return p && def ? anchorPoint(p, def) : undefined
 }
 
-function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation): void {
-  pen.reset(COLORS.line, 1)
+function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation, selected?: string): void {
   for (const l of links) {
+    // A cut rope disappears; a link the simulation could not build is not drawn while it runs.
+    if (sim && l.kind === 'rope' && sim.ropeOf.get(l.id)?.enabled !== true) continue
     const a = anchorPos(l.a, placements, sim)
     const b = anchorPos(l.b, placements, sim)
     if (!a || !b) continue
+    if (l.id === selected) pen.reset(COLORS.yellow, 2)
+    else pen.reset(COLORS.line, 1)
     pen.dashed(l.kind === 'belt')
     pen.line(a, b)
   }
-  pen.dashed(false)
+  pen.reset()
+}
+
+function drawAnchors(pen: Pen, placements: Placement[], pending?: Anchor): void {
+  for (const p of placements) {
+    for (const d of partDef(p.kind).anchors) {
+      const at = anchorPoint(p, d)
+      const on = pending?.part === p.id && pending.anchor === d.key
+      pen.reset(on ? COLORS.yellow : COLORS.cyan, on ? 2 : 1)
+      if (on) pen.glow(1, 'yellow')
+      if (d.role === 'rope') pen.circle(at, 4)
+      else pen.poly([v(at.x - 4, at.y - 4), v(at.x + 4, at.y - 4), v(at.x + 4, at.y + 4), v(at.x - 4, at.y + 4)])
+    }
+  }
+  pen.reset()
 }
 
 /** Small hatched mark in the first footprint corner, to show the part is locked. */
@@ -173,13 +194,14 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   drawGrid(ctx)
   drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
-  drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim)
+  drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
   const fixedIds = new Set(level.fixed.map((p) => p.id))
   placements.forEach((placement, i) => {
     const inst = sim?.parts.find((p) => p.id === placement.id)
     drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected }, i + 1)
   })
   if (sim) drawTrails(pen, sim)
+  if (!sim && view.showAnchors) drawAnchors(pen, placements, view.pendingAnchor)
   if (view.ghost) drawPart(pen, view.ghost, placements.length + 1)
   ctx.restore()
 }

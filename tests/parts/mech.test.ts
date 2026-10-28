@@ -1,0 +1,137 @@
+import { describe, expect, it } from 'vitest'
+import { hashWorld } from '../../src/engine/hash'
+import { motor } from '../../src/engine/joints'
+import { toM, toU } from '../../src/engine/world'
+import { Simulation } from '../../src/game/simulation'
+import type { Level, Link, PartKind, Placement, Solution } from '../../src/level/types'
+import { canLink } from '../../src/parts/mech/links'
+import { partDef } from '../../src/parts/registry'
+
+const P = (id: string, kind: PartKind, x: number, y: number, o: Partial<Placement> = {}): Placement => ({
+  id, kind, x, y, rot: 0, flip: false, settings: {}, ...o,
+})
+
+const L = (id: string, kind: Link['kind'], a: [string, string], b: [string, string]): Link => ({
+  id, kind, a: { part: a[0], anchor: a[1] }, b: { part: b[0], anchor: b[1] },
+})
+
+const level = (fixed: Placement[], fixedLinks: Link[] = []): Level => ({
+  v: 1, id: 't', title: 't', goalText: 't', fixed, fixedLinks, inventory: [], goals: [],
+})
+const empty: Solution = { placements: [], links: [] }
+
+const run = (s: Simulation, n: number) => {
+  for (let i = 0; i < n; i++) s.step()
+}
+
+describe('mechanics', () => {
+  it('registers the mechanical parts with their anchors', () => {
+    expect(partDef('gear-small').size).toEqual({ w: 2, h: 2 })
+    expect(partDef('gear-large').size).toEqual({ w: 4, h: 4 })
+    expect(partDef('pulley').anchors).toEqual([expect.objectContaining({ key: 'belt', role: 'belt' })])
+    expect(partDef('conveyor').size).toEqual({ w: 6, h: 1 })
+    expect(partDef('conveyor').anchors).toEqual([expect.objectContaining({ key: 'belt', role: 'belt' })])
+    expect(partDef('scissors').size).toEqual({ w: 2, h: 2 })
+    expect(partDef('ball-base').anchors).toEqual([expect.objectContaining({ role: 'rope', local: { x: 0, y: 0 } })])
+    expect(partDef('seesaw').anchors.map((a) => a.role)).toEqual(['rope', 'rope'])
+  })
+
+  it('two meshing gears turn opposite ways at the expected ratio', () => {
+    const s = new Simulation(level([P('a', 'gear-small', 400, 400), P('b', 'gear-large', 460, 400)]), empty)
+    const [a, b] = s.parts
+    motor(a.anchors.belt.pin!, 4, 1e7)
+    run(s, 60)
+    const wa = a.bodies[0].getAngularVelocity()
+    const wb = b.bodies[0].getAngularVelocity()
+    expect(wa).toBeCloseTo(4, 1)
+    expect(wb).toBeCloseTo(-2, 1)
+    expect(b.glow).toBeGreaterThan(0)
+  })
+
+  it('gears that do not touch do not mesh', () => {
+    const s = new Simulation(level([P('a', 'gear-small', 400, 400), P('b', 'gear-large', 480, 400)]), empty)
+    motor(s.parts[0].anchors.belt.pin!, 4, 1e7)
+    run(s, 60)
+    expect(Math.abs(s.parts[1].bodies[0].getAngularVelocity())).toBeLessThan(0.01)
+  })
+
+  it('a belt makes the conveyor move a box', () => {
+    const lv = level(
+      [P('drive', 'pulley', 200, 300), P('belt', 'conveyor', 400, 400), P('box', 'bucket', 400, 370)],
+      [L('l1', 'belt', ['drive', 'belt'], ['belt', 'belt'])],
+    )
+    const s = new Simulation(lv, empty)
+    const box = s.parts[2].bodies[0]
+    const x0 = toU(box.getPosition().x)
+    motor(s.parts[0].anchors.belt.pin!, 3, 1e7)
+    run(s, 120)
+    // Pulley r 20, conveyor wheel r 10: the wheel turns twice as fast as the pulley.
+    expect(s.parts[1].bodies[1].getAngularVelocity()).toBeCloseTo(6, 1)
+    expect(toU(box.getPosition().x) - x0).toBeGreaterThan(40)
+    expect(s.parts[1].glow).toBeGreaterThan(0)
+  })
+
+  it('a ball pushed into the scissors handle cuts the rope holding a bucket, which then falls', () => {
+    const lv = level(
+      [P('saw', 'seesaw', 400, 300), P('bucket', 'bucket', 460, 420), P('cut', 'scissors', 470, 360), P('ball', 'ball-bowling', 540, 360)],
+      [L('rope', 'rope', ['saw', 'right'], ['bucket', 'handle'])],
+    )
+    const s = new Simulation(lv, empty)
+    expect(s.ropes).toHaveLength(1)
+    const bucket = s.parts[1].bodies[0]
+    s.parts[3].bodies[0].setLinearVelocity({ x: toM(-400), y: 0 })
+    run(s, 5)
+    expect(s.parts[2].state.closed).toBe(0)
+    run(s, 25)
+    expect(s.parts[2].state.closed).toBe(1)
+    expect(s.ropes[0].enabled).toBe(false)
+    expect(s.events).toEqual([expect.objectContaining({ name: 'rope-cut', part: 'cut' })])
+    run(s, 60)
+    expect(toU(bucket.getPosition().y)).toBeGreaterThan(500)
+  })
+
+  it('without the hit, the rope keeps holding the bucket', () => {
+    const lv = level(
+      [P('saw', 'seesaw', 400, 300), P('bucket', 'bucket', 460, 420), P('cut', 'scissors', 470, 360)],
+      [L('rope', 'rope', ['saw', 'right'], ['bucket', 'handle'])],
+    )
+    const s = new Simulation(lv, empty)
+    run(s, 240)
+    expect(s.ropes[0].enabled).toBe(true)
+    expect(toU(s.parts[1].bodies[0].getPosition().y)).toBeLessThan(450)
+  })
+
+  it('canLink refuses rope to belt, same part and unknown anchors', () => {
+    const parts = [P('b', 'ball-base', 100, 100), P('s', 'seesaw', 300, 300), P('p', 'pulley', 500, 100), P('q', 'pulley', 600, 100)]
+    const A = (part: string, anchor: string) => ({ part, anchor })
+    expect(canLink(A('b', 'center'), A('s', 'left'), parts)).toBe(true)
+    expect(canLink(A('p', 'belt'), A('q', 'belt'), parts)).toBe(true)
+    expect(canLink(A('b', 'center'), A('p', 'belt'), parts)).toBe(false)
+    expect(canLink(A('s', 'left'), A('s', 'right'), parts)).toBe(false)
+    expect(canLink(A('b', 'nope'), A('s', 'left'), parts)).toBe(false)
+    expect(canLink(A('x', 'center'), A('s', 'left'), parts)).toBe(false)
+  })
+
+  it('relaunch gives equal hash, events and part state (cut rope, belt-driven conveyor)', () => {
+    const lv = level(
+      [
+        P('saw', 'seesaw', 400, 300), P('bucket', 'bucket', 460, 420), P('cut', 'scissors', 470, 360),
+        P('drop', 'ball-bowling', 482, 200),
+        P('g', 'gear-large', 200, 500), P('g2', 'gear-small', 260, 500), P('kick', 'ball-bowling', 236, 300),
+        P('belt', 'conveyor', 600, 640), P('box', 'ball-base', 600, 620),
+      ],
+      [L('rope', 'rope', ['saw', 'right'], ['bucket', 'handle']), L('l2', 'belt', ['g', 'belt'], ['belt', 'belt'])],
+    )
+    const before = JSON.parse(JSON.stringify(lv))
+    const go = () => {
+      const s = new Simulation(lv, empty)
+      run(s, 600)
+      return { hash: hashWorld(s.world), events: s.events, state: s.parts.map((p) => p.state) }
+    }
+    const first = go()
+    expect(first.events.map((e) => e.name)).toEqual(['rope-cut'])
+    expect(first.state[2]).toEqual({ closed: 1 })
+    expect(go()).toEqual(first)
+    expect(lv).toEqual(before)
+  })
+})

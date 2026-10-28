@@ -1,6 +1,7 @@
 import { type Vec, add, dot, rotate, sub, v } from '../engine/vec'
 import { CELL, angleOf } from '../parts/common'
 import { partDef } from '../parts/registry'
+import type { AnchorDef } from '../parts/types'
 import type { Placement } from './types'
 
 export const FIELD = { w: 64 * CELL, h: 40 * CELL }
@@ -24,6 +25,11 @@ export function footprint(p: Placement): Vec[] {
   const a = angleOf(p)
   const corners = [v(-hw, -hh), v(hw, -hh), v(hw, hh), v(-hw, hh)]
   return corners.map((c) => add(v(p.x, p.y), rotate(v(p.flip ? -c.x : c.x, c.y), a)))
+}
+
+/** World position (units) of an anchor of a placed part, before simulation (flip then rotation). */
+export function anchorPoint(p: Placement, a: AnchorDef): Vec {
+  return add(v(p.x, p.y), rotate(v(p.flip ? -a.local.x : a.local.x, a.local.y), angleOf(p)))
 }
 
 function axes(poly: Vec[]): Vec[] {

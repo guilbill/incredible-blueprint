@@ -4,6 +4,8 @@ import { hashWorld } from '../engine/hash'
 import type { Rope } from '../engine/joints'
 import { World } from '../engine/world'
 import type { Goal, Level, SimEventName, Solution } from '../level/types'
+import { meshGears } from '../parts/mech/gear'
+import { buildLink } from '../parts/mech/links'
 import { partDef } from '../parts/registry'
 import type { PartInstance, SimCtx } from '../parts/types'
 import { evaluateGoals } from './goals'
@@ -21,6 +23,8 @@ export class Simulation {
   readonly parts: PartInstance[] = []
   readonly events: SimEvent[] = []
   readonly ropes: Rope[] = []
+  /** Rope of each built rope link, by link id (the renderer hides cut ones). */
+  readonly ropeOf = new Map<string, Rope>()
   stepIndex = 0
   goalsMet = false
   private readonly goals: Goal[]
@@ -52,8 +56,14 @@ export class Simulation {
     this.buildLinks([...level.fixedLinks, ...sol.links])
   }
 
-  /** Hook for Task 8: build ropes and belts from links, after all parts exist. Links are ignored until then. */
-  protected buildLinks(_links: Level['fixedLinks']): void {}
+  /** After all parts exist: meshes touching gears, then builds ropes and belts in link order (invalid links are skipped). */
+  protected buildLinks(links: Level['fixedLinks']): void {
+    meshGears(this.ctx)
+    for (const l of links) {
+      if (!buildLink(l, this.ctx) || l.kind !== 'rope') continue
+      this.ropeOf.set(l.id, this.ropes[this.ropes.length - 1])
+    }
+  }
 
   step(): void {
     for (const p of this.parts) p.onStep?.(this.ctx)

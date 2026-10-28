@@ -1,4 +1,4 @@
-import type { Body } from 'planck'
+import type { Body, RevoluteJoint } from 'planck'
 import type { Rope } from '../engine/joints'
 import type { Vec } from '../engine/vec'
 import type { ContactEvent, World } from '../engine/world'
@@ -28,7 +28,11 @@ export interface PartInstance {
   id: string
   kind: PartKind
   bodies: Body[]
-  anchors: Record<string, { body: Body; local: Vec; radius: number }>
+  /**
+   * `local` is in the anchor body's frame. Belt anchors also give their wheel's ground `pin` and
+   * `radius` (units), which set the belt ratio.
+   */
+  anchors: Record<string, { body: Body; local: Vec; radius: number; pin?: RevoluteJoint }>
   state: Record<string, number>
   glow: number
   onStep?(sim: SimCtx): void

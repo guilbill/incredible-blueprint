@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, Placement, Solution } from '../../src/level/types'
 import { clientToUnits, fitCanvas, panelPosition, unitsToClient } from '../../src/ui/geometry'
-import { addPart, draftPlacement, flipped, hitPart, nextId, remaining, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
+import { addLink, addPart, draftPlacement, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
 import { MAX_STEPS_PER_FRAME, STEP_MS, stepsDue } from '../../src/ui/loop'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number, extra: Partial<Placement> = {}): Placement =>
@@ -123,5 +123,49 @@ describe('edit', () => {
     }
     expect(sanitizeDraft(level, draft).placements.map((p) => p.id)).toEqual(['p1', 'p5'])
     expect(sanitizeDraft(level, 'nonsense')).toEqual(empty)
+  })
+})
+
+describe('links', () => {
+  const lv: Level = {
+    ...level,
+    fixed: [P('saw', 'seesaw', 400, 300), P('pl', 'pulley', 700, 300)],
+    inventory: [{ kind: 'ball-tennis', count: 2 }, { kind: 'pulley', count: 1 }],
+  }
+  const sol: Solution = { placements: [P('p1', 'ball-tennis', 200, 200), P('p2', 'pulley', 900, 300)], links: [] }
+  const A = (part: string, anchor: string) => ({ part, anchor })
+
+  it('adds a rope or a belt by anchor role, refusing mismatches and duplicates', () => {
+    const s1 = addLink(lv, sol, A('p1', 'center'), A('saw', 'left'))!
+    expect(s1.links).toEqual([{ id: 'l1', kind: 'rope', a: A('p1', 'center'), b: A('saw', 'left') }])
+    expect(addLink(lv, s1, A('saw', 'left'), A('p1', 'center'))).toBeNull()
+    expect(addLink(lv, s1, A('p1', 'center'), A('pl', 'belt'))).toBeNull()
+    const s2 = addLink(lv, s1, A('pl', 'belt'), A('p2', 'belt'))!
+    expect(s2.links[1]).toEqual({ id: 'l2', kind: 'belt', a: A('pl', 'belt'), b: A('p2', 'belt') })
+    expect(removeLink(s2, 'l1').links.map((l) => l.id)).toEqual(['l2'])
+  })
+
+  it('hit-tests anchors (fixed and placed) and links', () => {
+    const s1 = addLink(lv, sol, A('p1', 'center'), A('saw', 'right'))!
+    expect(hitAnchor(lv, s1, { x: 341, y: 301 })).toEqual(A('saw', 'left'))
+    expect(hitAnchor(lv, s1, { x: 200, y: 203 })).toEqual(A('p1', 'center'))
+    expect(hitAnchor(lv, s1, { x: 250, y: 250 })).toBeUndefined()
+    // Rope from (200, 200) to (460, 300): its midpoint is (330, 250).
+    expect(hitLink(lv, s1, { x: 330, y: 252 })).toBe('l1')
+    expect(hitLink(lv, s1, { x: 330, y: 280 })).toBeUndefined()
+  })
+
+  it('keeps valid links through draft restore and drops the others', () => {
+    const draft = {
+      placements: sol.placements,
+      links: [
+        { id: 'l1', kind: 'rope', a: A('p1', 'center'), b: A('saw', 'left') },
+        { id: 'l2', kind: 'belt', a: A('p1', 'center'), b: A('saw', 'right') },
+        { id: 'l3', kind: 'belt', a: A('gone', 'belt'), b: A('pl', 'belt') },
+        'junk',
+        { id: 'l4', kind: 'belt', a: A('pl', 'belt'), b: A('p2', 'belt') },
+      ],
+    }
+    expect(sanitizeDraft(lv, draft).links.map((l) => l.id)).toEqual(['l1', 'l4'])
   })
 })
