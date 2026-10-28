@@ -66,6 +66,22 @@ describe('power parts', () => {
     expect(part(now, 'cage').bodies[1].getAngularVelocity()).toBeCloseTo(6, 1)
   })
 
+  it('flip reverses the motor: a flipped cage drives its belted pulley at -6 rad/s', () => {
+    const go = (flip: boolean) => {
+      const s = new Simulation(
+        level(
+          [P('cage', 'mouse-cage', 200, 300, { flip, settings: { start: 1 } }), P('wheel', 'pulley', 300, 300)],
+          [L('b', 'belt', ['cage', 'belt'], ['wheel', 'belt'])],
+        ),
+        empty,
+      )
+      run(s, 60)
+      return part(s, 'wheel').bodies[0].getAngularVelocity()
+    }
+    expect(go(false)).toBeCloseTo(6, 1)
+    expect(go(true)).toBeCloseTo(-6, 1)
+  })
+
   /**
    * Motor at (300, 300) belted to a pulley at (500, 300). A rope runs from the pulley rim (local
    * -20, 0) down to a bucket resting on a floor: turning clockwise lifts the bucket up to ~20 units.
@@ -227,5 +243,3 @@ describe('power parts', () => {
     for (const k of ['mouse-cage', 'monkey-bike', 'candle', 'balloon'] as PartKind[]) expect(kinds).toContain(k)
   })
 })
-
-
