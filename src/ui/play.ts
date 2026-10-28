@@ -100,6 +100,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let lastT: number | undefined
   let fit = fitCanvas(1, 1, 1)
   let raf = 0
+  /**
+   * While building, the board only changes after an input event, a resize or a UI refresh, so frames
+   * with none of those are skipped. While the machine runs every frame is drawn.
+   */
+  let dirty = true
+  const markDirty = (): void => {
+    dirty = true
+  }
+  const DIRTY_EVENTS = ['pointerdown', 'pointermove', 'pointerup', 'keydown', 'keyup', 'click', 'input', 'change', 'wheel'] as const
   let toastTimer = 0
   sound.arm()
   const impacts = createImpactTracker()
@@ -346,6 +355,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function refreshUi(): void {
+    dirty = true
     refreshDrawer()
     refreshSelPanel()
     canvas.classList.toggle('dragging', !!drag?.started)
@@ -547,6 +557,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     canvas.style.height = `${fit.cssH}px`
     canvas.width = fit.pxW
     canvas.height = fit.pxH
+    dirty = true
     const p = selectedPart()
     if (p && !selPanel.hidden) positionSelPanel(p)
   }
@@ -595,6 +606,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     raf = requestAnimationFrame(frame)
     guarded(() => advance(t), (err) => jammed(err, false))
     lastT = t
+    if (!sim && !dirty) return
+    dirty = false
     guarded(draw, (err) => jammed(err, true))
   }
 
@@ -619,6 +632,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   window.addEventListener('pointerup', onPointerUp)
   window.addEventListener('keydown', onKey)
   window.addEventListener('keyup', onKeyUp)
+  for (const type of DIRTY_EVENTS) window.addEventListener(type, markDirty, true)
+  void document.fonts?.ready.then(markDirty)
   resize()
   refreshUi()
   raf = requestAnimationFrame(frame)
@@ -631,6 +646,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     window.removeEventListener('pointerup', onPointerUp)
     window.removeEventListener('keydown', onKey)
     window.removeEventListener('keyup', onKeyUp)
+    for (const type of DIRTY_EVENTS) window.removeEventListener(type, markDirty, true)
     root.replaceChildren()
   }
 }

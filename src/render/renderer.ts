@@ -27,9 +27,31 @@ export interface RenderView {
 }
 
 const TRAIL_LEN = 40
+/** A trail is stroked in this many alpha bands (one path each) rather than one stroke per segment. */
+export const TRAIL_BANDS = 4
 const MIN_MOVE = 0.5
 /** Trail buffers live here, not in the sim: one set per Simulation, dropped with it. */
 const trails = new WeakMap<Simulation, Map<Body, Vec[]>>()
+
+/** The grid never changes: it is drawn once per canvas size into an offscreen canvas, then copied. */
+let gridCache: HTMLCanvasElement | undefined
+
+function blitGrid(ctx: CanvasRenderingContext2D, zoom: number): boolean {
+  if (typeof document === 'undefined') return false
+  const w = Math.round(FIELD.w * zoom)
+  const h = Math.round(FIELD.h * zoom)
+  if (!gridCache || gridCache.width !== w || gridCache.height !== h) {
+    gridCache = document.createElement('canvas')
+    gridCache.width = w
+    gridCache.height = h
+    const g = gridCache.getContext('2d')
+    if (!g) return false
+    g.scale(zoom, zoom)
+    drawGrid(g)
+  }
+  ctx.drawImage(gridCache, 0, 0)
+  return true
+}
 
 function drawGrid(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = COLORS.bg
@@ -158,6 +180,13 @@ function drawPart(pen: Pen, s: PartDrawState, fig: number | null): void {
   if (s.fixed) drawLockMark(pen, s.placement)
 }
 
+function tracePath(ctx: CanvasRenderingContext2D, pts: Vec[], from: number, to: number): void {
+  ctx.beginPath()
+  ctx.moveTo(pts[from].x, pts[from].y)
+  for (let i = from + 1; i <= to; i++) ctx.lineTo(pts[i].x, pts[i].y)
+  ctx.stroke()
+}
+
 function drawTrails(pen: Pen, sim: Simulation): void {
   let map = trails.get(sim)
   if (!map) trails.set(sim, (map = new Map()))
@@ -174,16 +203,20 @@ function drawTrails(pen: Pen, sim: Simulation): void {
         if (t.length > TRAIL_LEN) t.shift()
       }
       if (t.length < 2) continue
-      for (let i = 1; i < t.length; i++) {
-        ctx.globalAlpha = i / t.length
-        ctx.strokeStyle = COLORS.cyan
-        ctx.lineWidth = 2
-        ctx.shadowColor = COLORS.cyan
-        ctx.shadowBlur = 6
-        ctx.beginPath()
-        ctx.moveTo(t[i - 1].x, t[i - 1].y)
-        ctx.lineTo(t[i].x, t[i].y)
-        ctx.stroke()
+      // No shadowBlur here: blurring every segment of every trail was the costliest part of a frame.
+      // A wide faint stroke gives the glow, then the trail fades in a few alpha bands.
+      ctx.strokeStyle = COLORS.cyan
+      ctx.globalAlpha = 0.12
+      ctx.lineWidth = 6
+      tracePath(ctx, t, 0, t.length - 1)
+      ctx.lineWidth = 2
+      const n = t.length - 1
+      for (let k = 0; k < TRAIL_BANDS; k++) {
+        const from = Math.floor((k * n) / TRAIL_BANDS)
+        const to = Math.floor(((k + 1) * n) / TRAIL_BANDS)
+        if (to <= from) continue
+        ctx.globalAlpha = (k + 1) / TRAIL_BANDS
+        tracePath(ctx, t, from, to)
       }
       ctx.globalAlpha = 1
     }
@@ -195,8 +228,9 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   const { level, sol, sim } = view
   const pen = new Pen(ctx)
   ctx.save()
+  const cached = blitGrid(ctx, view.zoom)
   ctx.scale(view.zoom, view.zoom)
-  drawGrid(ctx)
+  if (!cached) drawGrid(ctx)
   drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
   drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
