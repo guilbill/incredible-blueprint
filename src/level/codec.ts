@@ -1,3 +1,4 @@
+import { canLink } from '../parts/mech/links'
 import { PART_DEFS } from '../parts/registry'
 import { canPlace, rotAllowed, FIELD } from './placement'
 import type { Level, PartKind, Placement } from './types'
@@ -69,6 +70,7 @@ export function validateLevel(x: unknown): string | null {
         if (anchor.role !== l.kind) return `Le lien « ${l.id} » ne peut pas s’attacher là.`
       }
       if ((l.a as { part: unknown }).part === (l.b as { part: unknown }).part) return `Le lien « ${l.id} » relie une pièce à elle-même.`
+      if (!canLink(l.a as never, l.b as never, parts)) return `Le lien « ${l.id} » est impossible : ces engrenages s’entraînent déjà.`
     }
     for (const g of x.goals) {
       if (!isObj(g)) return 'Un objectif est mal formé.'

@@ -63,6 +63,20 @@ export const GEARS: PartDef[] = [gearDef('gear-small', 'Petit engrenage', 2), ge
 
 const isGear = (p: PartInstance): boolean => p.kind === 'gear-small' || p.kind === 'gear-large'
 
+/** Pitch radius (units) of a gear kind, undefined for any other part. */
+export function gearRadius(kind: PartKind): number | undefined {
+  if (kind === 'gear-small') return CELL
+  if (kind === 'gear-large') return 2 * CELL
+  return undefined
+}
+
+/** Two gears mesh when their centres are r1 + r2 apart (±1 unit). */
+export function gearsMesh(a: { x: number; y: number; r: number }, b: { x: number; y: number; r: number }): boolean {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  return Math.abs(Math.sqrt(dx * dx + dy * dy) - (a.r + b.r)) <= 1
+}
+
 /**
  * Meshes every pair of gears whose centres are r1 + r2 apart (±1 unit), in placement order:
  * B turns -r1/r2 times as fast as A.
@@ -75,10 +89,7 @@ export function meshGears(sim: SimCtx): void {
       const b = gears[j].anchors.belt
       const pa = bodyPose(a.body)
       const pb = bodyPose(b.body)
-      const dx = pb.x - pa.x
-      const dy = pb.y - pa.y
-      const d = Math.sqrt(dx * dx + dy * dy)
-      if (Math.abs(d - (a.radius + b.radius)) <= 1) gear(sim.world, a.pin!, b.pin!, -a.radius / b.radius)
+      if (gearsMesh({ x: pa.x, y: pa.y, r: a.radius }, { x: pb.x, y: pb.y, r: b.radius })) gear(sim.world, a.pin!, b.pin!, -a.radius / b.radius)
     }
   }
 }

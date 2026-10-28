@@ -99,6 +99,10 @@ describe('validateLevel', () => {
   bad('a link to a missing part', (l) => l.fixedLinks.push({ id: 'k', kind: 'belt', a: { part: 'g1', anchor: 'belt' }, b: { part: 'nope', anchor: 'belt' } }))
   bad('a link with a missing anchor', (l) => l.fixedLinks.push({ id: 'k', kind: 'belt', a: { part: 'g1', anchor: 'zzz' }, b: { part: 'g2', anchor: 'belt' } }))
   bad('a link with the wrong role', (l) => l.fixedLinks.push({ id: 'k', kind: 'rope', a: { part: 'g1', anchor: 'belt' }, b: { part: 'g2', anchor: 'belt' } }))
+  bad('a belt between two gears that already mesh', (l) => {
+    l.fixed.push(P({ id: 'g3', kind: 'gear-small', x: 300, y: 340 }))
+    l.fixedLinks.push({ id: 'k', kind: 'belt', a: { part: 'g1', anchor: 'belt' }, b: { part: 'g3', anchor: 'belt' } })
+  })
   bad('duplicate link ids', (l) => {
     const k = { id: 'ball', kind: 'belt' as const, a: { part: 'g1', anchor: 'belt' }, b: { part: 'g2', anchor: 'belt' } }
     l.fixedLinks.push(k)

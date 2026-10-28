@@ -130,6 +130,26 @@ describe('mechanics', () => {
     expect(canLink(A('x', 'center'), A('s', 'left'), parts)).toBe(false)
   })
 
+  it('canLink refuses a belt between two gears that already mesh', () => {
+    const A = (part: string) => ({ part, anchor: 'belt' })
+    const meshed = [P('s', 'gear-small', 100, 100), P('l', 'gear-large', 160, 100), P('far', 'gear-small', 300, 100)]
+    expect(canLink(A('s'), A('l'), meshed)).toBe(false)
+    expect(canLink(A('l'), A('s'), meshed)).toBe(false)
+    expect(canLink(A('s'), A('far'), meshed)).toBe(true)
+  })
+
+  it('skips a belt between meshed gears found in a level, keeping only the mesh', () => {
+    const fixed = [P('s', 'gear-small', 100, 100), P('l', 'gear-large', 160, 100)]
+    const count = (s: Simulation) => {
+      let n = 0
+      for (let j = s.world.pl.getJointList(); j; j = j.getNext()) n++
+      return n
+    }
+    const plain = new Simulation(level(fixed), empty)
+    const belted = new Simulation(level(fixed, [L('k', 'belt', ['s', 'belt'], ['l', 'belt'])]), empty)
+    expect(count(belted)).toBe(count(plain))
+  })
+
   it('relaunch gives equal hash, events and part state (cut rope, belt-driven conveyor)', () => {
     const lv = level(
       [
