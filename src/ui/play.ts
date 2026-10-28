@@ -8,7 +8,7 @@ import { Pen, type PartDrawState } from '../render/pen'
 import { render } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
 import { addPart, draftPlacement, flipped, hitPart, nextId, remaining, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
-import { clientToUnits, fitCanvas, insideField, unitsToClient } from './geometry'
+import { clientToUnits, fitCanvas, insideField, panelPosition, unitsToClient } from './geometry'
 import { stepsDue } from './loop'
 
 export interface PlayOpts { onWin(): void; onBack(): void }
@@ -136,31 +136,31 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   // ---- selection panel ----
   const selectedPart = (): Placement | undefined => sol.placements.find((p) => p.id === selected)
 
-  function stepper(label: string, value: string, onDec: () => void, onInc: () => void): HTMLElement {
+  /** Id the panel was built and positioned for; reset to rebuild (new selection, move, drop). */
+  let panelFor: string | undefined
+  const panelValues = new Map<string, HTMLSpanElement>()
+
+  function stepper(key: string, label: string, onDec: () => void, onInc: () => void): HTMLElement {
     const row = el('div', 'row')
     const dec = el('button', 'btn small', '−')
     const inc = el('button', 'btn small', '+')
+    const value = el('span', 'value')
     dec.addEventListener('click', onDec)
     inc.addEventListener('click', onInc)
-    row.append(el('span', 'label', label), dec, el('span', 'value', value), inc)
+    row.append(el('span', 'label', label), dec, value, inc)
+    panelValues.set(key, value)
     return row
   }
 
-  function refreshSelPanel(): void {
-    const p = selectedPart()
-    if (!p || sim || drag?.started) {
-      selPanel.hidden = true
-      return
-    }
+  /** Builds the panel's buttons once per selection; they read the part at click time. */
+  function buildSelPanel(p: Placement): void {
     const def = partDef(p.kind)
-    selPanel.replaceChildren()
-    selPanel.append(el('div', 'title', def.label))
-    if (def.rotStep) {
-      selPanel.append(stepper('Rotation', `${p.rot * 15}°`, () => edit((q) => rotated(q, -1)), () => edit((q) => rotated(q, 1))))
-    }
+    panelValues.clear()
+    selPanel.replaceChildren(el('div', 'title', def.label))
+    if (def.rotStep) selPanel.append(stepper('rot', 'Rotation', () => edit((q) => rotated(q, -1)), () => edit((q) => rotated(q, 1))))
     for (const s of def.settings) {
-      const cur = setting(p, s)
-      selPanel.append(stepper(s.label, String(cur), () => edit((q) => withSetting(q, s.key, cur - s.step)), () => edit((q) => withSetting(q, s.key, cur + s.step))))
+      const by = (d: number) => () => edit((q) => withSetting(q, s.key, setting(q, s) + d * s.step))
+      selPanel.append(stepper(s.key, s.label, by(-1), by(1)))
     }
     const actions = el('div', 'row')
     if (def.flippable) {
@@ -172,21 +172,38 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     del.addEventListener('click', removeSelected)
     actions.append(del)
     selPanel.append(actions)
+  }
+
+  function updateSelValues(p: Placement): void {
+    panelValues.get('rot')?.replaceChildren(`${p.rot * 15}°`)
+    for (const s of partDef(p.kind).settings) panelValues.get(s.key)?.replaceChildren(String(setting(p, s)))
+  }
+
+  /**
+   * Built and positioned when the selection changes or after a move; edits only update the values,
+   * so the buttons stay put under the pointer while the part grows or rotates.
+   */
+  function refreshSelPanel(): void {
+    const p = selectedPart()
+    if (!p || drag?.started) panelFor = undefined
+    if (!p || sim || drag?.started) {
+      selPanel.hidden = true
+      return
+    }
+    const fresh = panelFor !== p.id
+    if (fresh) buildSelPanel(p)
+    updateSelValues(p)
     selPanel.hidden = false
-    positionSelPanel(p)
+    if (fresh) positionSelPanel(p)
+    panelFor = p.id
   }
 
   function positionSelPanel(p: Placement): void {
     const fp = footprint(p)
-    const right = Math.max(...fp.map((q) => q.x))
-    const top = Math.min(...fp.map((q) => q.y))
-    const cr = canvas.getBoundingClientRect()
-    const sr = stage.getBoundingClientRect()
-    const at = unitsToClient({ x: right, y: top }, cr)
-    const x = Math.min(at.x - sr.left + 10, sr.width - selPanel.offsetWidth - 8)
-    const y = Math.max(8, Math.min(at.y - sr.top, sr.height - selPanel.offsetHeight - 8))
-    selPanel.style.left = `${Math.max(8, x)}px`
-    selPanel.style.top = `${y}px`
+    const anchor = unitsToClient({ x: Math.max(...fp.map((q) => q.x)), y: Math.min(...fp.map((q) => q.y)) }, canvas.getBoundingClientRect())
+    const at = panelPosition(anchor, stage.getBoundingClientRect(), { w: selPanel.offsetWidth, h: selPanel.offsetHeight })
+    selPanel.style.left = `${at.x}px`
+    selPanel.style.top = `${at.y}px`
   }
 
   // ---- edits ----

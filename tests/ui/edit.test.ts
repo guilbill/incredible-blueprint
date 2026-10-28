@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, Placement, Solution } from '../../src/level/types'
-import { clientToUnits, fitCanvas, unitsToClient } from '../../src/ui/geometry'
+import { clientToUnits, fitCanvas, panelPosition, unitsToClient } from '../../src/ui/geometry'
 import { addPart, draftPlacement, flipped, hitPart, nextId, remaining, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
 import { MAX_STEPS_PER_FRAME, STEP_MS, stepsDue } from '../../src/ui/loop'
 
@@ -28,6 +28,17 @@ describe('geometry', () => {
     expect(clientToUnits(100, 50, rect)).toEqual({ x: 0, y: 0 })
     expect(clientToUnits(420, 250, rect)).toEqual({ x: 640, y: 400 })
     expect(unitsToClient({ x: 1280, y: 800 }, rect)).toEqual({ x: 740, y: 450 })
+  })
+})
+
+describe('panelPosition', () => {
+  const stage = { left: 100, top: 50, width: 800, height: 500 }
+  it('sits right of the anchor, in stage-local pixels', () => {
+    expect(panelPosition({ x: 300, y: 200 }, stage, { w: 170, h: 120 })).toEqual({ x: 210, y: 150 })
+  })
+  it('is clamped inside the stage with an 8 px margin', () => {
+    expect(panelPosition({ x: 890, y: 540 }, stage, { w: 170, h: 120 })).toEqual({ x: 622, y: 372 })
+    expect(panelPosition({ x: 0, y: 0 }, stage, { w: 170, h: 120 })).toEqual({ x: 8, y: 8 })
   })
 })
 

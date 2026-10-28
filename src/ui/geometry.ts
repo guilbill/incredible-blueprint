@@ -38,3 +38,16 @@ export function unitsToClient(p: Vec, rect: Rect): Vec {
 }
 
 export const insideField = (p: Vec): boolean => p.x >= 0 && p.y >= 0 && p.x <= FIELD.w && p.y <= FIELD.h
+
+/**
+ * Where to put the selection panel, in stage-local pixels: just right of the part's top-right
+ * corner (`anchor`, client coordinates), clamped inside the stage with a margin.
+ */
+export function panelPosition(anchor: Vec, stage: Rect, panel: { w: number; h: number }, gap = 10, margin = 8): Vec {
+  const maxX = stage.width - panel.w - margin
+  const maxY = stage.height - panel.h - margin
+  return {
+    x: Math.max(margin, Math.min(anchor.x - stage.left + gap, maxX)),
+    y: Math.max(margin, Math.min(anchor.y - stage.top, maxY)),
+  }
+}
