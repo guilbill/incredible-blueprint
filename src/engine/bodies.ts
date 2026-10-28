@@ -2,7 +2,7 @@ import './dmath'
 import { Box, Circle, Polygon, Vec2 } from 'planck'
 import type { Body, BodyType, Shape } from 'planck'
 import type { Vec } from './vec'
-import { type BodyData, World, data, toM, toMV } from './world'
+import { type BodyData, World, data, toM, toMV, toU, toUV } from './world'
 
 export { data, type BodyData }
 
@@ -65,3 +65,59 @@ export const compound = (
   shapes: ShapeSpec[],
   o: BodyOpts & { type?: BodyType; angle?: number },
 ): Body => make(w, o.type ?? 'dynamic', pos, o.angle ?? 0, shapes, o)
+
+/** Solid (non-sensor) outline of a fixture in world units: a convex polygon or a circle. */
+export type Outline = { kind: 'poly'; pts: Vec[] } | { kind: 'circle'; c: Vec; r: number }
+
+/** Outlines of the body's non-sensor fixtures, in world units, in fixture order. */
+export function outlines(b: Body): Outline[] {
+  const out: Outline[] = []
+  for (let f = b.getFixtureList(); f; f = f.getNext()) {
+    if (f.isSensor()) continue
+    const s = f.getShape()
+    if (s instanceof Circle) {
+      out.push({ kind: 'circle', c: toUV(b.getWorldPoint(s.getCenter())), r: toU(s.getRadius()) })
+    } else if (s instanceof Polygon) {
+      out.push({ kind: 'poly', pts: s.m_vertices.map((p) => toUV(b.getWorldPoint(p))) })
+    }
+  }
+  return out
+}
+
+/**
+ * Bodies touching b through solid fixtures right now (as of the last step), with the world normal
+ * pointing from the other body toward b, in Planck's contact-list order.
+ */
+export function touching(b: Body): { other: Body; normal: Vec }[] {
+  const out: { other: Body; normal: Vec }[] = []
+  for (let e = b.getContactList(); e; e = e.next) {
+    const c = e.contact
+    if (!e.other || !c.isTouching() || c.getFixtureA().isSensor() || c.getFixtureB().isSensor()) continue
+    const n = c.getWorldManifold(null)?.normal
+    if (!n) continue
+    // Planck's normal points from fixture A to fixture B.
+    const s = c.getFixtureB().getBody() === b ? 1 : -1
+    out.push({ other: e.other, normal: { x: n.x * s, y: n.y * s } })
+  }
+  return out
+}
+
+/** Takes the body out of the simulation (no collisions, no motion) or puts it back. */
+export const setEnabled = (b: Body, on: boolean): void => b.setActive(on)
+
+/** Linear velocity in units/s. */
+export function velocity(b: Body): Vec {
+  const lv = b.getLinearVelocity()
+  return { x: toU(lv.x), y: toU(lv.y) }
+}
+
+/** Sets the horizontal velocity (units/s), keeping the vertical one, and wakes the body. */
+export function setVelocityX(b: Body, vx: number): void {
+  const lv = b.getLinearVelocity()
+  b.setLinearVelocity({ x: toM(vx), y: lv.y })
+  b.setAwake(true)
+}
+
+/** Impulse in kg·units/s at the centre of mass. */
+export const applyImpulse = (b: Body, imp: Vec): void =>
+  b.applyLinearImpulse(toMV(imp), b.getWorldCenter(), true)
