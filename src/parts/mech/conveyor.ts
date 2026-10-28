@@ -60,7 +60,7 @@ export const conveyor: PartDef = {
       const speed = wheel.getAngularVelocity() * SPEED_PER_RAD
       data(belt).surfaceSpeed = speed
       // A moving belt wakes what rests on it, or a body that fell asleep there would never be dragged.
-      if (speed !== 0) for (const t of touching(belt)) t.other.setAwake(true)
+      if (Math.abs(speed) > 1e-3) for (const t of touching(belt)) t.other.setAwake(true)
       if (Math.abs(speed) > 1) sim.activate(inst)
     }
     return inst
