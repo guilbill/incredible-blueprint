@@ -71,6 +71,21 @@ describe('mechanics', () => {
     expect(s.parts[1].glow).toBeGreaterThan(0)
   })
 
+  it('a conveyor that starts late still moves a box that fell asleep on it', () => {
+    const lv = level(
+      [P('drive', 'pulley', 200, 300), P('belt', 'conveyor', 400, 400), P('box', 'ball-base', 400, 382)],
+      [L('l1', 'belt', ['drive', 'belt'], ['belt', 'belt'])],
+    )
+    const s = new Simulation(lv, empty)
+    const box = s.parts[2].bodies[0]
+    run(s, 240)
+    expect(box.isAwake()).toBe(false)
+    const x0 = toU(box.getPosition().x)
+    motor(s.parts[0].anchors.belt.pin!, 3, 1e7)
+    run(s, 60)
+    expect(toU(box.getPosition().x) - x0).toBeGreaterThan(10)
+  })
+
   it('a ball pushed into the scissors handle cuts the rope holding a bucket, which then falls', () => {
     const lv = level(
       [P('saw', 'seesaw', 400, 300), P('bucket', 'bucket', 460, 420), P('cut', 'scissors', 470, 360), P('ball', 'ball-bowling', 540, 360)],

@@ -1,4 +1,4 @@
-import { data, dynamicCircle, staticBox } from '../../engine/bodies'
+import { data, dynamicCircle, staticBox, touching } from '../../engine/bodies'
 import { pin } from '../../engine/joints'
 import { add, v } from '../../engine/vec'
 import { CELL, DENSITY, instance, pos } from '../common'
@@ -59,6 +59,8 @@ export const conveyor: PartDef = {
     inst.onStep = (sim) => {
       const speed = wheel.getAngularVelocity() * SPEED_PER_RAD
       data(belt).surfaceSpeed = speed
+      // A moving belt wakes what rests on it, or a body that fell asleep there would never be dragged.
+      if (speed !== 0) for (const t of touching(belt)) t.other.setAwake(true)
       if (Math.abs(speed) > 1) sim.activate(inst)
     }
     return inst
