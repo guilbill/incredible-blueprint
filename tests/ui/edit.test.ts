@@ -173,6 +173,13 @@ describe('links', () => {
     expect(hitLink(lv, s1, { x: 330, y: 280 })).toBeUndefined()
   })
 
+  it('hits a belt on its straight run, not only between the centres', () => {
+    const s = addLink(lv, sol, A('pl', 'belt'), A('p2', 'belt'))!
+    // Pulleys at (700, 300) and (900, 300), radius 20 + gap 4: the lower run is at y = 324.
+    expect(hitLink(lv, s, { x: 800, y: 324 })).toBe('l1')
+    expect(hitLink(lv, s, { x: 800, y: 300 })).toBeUndefined()
+  })
+
   it('keeps valid links through draft restore and drops the others', () => {
     const draft = {
       placements: sol.placements,

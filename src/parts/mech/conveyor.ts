@@ -24,7 +24,7 @@ export const conveyor: PartDef = {
   rotStep: 0,
   flippable: false,
   settings: [],
-  anchors: [{ key: 'belt', local: WHEEL_AT, role: 'belt' }],
+  anchors: [{ key: 'belt', local: WHEEL_AT, role: 'belt', radius: WHEEL_R }],
   draw(pen, s) {
     pen.reset()
     applyGlow(pen, s)

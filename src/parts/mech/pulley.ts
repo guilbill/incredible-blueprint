@@ -16,7 +16,7 @@ export const pulley: PartDef = {
   rotStep: 0,
   flippable: false,
   settings: [],
-  anchors: [{ key: 'belt', local: v(0, 0), role: 'belt' }],
+  anchors: [{ key: 'belt', local: v(0, 0), role: 'belt', radius: R }],
   draw(pen, s) {
     pen.reset()
     applyGlow(pen, s)

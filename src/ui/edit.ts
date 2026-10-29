@@ -2,6 +2,7 @@ import { dot, len, pointSegmentDistance, sub, type Vec } from '../engine/vec'
 import { LIMITS } from '../level/codec'
 import { anchorPoint, canPlace, footprint, snap } from '../level/placement'
 import type { Anchor, Level, Link, PartKind, Placement, Solution } from '../level/types'
+import { BELT_GAP, beltLoop, distanceToBelt } from '../render/belt'
 import { anchorDef, canLink } from '../parts/mech/links'
 import { partDef } from '../parts/registry'
 
@@ -172,11 +173,22 @@ export function hitAnchor(level: Level, sol: Solution, pt: Vec): Anchor | undefi
 
 /** Id of the player link passing under the point (last added first). */
 export function hitLink(level: Level, sol: Solution, pt: Vec): string | undefined {
+  const parts = all(level, sol)
   for (let i = sol.links.length - 1; i >= 0; i--) {
     const l = sol.links[i]
     const a = anchorAt(level, sol, l.a)
     const b = anchorAt(level, sol, l.b)
-    if (a && b && pointSegmentDistance(pt, a, b) <= LINK_HIT) return l.id
+    if (!a || !b) continue
+    if (l.kind === 'belt') {
+      const ra = anchorDef(l.a, parts)?.radius
+      const rb = anchorDef(l.b, parts)?.radius
+      const loop = ra !== undefined && rb !== undefined ? beltLoop(a, ra + BELT_GAP, b, rb + BELT_GAP) : null
+      if (loop) {
+        if (distanceToBelt(pt, loop) <= LINK_HIT) return l.id
+        continue
+      }
+    }
+    if (pointSegmentDistance(pt, a, b) <= LINK_HIT) return l.id
   }
   return undefined
 }

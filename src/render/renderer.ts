@@ -7,6 +7,7 @@ import type { Anchor, Level, Link, Placement, Solution } from '../level/types'
 import { CELL } from '../parts/common'
 import { gearPhases } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
+import { BELT_GAP, beltLoop, traceBelt } from './belt'
 import { COLORS, type PartDrawState, Pen } from './pen'
 
 export interface RenderView {
@@ -104,6 +105,15 @@ function anchorPos(a: Anchor, placements: Placement[], sim?: Simulation): Vec | 
   return p && def ? anchorPoint(p, def) : undefined
 }
 
+/** Radius and current angle of the wheel under a belt anchor (angle 0 before the run). */
+function wheelOf(a: Anchor, placements: Placement[], sim?: Simulation): { radius: number; angle: number } | undefined {
+  const anc = sim?.parts.find((p) => p.id === a.part)?.anchors[a.anchor]
+  if (anc) return { radius: anc.radius, angle: bodyPose(anc.body).angle }
+  const p = placements.find((q) => q.id === a.part)
+  const radius = p && partDef(p.kind).anchors.find((d) => d.key === a.anchor)?.radius
+  return radius === undefined ? undefined : { radius, angle: 0 }
+}
+
 function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation, selected?: string): void {
   for (const l of links) {
     // A cut rope disappears, and so does one tied to a part taken out of play (an eaten cheese, a
@@ -117,6 +127,18 @@ function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simul
     if (!a || !b) continue
     if (l.id === selected) pen.reset(COLORS.yellow, 2)
     else pen.reset(COLORS.line, 1)
+    const wa = l.kind === 'belt' ? wheelOf(l.a, placements, sim) : undefined
+    const wb = l.kind === 'belt' ? wheelOf(l.b, placements, sim) : undefined
+    const loop = wa && wb ? beltLoop(a, wa.radius + BELT_GAP, b, wb.radius + BELT_GAP) : null
+    if (loop && wa) {
+      // Dashes run at belt speed: the first wheel's rim speed, in its turning direction.
+      pen.ctx.setLineDash([8, 4])
+      pen.ctx.lineDashOffset = -wa.angle * loop.ra
+      traceBelt(pen.ctx, loop)
+      pen.ctx.stroke()
+      pen.ctx.lineDashOffset = 0
+      continue
+    }
     pen.dashed(l.kind === 'belt')
     pen.line(a, b)
   }

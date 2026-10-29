@@ -7,7 +7,7 @@ import type { Level, Link, PartKind, Placement, Solution } from '../../src/level
 import { gearOutline, gearPhases } from '../../src/parts/mech/gear'
 import { canLink } from '../../src/parts/mech/links'
 import type { PartInstance } from '../../src/parts/types'
-import { partDef } from '../../src/parts/registry'
+import { PART_DEFS, partDef } from '../../src/parts/registry'
 import { Pen } from '../../src/render/pen'
 import { fakeCtx } from '../render/fakeCtx'
 
@@ -29,6 +29,22 @@ const part = (s: Simulation, id: string) => s.parts.find((p) => p.id === id)!
 const run = (s: Simulation, n: number) => {
   for (let i = 0; i < n; i++) s.step()
 }
+
+describe('belt anchors', () => {
+  it('def radius equals the built instance anchor radius', () => {
+    const kinds = Object.keys(PART_DEFS) as PartKind[]
+    let seen = 0
+    for (const kind of kinds) {
+      const def = partDef(kind)
+      const d = def.anchors.find((a) => a.role === 'belt')
+      if (!d) continue
+      const s = new Simulation(level([P('x', kind, 400, 400)]), empty)
+      expect(d.radius, kind).toBe(part(s, 'x').anchors[d.key].radius)
+      seen++
+    }
+    expect(seen).toBeGreaterThanOrEqual(5)
+  })
+})
 
 describe('mechanics', () => {
   it('registers the mechanical parts with their anchors', () => {

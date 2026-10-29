@@ -15,7 +15,7 @@ export const mouseCage: PartDef = {
   rotStep: 0,
   flippable: true,
   settings: [START],
-  anchors: [{ key: 'belt', local: v(0, 0), role: 'belt' }],
+  anchors: [{ key: 'belt', local: v(0, 0), role: 'belt', radius: WHEEL_R }],
   draw(pen, s) {
     pen.reset()
     applyGlow(pen, s)

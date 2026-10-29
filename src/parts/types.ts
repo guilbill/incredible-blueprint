@@ -6,7 +6,8 @@ import type { PartKind, Placement, SimEventName } from '../level/types'
 import type { PartDrawState, Pen } from '../render/pen'
 
 export interface SettingDef { key: string; label: string; min: number; max: number; step: number; def: number }
-export interface AnchorDef { key: string; local: Vec; role: 'rope' | 'belt' }
+/** `radius` (units) is set on belt anchors: the wheel the belt wraps, as the built instance anchor reports it. */
+export interface AnchorDef { key: string; local: Vec; role: 'rope' | 'belt'; radius?: number }
 
 export interface PartDef {
   kind: PartKind
