@@ -2,6 +2,7 @@ import type { Body } from 'planck'
 import { type Vec, add, rotate, v } from '../engine/vec'
 import { bodyPose } from '../engine/world'
 import type { Simulation } from '../game/simulation'
+import { partLabel } from '../i18n'
 import { FIELD, anchorPoint, footprint } from '../level/placement'
 import type { Anchor, Level, Link, Placement, Solution } from '../level/types'
 import { CELL } from '../parts/common'
@@ -300,7 +301,7 @@ const LABEL_CHAR_W = 5.4
 
 /** FIG. n label with a leader line from the top-right corner of the part: diagonal, then horizontal. */
 function drawHoverLabel(pen: Pen, p: Placement, fig: number, t: number): void {
-  const text = `FIG. ${fig} · ${partDef(p.kind).label.toUpperCase()}`
+  const text = `FIG. ${fig} · ${partLabel(p.kind).toUpperCase()}`
   const w = text.length * LABEL_CHAR_W
   const c = footprint(p).reduce((m, q) => (q.x - q.y > m.x - m.y ? q : m))
   const down = c.y < 40

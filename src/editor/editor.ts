@@ -1,7 +1,7 @@
+import { partLabel, t } from '../i18n'
 import { encodeLevel, levelToFile, shareUrl } from '../level/codec'
 import { saveCustomLevel } from '../level/custom'
 import type { Level, Solution } from '../level/types'
-import { partDef } from '../parts/registry'
 import { el } from '../ui/dom'
 import { mountPlay } from '../ui/play'
 import { goalsPanel } from './goals-panel'
@@ -60,13 +60,13 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
 
     // ---- toolbar ----
     const status = el('span', 'status')
-    const testBtn = el('button', 'btn primary', 'Tester')
-    const shareBtn = el('button', 'btn', 'Partager')
-    const exportBtn = el('button', 'btn', 'Exporter')
-    testBtn.title = 'Jouer le niveau : il faut le réussir pour pouvoir le partager'
+    const testBtn = el('button', 'btn primary', t('editor.test'))
+    const shareBtn = el('button', 'btn', t('editor.share'))
+    const exportBtn = el('button', 'btn', t('editor.export'))
+    testBtn.title = t('editor.testTitle')
     const shareBox = el('div', 'sharebox')
     shareBox.hidden = true
-    const toolbar = [el('h1', '', 'Éditeur'), status, el('span', 'spacer'), testBtn, shareBtn, exportBtn, shareBox]
+    const toolbar = [el('h1', '', t('editor.title')), status, el('span', 'spacer'), testBtn, shareBtn, exportBtn, shareBox]
 
     testBtn.addEventListener('click', showTest)
     exportBtn.addEventListener('click', () => {
@@ -87,17 +87,17 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
     goalIn.value = model.level.goalText
     goalIn.rows = 3
     goalIn.maxLength = 300
-    goalIn.placeholder = 'Ce que le joueur doit faire…'
+    goalIn.placeholder = t('editor.goalPlaceholder')
     goalIn.addEventListener('input', () => {
       model.setGoalText(goalIn.value)
       changed()
     })
     const levelBox = el('section')
-    const titleLabel = el('label', '', 'Titre')
+    const titleLabel = el('label', '', t('editor.titleLabel'))
     titleLabel.append(titleIn)
-    const goalLabel = el('label', '', 'Consigne')
+    const goalLabel = el('label', '', t('editor.goalLabel'))
     goalLabel.append(goalIn)
-    levelBox.append(el('h2', '', 'Niveau'), titleLabel, goalLabel)
+    levelBox.append(el('h2', '', t('editor.level')), titleLabel, goalLabel)
 
     const goals = goalsPanel(model, {
       changed,
@@ -109,7 +109,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
     })
 
     const inv = el('section', 'inv')
-    inv.append(el('h2', '', 'Inventaire du joueur'))
+    inv.append(el('h2', '', t('editor.inventory')))
     const counts = new Map<string, HTMLSpanElement>()
     for (const kind of ALL_KINDS) {
       const row = el('div', 'row')
@@ -129,7 +129,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
           changed()
         }
       })
-      row.append(el('span', 'label', partDef(kind).label), dec, value, inc)
+      row.append(el('span', 'label', partLabel(kind)), dec, value, inc)
       counts.set(kind, value)
       inv.append(row)
     }
@@ -148,16 +148,16 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
       }
       testBtn.disabled = !model.canTest
       shareBtn.disabled = exportBtn.disabled = !model.canShare
-      shareBtn.title = exportBtn.title = model.canShare ? '' : 'Réussissez d’abord le niveau en mode test'
+      shareBtn.title = exportBtn.title = model.canShare ? '' : t('editor.shareFirst')
       if (!model.canShare) shareBox.hidden = true
       status.className = `status ${model.canShare ? 'ok' : ''}`
-      status.textContent = !saved ? 'Non enregistré (stockage indisponible)' : !model.canTest ? 'Ajoutez un objectif' : model.canShare ? 'Vérifié' : 'À tester'
+      status.textContent = !saved ? t('editor.unsaved') : !model.canTest ? t('editor.noGoal') : model.canShare ? t('level.verified') : t('level.untested')
     }
 
     /** The traced part was removed: drop the zone in progress and say why. */
     function cancelTracing(): void {
       tracing = undefined
-      notice.textContent = 'La pièce visée a été retirée : tracé de la zone annulé.'
+      notice.textContent = t('editor.traceCancelled')
       notice.hidden = false
       window.clearTimeout(noticeTimer)
       noticeTimer = window.setTimeout(() => (notice.hidden = true), 3000)
@@ -208,9 +208,9 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
     const field = el('input')
     field.readOnly = true
     field.value = url
-    const close = el('button', 'btn small ghost', 'Fermer')
+    const close = el('button', 'btn small ghost', t('common.close'))
     close.addEventListener('click', () => (box.hidden = true))
-    box.replaceChildren(el('span', copied ? 'ok' : '', copied ? 'Lien copié !' : 'Copiez ce lien :'), field, close)
+    box.replaceChildren(el('span', copied ? 'ok' : '', copied ? t('editor.copied') : t('editor.copyThis')), field, close)
     box.hidden = false
     field.focus()
     field.select()
@@ -220,8 +220,8 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
     if (!model.canTest) return
     unmountView()
     unmountView = mountPlay(root, structuredClone(model.level), {
-      backLabel: '← Éditeur',
-      nextLabel: 'Retour à l’éditeur',
+      backLabel: t('editor.back'),
+      nextLabel: t('editor.backToEditor'),
       onBack: showAuthor,
       onWin: showAuthor,
       onSolved: (sol) => {

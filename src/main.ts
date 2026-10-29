@@ -1,10 +1,12 @@
 import './ui/style.css'
 import { mountEditor } from './editor/editor'
 import { EditorModel, blankLevel } from './editor/model'
+import { lang, t } from './i18n'
 import type { Level } from './level/types'
 import { asShared, decodeLevel, levelFromFile } from './level/codec'
 import { deleteCustomLevel, loadCustomLevels, saveCustomLevel } from './level/custom'
 import { loadProgress } from './storage'
+import { LANG_EVENT } from './ui/langSwitch'
 import { type LevelTab, loadLevels, mountLevelList } from './ui/levels'
 import { mountPlay } from './ui/play'
 
@@ -12,12 +14,17 @@ const app = document.querySelector<HTMLDivElement>('#app')!
 const levels = loadLevels()
 let tab: LevelTab = 'shipped'
 let unmount: () => void = () => {}
+/** Mounts the current screen again (after a language change). */
+let remount: () => void = () => {}
+
+document.documentElement.lang = lang()
 
 let banner: HTMLElement | null = null
 
 function showList(error?: string): void {
   unmount()
   banner?.remove()
+  remount = () => showList()
   unmount = mountLevelList(app, levels, loadProgress(), {
     onPlay: play,
     tab,
@@ -28,7 +35,7 @@ function showList(error?: string): void {
     custom: { levels: loadCustomLevels(), onEdit: edit, onNew: () => edit(blankLevel(newLevelId())), onImport: (f) => void importFile(f),
       onDelete: (l) => {
         if (deleteCustomLevel(l.id)) showList()
-        else showList('Impossible de supprimer ce niveau : le stockage du navigateur est indisponible.')
+        else showList(t('error.deleteStorage'))
       },
     },
   })
@@ -39,10 +46,16 @@ function showList(error?: string): void {
 const newLevelId = (): string => `niveau-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 function edit(level: Level): void {
+  openEditor(new EditorModel(level))
+}
+
+/** Keeps the model, so a re-mount does not drop edits that were never saved (an untouched new level). */
+function openEditor(model: EditorModel): void {
   unmount()
   banner?.remove()
   tab = 'mine'
-  unmount = mountEditor(app, new EditorModel(level), { onTestWin: () => {}, onBack: () => showList() })
+  remount = () => openEditor(model)
+  unmount = mountEditor(app, model, { onTestWin: () => {}, onBack: () => showList() })
 }
 
 /** A `.tim.json` from someone else: new id (like a link), and the importer must win it again to share it. */
@@ -50,7 +63,7 @@ async function importFile(f: File): Promise<void> {
   const r = await levelFromFile(f)
   if (!r.ok) return showList(r.error)
   const level = { ...asShared(r.level), verified: false }
-  if (!saveCustomLevel(level)) return showList('Impossible d’enregistrer ce niveau : le stockage du navigateur est indisponible.')
+  if (!saveCustomLevel(level)) return showList(t('error.saveStorage'))
   edit(level)
 }
 
@@ -63,7 +76,7 @@ function showBanner(message: string): void {
   text.textContent = message
   const close = document.createElement('button')
   close.className = 'btn ghost'
-  close.textContent = 'Fermer'
+  close.textContent = t('common.close')
   close.addEventListener('click', () => banner?.remove())
   banner.append(text, close)
   app.append(banner)
@@ -72,6 +85,7 @@ function showBanner(message: string): void {
 function play(level: Level, list: Level[] = []): void {
   unmount()
   banner?.remove()
+  remount = () => play(level, list)
   unmount = mountPlay(app, level, {
     onWin: () => {
       const i = list.indexOf(level)
@@ -93,6 +107,7 @@ async function openSharedLink(): Promise<void> {
   else showList(r.error)
 }
 
+window.addEventListener(LANG_EVENT, () => remount())
 window.addEventListener('hashchange', () => {
   if (location.hash.startsWith('#l=')) void openSharedLink()
 })

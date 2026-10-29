@@ -43,5 +43,7 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts'],
+    // Tests read the French text the game shipped with.
+    setupFiles: ['tests/setup.ts'],
   },
 })

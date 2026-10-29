@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { canLink } from '../parts/mech/links'
 import { PART_DEFS } from '../parts/registry'
 import { canPlace, rotAllowed, FIELD } from './placement'
@@ -16,82 +17,82 @@ const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFin
 const isKind = (x: unknown): x is PartKind => typeof x === 'string' && Object.prototype.hasOwnProperty.call(PART_DEFS, x)
 
 function validatePlacement(p: unknown, where: string): string | null {
-  if (!isObj(p)) return `${where} : pièce invalide.`
-  if (typeof p.id !== 'string' || p.id === '') return `${where} : identifiant manquant.`
-  if (!isKind(p.kind)) return `Pièce inconnue : « ${String(p.kind)} ».`
-  if (!isNum(p.x) || !isNum(p.y) || p.x < 0 || p.y < 0 || p.x > FIELD.w || p.y > FIELD.h) return `La pièce « ${p.id} » sort du terrain.`
-  if (!isNum(p.rot) || !isObj(p.settings) || typeof p.flip !== 'boolean') return `La pièce « ${p.id} » est mal formée.`
+  if (!isObj(p)) return t('codec.badPart', { where })
+  if (typeof p.id !== 'string' || p.id === '') return t('codec.noId', { where })
+  if (!isKind(p.kind)) return t('codec.unknownPart', { kind: String(p.kind) })
+  if (!isNum(p.x) || !isNum(p.y) || p.x < 0 || p.y < 0 || p.x > FIELD.w || p.y > FIELD.h) return t('codec.offField', { id: p.id })
+  if (!isNum(p.rot) || !isObj(p.settings) || typeof p.flip !== 'boolean') return t('codec.malformed', { id: p.id })
   const pl = p as unknown as Placement
-  if (!rotAllowed(pl)) return `La pièce « ${p.id} » a une rotation interdite.`
+  if (!rotAllowed(pl)) return t('codec.badRot', { id: p.id })
   const def = PART_DEFS[pl.kind]!
-  if (pl.flip && !def.flippable) return `La pièce « ${p.id} » ne peut pas être retournée.`
+  if (pl.flip && !def.flippable) return t('codec.noFlip', { id: p.id })
   for (const [key, val] of Object.entries(pl.settings)) {
     const s = def.settings.find((d) => d.key === key)
-    if (!s) return `La pièce « ${p.id} » a un réglage inconnu : « ${key} ».`
-    if (!Number.isInteger(val) || val < s.min || val > s.max) return `Le réglage « ${key} » de « ${p.id} » est hors limites.`
+    if (!s) return t('codec.unknownSetting', { id: p.id, key })
+    if (!Number.isInteger(val) || val < s.min || val > s.max) return t('codec.settingRange', { id: p.id, key })
   }
   return null
 }
 
-/** Returns a French error message, or null when the level is playable. Never throws. */
+/** Returns an error message for the player (current language), or null when the level is playable. Never throws. */
 export function validateLevel(x: unknown): string | null {
   try {
-    if (!isObj(x)) return 'Ce niveau est illisible.'
-    if (x.v !== 1) return 'Ce niveau vient d’une autre version du jeu.'
-    if (typeof x.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(x.id)) return 'L’identifiant du niveau est invalide.'
-    if (typeof x.title !== 'string' || typeof x.goalText !== 'string') return 'Il manque le titre ou l’objectif du niveau.'
-    if (x.title.length > LIMITS.title) return `Le titre est trop long (${LIMITS.title} caractères au plus).`
-    if (x.goalText.length > LIMITS.goalText) return `L’objectif est trop long (${LIMITS.goalText} caractères au plus).`
-    if (!Array.isArray(x.fixed) || !Array.isArray(x.fixedLinks) || !Array.isArray(x.inventory) || !Array.isArray(x.goals)) return 'Le niveau est incomplet.'
-    if (x.fixed.length > LIMITS.fixed) return `Ce niveau a trop de pièces (${LIMITS.fixed} au plus).`
-    if (x.fixedLinks.length > LIMITS.fixedLinks) return `Ce niveau a trop de liens (${LIMITS.fixedLinks} au plus).`
-    if (x.goals.length > LIMITS.goals) return `Ce niveau a trop d’objectifs (${LIMITS.goals} au plus).`
+    if (!isObj(x)) return t('codec.unreadable')
+    if (x.v !== 1) return t('codec.version')
+    if (typeof x.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(x.id)) return t('codec.badLevelId')
+    if (typeof x.title !== 'string' || typeof x.goalText !== 'string') return t('codec.noText')
+    if (x.title.length > LIMITS.title) return t('codec.titleLong', { max: LIMITS.title })
+    if (x.goalText.length > LIMITS.goalText) return t('codec.goalLong', { max: LIMITS.goalText })
+    if (!Array.isArray(x.fixed) || !Array.isArray(x.fixedLinks) || !Array.isArray(x.inventory) || !Array.isArray(x.goals)) return t('codec.incomplete')
+    if (x.fixed.length > LIMITS.fixed) return t('codec.tooManyParts', { max: LIMITS.fixed })
+    if (x.fixedLinks.length > LIMITS.fixedLinks) return t('codec.tooManyLinks', { max: LIMITS.fixedLinks })
+    if (x.goals.length > LIMITS.goals) return t('codec.tooManyGoals', { max: LIMITS.goals })
     const ids = new Set<string>()
     const placed: Placement[] = []
     for (const p of x.fixed) {
-      const err = validatePlacement(p, 'Pièce fixe')
+      const err = validatePlacement(p, t('codec.fixedPart'))
       if (err) return err
       const pl = p as Placement
-      if (ids.has(pl.id)) return `Identifiant en double : « ${pl.id} ».`
-      if (!canPlace(pl, placed)) return `La pièce « ${pl.id} » chevauche une autre pièce ou sort du terrain.`
+      if (ids.has(pl.id)) return t('codec.duplicateId', { id: pl.id })
+      if (!canPlace(pl, placed)) return t('codec.overlap', { id: pl.id })
       ids.add(pl.id)
       placed.push(pl)
     }
     const parts = x.fixed as Placement[]
     for (const l of x.fixedLinks) {
-      if (!isObj(l) || typeof l.id !== 'string' || (l.kind !== 'rope' && l.kind !== 'belt') || !isObj(l.a) || !isObj(l.b)) return 'Un lien est mal formé.'
-      if (ids.has(l.id)) return `Identifiant en double : « ${l.id} ».`
+      if (!isObj(l) || typeof l.id !== 'string' || (l.kind !== 'rope' && l.kind !== 'belt') || !isObj(l.a) || !isObj(l.b)) return t('codec.badLink')
+      if (ids.has(l.id)) return t('codec.duplicateId', { id: l.id })
       ids.add(l.id)
       for (const end of [l.a, l.b]) {
         const part = parts.find((q) => q.id === end.part)
-        if (!part) return `Le lien « ${l.id} » vise une pièce absente.`
+        if (!part) return t('codec.linkMissing', { id: l.id })
         const anchor = PART_DEFS[part.kind]!.anchors.find((d) => d.key === end.anchor)
-        if (!anchor) return `Le lien « ${l.id} » vise un point d’attache inconnu.`
-        if (anchor.role !== l.kind) return `Le lien « ${l.id} » ne peut pas s’attacher là.`
+        if (!anchor) return t('codec.linkAnchor', { id: l.id })
+        if (anchor.role !== l.kind) return t('codec.linkRole', { id: l.id })
       }
-      if ((l.a as { part: unknown }).part === (l.b as { part: unknown }).part) return `Le lien « ${l.id} » relie une pièce à elle-même.`
-      if (!canLink(l.a as never, l.b as never, parts)) return `Le lien « ${l.id} » est impossible : ces engrenages s’entraînent déjà.`
+      if ((l.a as { part: unknown }).part === (l.b as { part: unknown }).part) return t('codec.linkSelf', { id: l.id })
+      if (!canLink(l.a as never, l.b as never, parts)) return t('codec.linkGears', { id: l.id })
     }
     for (const g of x.goals) {
-      if (!isObj(g)) return 'Un objectif est mal formé.'
+      if (!isObj(g)) return t('codec.badGoal')
       if (g.type === 'inZone') {
         const z = g.zone
-        if (!isObj(z) || !isNum(z.x) || !isNum(z.y) || !isNum(z.w) || !isNum(z.h)) return 'Une zone d’objectif est mal formée.'
-        if (z.w <= 0 || z.h <= 0 || z.x < 0 || z.y < 0 || z.x + z.w > FIELD.w || z.y + z.h > FIELD.h) return 'Une zone d’objectif sort du terrain.'
-        if (g.hold !== undefined && (!Number.isInteger(g.hold) || (g.hold as number) < 1 || (g.hold as number) > LIMITS.hold)) return 'Un objectif a une durée invalide.'
-        if (!ids.has(g.part as string)) return 'Un objectif vise une pièce absente.'
+        if (!isObj(z) || !isNum(z.x) || !isNum(z.y) || !isNum(z.w) || !isNum(z.h)) return t('codec.badZone')
+        if (z.w <= 0 || z.h <= 0 || z.x < 0 || z.y < 0 || z.x + z.w > FIELD.w || z.y + z.h > FIELD.h) return t('codec.zoneOff')
+        if (g.hold !== undefined && (!Number.isInteger(g.hold) || (g.hold as number) < 1 || (g.hold as number) > LIMITS.hold)) return t('codec.badHold')
+        if (!ids.has(g.part as string)) return t('codec.goalMissing')
       } else if (g.type === 'event') {
-        if (typeof g.event !== 'string' || !EVENTS.includes(g.event)) return 'Un objectif a un événement inconnu.'
-        if (g.part !== undefined && !ids.has(g.part as string)) return 'Un objectif vise une pièce absente.'
-      } else return 'Un objectif est de type inconnu.'
+        if (typeof g.event !== 'string' || !EVENTS.includes(g.event)) return t('codec.badEvent')
+        if (g.part !== undefined && !ids.has(g.part as string)) return t('codec.goalMissing')
+      } else return t('codec.badGoalType')
     }
     for (const it of x.inventory) {
-      if (!isObj(it) || !isKind(it.kind)) return `Pièce d’inventaire inconnue : « ${isObj(it) ? String(it.kind) : '?'} ».`
-      if (!Number.isInteger(it.count) || (it.count as number) < 0 || (it.count as number) > LIMITS.inventoryCount) return 'Une quantité d’inventaire est invalide.'
+      if (!isObj(it) || !isKind(it.kind)) return t('codec.unknownInventory', { kind: isObj(it) ? String(it.kind) : '?' })
+      if (!Number.isInteger(it.count) || (it.count as number) < 0 || (it.count as number) > LIMITS.inventoryCount) return t('codec.badCount')
     }
     return null
   } catch {
-    return 'Ce niveau est illisible.'
+    return t('codec.unreadable')
   }
 }
 
@@ -143,19 +144,19 @@ export function parseLevel(text: string): DecodeResult {
   try {
     data = JSON.parse(text)
   } catch {
-    return { ok: false, error: 'Ce niveau est illisible : le contenu est corrompu.' }
+    return { ok: false, error: t('codec.corrupt') }
   }
   const error = validateLevel(data)
   return error ? { ok: false, error } : { ok: true, level: data as Level }
 }
 
-/** Never throws: any failure becomes `{ ok: false, error }` with a French message. */
+/** Never throws: any failure becomes `{ ok: false, error }` with a message for the player. */
 export async function decodeLevel(s: string): Promise<DecodeResult> {
   try {
     const bytes = await pump(new DecompressionStream('deflate-raw'), fromB64Url(s.trim()))
     return parseLevel(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
   } catch {
-    return { ok: false, error: 'Ce lien est cassé ou incomplet : impossible de lire le niveau.' }
+    return { ok: false, error: t('codec.brokenLink') }
   }
 }
 
@@ -177,10 +178,10 @@ export function levelToFile(l: Level): Blob {
 }
 
 export async function levelFromFile(f: File): Promise<DecodeResult> {
-  if (f.size > MAX_BYTES) return { ok: false, error: 'Ce fichier est trop gros pour être un niveau.' }
+  if (f.size > MAX_BYTES) return { ok: false, error: t('codec.fileTooBig') }
   try {
     return parseLevel(await f.text())
   } catch {
-    return { ok: false, error: 'Impossible de lire ce fichier.' }
+    return { ok: false, error: t('codec.fileUnreadable') }
   }
 }

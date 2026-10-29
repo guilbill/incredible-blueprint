@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { LIMITS } from '../level/codec'
 import { canPlace, snap } from '../level/placement'
 import type { Goal, Level, Link, PartKind, Placement, Solution } from '../level/types'
@@ -8,7 +9,7 @@ import { PART_DEFS } from '../parts/registry'
 export const ALL_KINDS = Object.keys(PART_DEFS) as PartKind[]
 
 export function blankLevel(id: string): Level {
-  return { v: 1, id, title: 'Nouveau niveau', goalText: '', fixed: [], fixedLinks: [], inventory: [], goals: [], verified: false }
+  return { v: 1, id, title: t('editor.newLevel'), goalText: '', fixed: [], fixedLinks: [], inventory: [], goals: [], verified: false }
 }
 
 /**

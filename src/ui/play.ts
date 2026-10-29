@@ -1,5 +1,6 @@
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
+import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
 import { footprint, gearMagnet } from '../level/placement'
 import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
 import { angleOf, setting } from '../parts/common'
@@ -12,6 +13,7 @@ import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, fr
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
+import { langSwitch } from './langSwitch'
 import { sound } from './sound'
 import { createImpactTracker } from './soundLogic'
 
@@ -75,7 +77,6 @@ const TOOL_ICONS: Record<LinkTool, string> = {
     <path d="M141.4,18.1 L188.1,16.0 A9,9 0 0 1 190.0,33.9 L144.6,43.9 A13,13 0 1 1 141.4,18.1 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
   </svg>`,
 }
-const TOOL_LABELS: Record<LinkTool, string> = { rope: 'Corde', belt: 'Courroie' }
 
 /** Small line-art icon of a part for the drawer. */
 function partIcon(kind: PartKind): HTMLCanvasElement {
@@ -158,14 +159,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   // ---- DOM ----
   const screen = el('div', 'play')
   const toolbar = el('header', 'toolbar')
-  const back = el('button', 'btn ghost', opts.backLabel ?? '← Niveaux')
-  const title = el('h1', '', level.title)
-  const goal = el('p', 'goal', level.goalText)
+  const back = el('button', 'btn ghost', opts.backLabel ?? t('play.back'))
+  const title = el('h1', '', levelTitle(level))
+  const goal = el('p', 'goal', levelGoal(level))
   const mute = el('button', 'btn ghost mute')
   const refreshMute = (): void => {
     const m = sound.isMuted()
     mute.textContent = m ? '🔇' : '🔊'
-    mute.title = m ? 'Activer le son' : 'Couper le son'
+    mute.title = m ? t('sound.on') : t('sound.off')
     mute.setAttribute('aria-label', mute.title)
     mute.setAttribute('aria-pressed', String(m))
   }
@@ -175,8 +176,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     refreshMute()
     sound.click()
   })
-  if (author) toolbar.append(back, ...author.toolbar, mute)
-  else toolbar.append(back, title, goal, mute)
+  if (author) toolbar.append(back, ...author.toolbar, mute, langSwitch())
+  else toolbar.append(back, title, goal, mute, langSwitch())
 
   const stage = el('main', 'stage')
   const canvas = el('canvas')
@@ -188,14 +189,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const drawer = el('aside', 'drawer')
   const tools = el('div', 'tools')
   const toolButtons = new Map<LinkTool, HTMLButtonElement>()
-  for (const t of ['rope', 'belt'] as const) {
+  for (const lt of ['rope', 'belt'] as const) {
     const b = el('button', 'tool')
-    b.dataset.tool = t
-    b.innerHTML = TOOL_ICONS[t]
-    b.append(el('span', 'name', TOOL_LABELS[t]))
+    b.dataset.tool = lt
+    b.innerHTML = TOOL_ICONS[lt]
+    b.append(el('span', 'name', lt === 'rope' ? t('tool.rope') : t('tool.belt')))
     b.addEventListener('click', () => {
       if (sim) return
-      tool = tool === t ? undefined : t
+      tool = tool === lt ? undefined : lt
       first = undefined
       selected = undefined
       selectedLink = undefined
@@ -203,21 +204,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       b.blur()
     })
     tools.append(b)
-    toolButtons.set(t, b)
+    toolButtons.set(lt, b)
   }
-  drawer.append(tools, el('h2', '', 'Pièces'))
+  drawer.append(tools, el('h2', '', t('play.parts')))
   const list = el('ul', 'inventory')
   drawer.append(list)
 
-  const launch = el('button', 'launch', 'Lancer')
-  launch.title = 'Lancer / Stop (Espace)'
+  const launch = el('button', 'launch', t('play.run'))
+  launch.title = t('play.runTitle')
 
   const winPanel = el('div', 'win')
   winPanel.hidden = true
   const winBox = el('div', 'win-box')
-  const next = el('button', 'btn primary', opts.nextLabel ?? 'Suivant')
-  const replay = el('button', 'btn', 'Rejouer')
-  winBox.append(el('h2', '', 'Réussi !'), el('p', '', level.goalText), next, replay)
+  const next = el('button', 'btn primary', opts.nextLabel ?? t('win.next'))
+  const replay = el('button', 'btn', t('win.replay'))
+  winBox.append(el('h2', '', t('win.title')), el('p', '', levelGoal(level)), next, replay)
   winPanel.append(winBox)
 
   if (author) {
@@ -233,7 +234,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (items.has(kind)) continue
     const li = el('li', 'item')
     const count = el('span', 'count')
-    li.append(partIcon(kind), el('span', 'name', partDef(kind).label), count)
+    li.append(partIcon(kind), el('span', 'name', partLabel(kind)), count)
     li.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || sim || (remaining(level, sol).get(kind) ?? 0) <= 0) return
       e.preventDefault()
@@ -280,19 +281,19 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function buildSelPanel(p: Placement): void {
     const def = partDef(p.kind)
     panelValues.clear()
-    selPanel.replaceChildren(el('div', 'title', def.label))
+    selPanel.replaceChildren(el('div', 'title', partLabel(p.kind)))
     // rotation and length live on the part's own handles
     for (const s of def.settings.filter((d) => d.key !== 'length')) {
       const by = (d: number) => () => edit((q) => withSetting(q, s.key, setting(q, s) + d * s.step))
-      selPanel.append(stepper(s.key, s.label, by(-1), by(1)))
+      selPanel.append(stepper(s.key, settingLabel(s), by(-1), by(1)))
     }
     const actions = el('div', 'row')
     if (def.flippable) {
-      const flip = el('button', 'btn small', 'Miroir (F)')
+      const flip = el('button', 'btn small', t('panel.flip'))
       flip.addEventListener('click', () => edit(flipped))
       actions.append(flip)
     }
-    const del = el('button', 'btn small danger', 'Retirer')
+    const del = el('button', 'btn small danger', t('panel.remove'))
     del.addEventListener('click', removeSelected)
     actions.append(del)
     selPanel.append(actions)
@@ -307,11 +308,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function buildLinkPanel(kind: 'rope' | 'belt'): void {
     panelValues.clear()
-    const del = el('button', 'btn small danger', 'Retirer')
+    const del = el('button', 'btn small danger', t('panel.remove'))
     del.addEventListener('click', removeSelected)
     const actions = el('div', 'row')
     actions.append(del)
-    selPanel.replaceChildren(el('div', 'title', kind === 'rope' ? 'Corde' : 'Courroie'), actions)
+    selPanel.replaceChildren(el('div', 'title', kind === 'rope' ? t('tool.rope') : t('tool.belt')), actions)
   }
 
   /** Link panel, next to the link's midpoint. */
@@ -401,7 +402,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       sound.click()
       commit(r)
     }
-    else showToast('Pas la place ici')
+    else showToast(t('toast.noRoom'))
   }
 
   function removeSelected(): void {
@@ -424,7 +425,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     refreshDrawer()
     refreshSelPanel()
     canvas.classList.toggle('dragging', !!drag?.started)
-    for (const [t, b] of toolButtons) b.classList.toggle('on', t === tool)
+    for (const [lt, b] of toolButtons) b.classList.toggle('on', lt === tool)
     canvas.classList.toggle('linking', !!tool)
   }
 
@@ -474,7 +475,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   /** Link tool click: a part's anchor, then a second one; a click in the void steps back. */
-  function linkClick(t: LinkTool, pt: Vec): void {
+  function linkClick(lt: LinkTool, pt: Vec): void {
     const part = hitAnyPart(level, sol, pt)
     if (!part) {
       first = undefined
@@ -483,8 +484,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     const a = pickAnchor(targets() ?? [], part, level, sol, pt)
     if (!a) {
-      const takes = partDef(part.kind).anchors.some((d) => d.role === t)
-      showToast(takes ? 'Liaison impossible' : `Cette pièce ne prend pas de ${t === 'rope' ? 'corde' : 'courroie'}.`)
+      const takes = partDef(part.kind).anchors.some((d) => d.role === lt)
+      showToast(takes ? t('toast.cannotLink') : t(lt === 'rope' ? 'toast.noRope' : 'toast.noBelt'))
       return
     }
     if (!first) {
@@ -496,7 +497,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (next) {
       sound.click()
       commit(next)
-    } else showToast('Liaison impossible')
+    } else showToast(t('toast.cannotLink'))
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -600,7 +601,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       trace = undefined
       if (!author?.tracing()) return
       if (zone) author.onTraced(zone)
-      else showToast('Zone trop petite')
+      else showToast(t('toast.zoneTooSmall'))
       return
     }
     if (grip) {
@@ -623,14 +624,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
         const next = (d.moving ? updatePart(level, sol, d.ghost) : addPart(level, sol, d.ghost))!
         const dropped = sol.links.length - next.links.length
         commit(next)
-        if (d.moving && dropped > 0) showToast("Courroie retirée : les engrenages s'entraînent déjà.")
+        if (d.moving && dropped > 0) showToast(t('toast.beltDropped'))
         selected = d.id
       } else if (d.moving && drawer.contains(e.target as Node)) {
         selected = undefined
         sound.click()
         commit(removePart(sol, d.id))
       } else if (d.ghost) {
-        showToast('Pas la place ici')
+        showToast(t('toast.noRoom'))
       }
     }
     refreshUi()
@@ -651,7 +652,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     acc = 0
     lastT = undefined
     screen.classList.add('running')
-    launch.textContent = 'Stop'
+    launch.textContent = t('play.stop')
     refreshUi()
   }
 
@@ -660,7 +661,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     won = false
     winPanel.hidden = true
     screen.classList.remove('running')
-    launch.textContent = 'Lancer'
+    launch.textContent = t('play.run')
     refreshUi()
   }
 
@@ -749,7 +750,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (fromDraw) drawFailed = true
     if (sim) {
       stop()
-      showToast('La machine s’est enrayée… Modifiez-la puis relancez.', 3000)
+      showToast(t('toast.jammed'), 3000)
     }
   }
 
