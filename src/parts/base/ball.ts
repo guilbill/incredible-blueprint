@@ -91,7 +91,7 @@ function ball(kind: PartKind, label: string, r: number, density: number, restitu
 }
 
 export const BALLS: PartDef[] = [
-  ball('ball-bowling', 'Boule de bowling', 14, 3, 0.1, true, 'bowling'),
+  ball('ball-bowling', 'Boule de bowling', 14, 3, 0.1, false, 'bowling'),
   ball('ball-base', 'Bille d’acier', 8, 1, 0.5, true, 'steel'),
   ball('ball-basket', 'Ballon de basket', 14, 0.3, 0.8, false, 'basket'),
   ball('ball-tennis', 'Balle de tennis', 7, 0.4, 0.75, false, 'tennis'),

@@ -60,7 +60,7 @@ describe('modern parts', () => {
       empty,
     )
     const metal = (id: string, n = 0) => data(part(s, id).bodies[n]).tags.includes('metal')
-    expect(metal('bowling')).toBe(true)
+    expect(metal('bowling')).toBe(false)
     expect(metal('base')).toBe(true)
     expect(metal('bucket')).toBe(true)
     expect(metal('scissors', 1)).toBe(true)
@@ -68,21 +68,21 @@ describe('modern parts', () => {
     expect(metal('tennis')).toBe(false)
   })
 
-  it('a magnet pulls a bowling ball but not a tennis ball', () => {
+  it('a magnet pulls a steel ball but not a bowling ball', () => {
     const s = new Simulation(
-      level([...room(), P('magnet', 'magnet', 300, 480), P('bowling', 'ball-bowling', 380, 476), P('tennis', 'ball-tennis', 220, 483)]),
+      level([...room(), P('magnet', 'magnet', 300, 480), P('steel', 'ball-base', 380, 482), P('bowling', 'ball-bowling', 220, 476)]),
       empty,
     )
     run(s, 30)
-    expect(xOf(s, 'bowling')).toBeLessThan(360)
-    expect(xOf(s, 'tennis')).toBeCloseTo(220, 3)
+    expect(xOf(s, 'steel')).toBeLessThan(360)
+    expect(xOf(s, 'bowling')).toBeCloseTo(220, 3)
     expect(part(s, 'magnet').glow).toBeGreaterThan(0)
   })
 
   it('a magnet leaves metal beyond 6 cells alone', () => {
-    const s = new Simulation(level([...room(), P('magnet', 'magnet', 200, 480), P('bowling', 'ball-bowling', 330, 476)]), empty)
+    const s = new Simulation(level([...room(), P('magnet', 'magnet', 200, 480), P('steel', 'ball-base', 330, 482)]), empty)
     run(s, 30)
-    expect(xOf(s, 'bowling')).toBeCloseTo(330, 3)
+    expect(xOf(s, 'steel')).toBeCloseTo(330, 3)
     expect(part(s, 'magnet').glow).toBe(0)
   })
 
@@ -199,7 +199,7 @@ describe('modern parts', () => {
 
   it('relaunch gives equal hash, events and part state', () => {
     // Fan (delay 1) blows the ball left into portal a; it falls out of b onto the spring, which
-    // throws it back up. Off to the side, a magnet pulls a bowling ball along a shelf.
+    // throws it back up. Off to the side, a magnet pulls a steel ball along a shelf.
     const lv = level([
       ...room(),
       P('fan', 'fan', 410, 470, { flip: true, settings: { delay: 1 } }),
@@ -209,7 +209,7 @@ describe('modern parts', () => {
       P('spring', 'spring', 700, 600, { settings: { force: 5 } }),
       P('shelf', 'wall-brick', 1100, 700, { rot: 6, settings: { length: 8 } }),
       P('magnet', 'magnet', 1080, 680),
-      P('iron', 'ball-bowling', 1150, 676),
+      P('iron', 'ball-base', 1150, 682),
     ])
     const before = JSON.parse(JSON.stringify(lv))
     const go = () => {
