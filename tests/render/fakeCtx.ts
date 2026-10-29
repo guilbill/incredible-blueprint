@@ -1,6 +1,8 @@
 /** Fake 2D context: records calls, remembers property sets. */
 export function fakeCtx() {
   const calls: string[] = []
+  /** Every call with the property values in force when it ran. */
+  const events: { name: string; args: unknown[]; props: Record<string, unknown> }[] = []
   const props: Record<string, unknown> = {}
   const maxBlur = { v: 0 }
   const trailStrokes = { v: 0 }
@@ -11,6 +13,7 @@ export function fakeCtx() {
         ? props[k]
         : (...a: unknown[]) => {
             calls.push(`${k}(${a.join(',')})`)
+            events.push({ name: k, args: a, props: { ...props } })
             if (k === 'stroke' && props.lineWidth === 2 && props.strokeStyle === '#7fffd4') trailStrokes.v++
             if (k === 'lineTo' && props.lineWidth === 2 && props.strokeStyle === '#7fffd4') trailSegments.v++
           },
@@ -20,5 +23,5 @@ export function fakeCtx() {
       return true
     },
   }) as unknown as CanvasRenderingContext2D
-  return { ctx, calls, maxBlur, trailStrokes, trailSegments }
+  return { ctx, calls, events, maxBlur, trailStrokes, trailSegments }
 }

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { hashWorld } from '../../src/engine/hash'
 import { Simulation } from '../../src/game/simulation'
 import type { Level, Placement } from '../../src/level/types'
-import { TRAIL_BANDS, render } from '../../src/render/renderer'
+import { v } from '../../src/engine/vec'
+import { FIELD } from '../../src/level/placement'
+import { TRAIL_BANDS, labelDone, render } from '../../src/render/renderer'
 import { gearPhases } from '../../src/parts/mech/gear'
 import { partDef } from '../../src/parts/registry'
 import { Pen } from '../../src/render/pen'
@@ -34,16 +36,85 @@ describe('render', () => {
     }
   })
 
-  it('labels parts FIG. n while editing, and hides the labels while the machine runs', () => {
+  it('draws no permanent labels', () => {
     const lvl = level([P('b', 'ball-base', 200, 200)])
     const sol = { placements: [P('r', 'ramp', 400, 300)], links: [] }
-    const figs = (calls: string[]) => calls.filter((c) => c.startsWith('fillText(FIG.'))
     const edit = fakeCtx()
     render(edit.ctx, { level: lvl, sol, zoom: 1 })
-    expect(figs(edit.calls)).toHaveLength(2)
+    expect(edit.calls.filter((c) => c.startsWith('fillText('))).toEqual([])
+  })
+
+  it('labels the hovered part FIG. n after its place in fixed + placements, and not while running', () => {
+    const lvl = level([P('b', 'ball-base', 200, 200)])
+    const sol = { placements: [P('r', 'ramp', 400, 300)], links: [] }
+    const f = fakeCtx()
+    render(f.ctx, { level: lvl, sol, zoom: 1, hover: { id: 'r', t: 1000 } })
+    const texts = f.calls.filter((c) => c.startsWith('fillText('))
+    expect(texts).toHaveLength(1)
+    expect(texts[0].startsWith('fillText(FIG. 2 · ')).toBe(true)
     const run = fakeCtx()
-    render(run.ctx, { level: lvl, sol, sim: new Simulation(lvl, sol), zoom: 1 })
-    expect(figs(run.calls)).toEqual([])
+    render(run.ctx, { level: lvl, sol, sim: new Simulation(lvl, sol), zoom: 1, hover: { id: 'r', t: 1000 } })
+    expect(run.calls.filter((c) => c.startsWith('fillText('))).toEqual([])
+  })
+
+  it('fades the label in after the leader line', () => {
+    const lvl = level([P('b', 'ball-base', 200, 200)])
+    const sol = { placements: [], links: [] }
+    const early = fakeCtx()
+    render(early.ctx, { level: lvl, sol, zoom: 1, hover: { id: 'b', t: 100 } })
+    const e = early.events.find((x) => x.name === 'fillText')
+    expect(e === undefined || e.props.globalAlpha === 0).toBe(true)
+    const mid = fakeCtx()
+    render(mid.ctx, { level: lvl, sol, zoom: 1, hover: { id: 'b', t: 250 } })
+    expect(mid.events.find((x) => x.name === 'fillText')?.props.globalAlpha).toBeCloseTo(0.5)
+    expect(labelDone(339)).toBe(false)
+    expect(labelDone(340)).toBe(true)
+  })
+
+  it('keeps the label inside the field near the edge', () => {
+    const lvl = level([P('b', 'ball-base', FIELD.w - 30, 20)])
+    const f = fakeCtx()
+    render(f.ctx, { level: lvl, sol: { placements: [], links: [] }, zoom: 1, hover: { id: 'b', t: 1000 } })
+    const e = f.events.find((x) => x.name === 'fillText')!
+    const text = e.args[0] as string
+    expect(e.args[1] as number).toBeGreaterThanOrEqual(0)
+    expect(e.args[1] as number).toBeLessThanOrEqual(FIELD.w - text.length * 5.4)
+    expect(e.args[2] as number).toBeGreaterThanOrEqual(0)
+    expect(e.args[2] as number).toBeLessThanOrEqual(FIELD.h)
+  })
+
+  it('pulses the link targets: a dot and a growing, fading ring each, in cyan, without blur', () => {
+    const lvl = level([P('a', 'pulley', 100, 100), P('b', 'pulley', 300, 100)])
+    const f = fakeCtx()
+    render(f.ctx, {
+      level: lvl, sol: { placements: [], links: [] }, zoom: 1, pulse: 0.5,
+      targets: [{ part: 'a', anchor: 'belt' }, { part: 'b', anchor: 'belt' }],
+    })
+    const arcs = f.events.filter((x) => x.name === 'arc')
+    const dots = arcs.filter((x) => x.args[2] === 5 && x.props.fillStyle === '#7fffd4')
+    expect(dots).toHaveLength(2)
+    const rings = arcs.filter((x) => x.args[2] === 5 + 13 * 0.5 && x.props.strokeStyle === '#7fffd4')
+    expect(rings).toHaveLength(2)
+    expect(rings.every((r) => r.props.globalAlpha === 0.5)).toBe(true)
+    expect(f.maxBlur.v).toBe(0)
+  })
+
+  it('draws the pending link as a yellow dashed line', () => {
+    const f = fakeCtx()
+    render(f.ctx, { level: level(), sol: { placements: [], links: [] }, zoom: 1, pendingLine: { from: v(10, 10), to: v(50, 60) } })
+    const e = f.events.find((x) => x.name === 'lineTo' && x.args[0] === 50 && x.args[1] === 60)!
+    expect(e.props.strokeStyle).toBe('#ffcf5a')
+    expect(f.events.some((x) => x.name === 'setLineDash' && (x.args[0] as number[]).length > 0)).toBe(true)
+  })
+
+  it('marks the meshing contacts of a dragged gear', () => {
+    const f = fakeCtx()
+    render(f.ctx, { level: level(), sol: { placements: [], links: [] }, zoom: 1, meshMarks: [v(70, 80)] })
+    const arcs = f.events.filter((x) => x.name === 'arc' && x.args[0] === 70 && x.args[1] === 80)
+    const ring = arcs.find((x) => x.args[2] === 7)!
+    expect(ring.props.strokeStyle).toBe('#7fffd4')
+    expect(ring.props.lineWidth).toBe(2)
+    expect(arcs.some((x) => x.args[2] === 2.5 && x.props.fillStyle === '#7fffd4')).toBe(true)
   })
 
   it('glows a part whose glow is above zero', () => {

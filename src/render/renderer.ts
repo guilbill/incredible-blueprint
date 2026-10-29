@@ -19,13 +19,32 @@ export interface RenderView {
   selected?: string
   /** Goals met: goal zones glow yellow. */
   won?: boolean
-  /** Edit mode: show every anchor (rope: ring, belt: square). */
-  showAnchors?: boolean
   /** First anchor of a link being made (yellow). */
   pendingAnchor?: Anchor
+  /** Link tool: anchors the link can end on, drawn as pulsing cyan dots. */
+  targets?: Anchor[]
+  /** Pulse phase 0..1 of the targets (see PULSE_MS). */
+  pulse?: number
+  /** Link being made: dashed yellow line from the first anchor to the cursor. */
+  pendingLine?: { from: Vec; to: Vec }
+  /** Hovered part and the milliseconds since the hover started (drives the FIG. label animation). */
+  hover?: { id: string; t: number }
+  /** Contact points of a dragged gear that meshes. */
+  meshMarks?: Vec[]
   /** Id of the selected player link (yellow). */
   selectedLink?: string
   zoom: number
+}
+
+/** Hover label: the leader line draws in, then the text fades in. */
+export const LABEL_LINE_MS = 220
+export const LABEL_FADE_DELAY_MS = 160
+export const LABEL_FADE_MS = 180
+/** Period of the pulsing link targets. */
+export const PULSE_MS = 1200
+
+export function labelDone(t: number): boolean {
+  return t >= LABEL_FADE_DELAY_MS + LABEL_FADE_MS
 }
 
 const TRAIL_LEN = 40
@@ -145,18 +164,70 @@ function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simul
   pen.reset()
 }
 
-function drawAnchors(pen: Pen, placements: Placement[], pending?: Anchor): void {
-  for (const p of placements) {
-    for (const d of partDef(p.kind).anchors) {
-      const at = anchorPoint(p, d)
-      const on = pending?.part === p.id && pending.anchor === d.key
-      pen.reset(on ? COLORS.yellow : COLORS.cyan, on ? 2 : 1)
-      if (on) pen.glow(1, 'yellow')
-      if (d.role === 'rope') pen.circle(at, 4)
-      else pen.poly([v(at.x - 4, at.y - 4), v(at.x + 4, at.y - 4), v(at.x + 4, at.y + 4), v(at.x - 4, at.y + 4)])
-    }
+/** First anchor of a link being made: yellow ring, no glow. */
+function drawPending(pen: Pen, at: Vec): void {
+  pen.reset(COLORS.yellow, 2)
+  pen.circle(at, 6)
+  pen.ctx.beginPath()
+  pen.ctx.arc(at.x, at.y, 2.5, 0, Math.PI * 2)
+  pen.ctx.fill()
+}
+
+/** Anchors a link can end on: a cyan dot and a ring that grows and fades. */
+function drawTargets(pen: Pen, targets: Vec[], pulse: number): void {
+  const ctx = pen.ctx
+  pen.reset(COLORS.cyan, 1.5)
+  for (const at of targets) {
+    ctx.beginPath()
+    ctx.arc(at.x, at.y, 5, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.globalAlpha = 1 - pulse
+  for (const at of targets) pen.circle(at, 5 + 13 * pulse)
+  ctx.globalAlpha = 1
+  pen.reset()
+}
+
+function drawMeshMarks(pen: Pen, marks: Vec[]): void {
+  pen.reset(COLORS.cyan, 2)
+  for (const at of marks) {
+    pen.circle(at, 7)
+    pen.ctx.beginPath()
+    pen.ctx.arc(at.x, at.y, 2.5, 0, Math.PI * 2)
+    pen.ctx.fill()
   }
   pen.reset()
+}
+
+const LABEL_CHAR_W = 5.4
+
+/** FIG. n label with a leader line from the top-right corner of the part: diagonal, then horizontal. */
+function drawHoverLabel(pen: Pen, p: Placement, fig: number, t: number): void {
+  const text = `FIG. ${fig} · ${partDef(p.kind).label.toUpperCase()}`
+  const w = text.length * LABEL_CHAR_W
+  const c = footprint(p).reduce((m, q) => (q.x - q.y > m.x - m.y ? q : m))
+  const down = c.y < 40
+  const left = c.x + 30 + w > FIELD.w
+  const dx = left ? -1 : 1
+  const dy = down ? 1 : -1
+  const knee = v(c.x + dx * 30, c.y + dy * 30)
+  const end = v(knee.x + dx * w, knee.y)
+  // Draw the polyline c -> knee -> end up to the given share of its length.
+  const l1 = 30 * Math.SQRT2
+  const total = l1 + w
+  let reach = Math.min(1, t / LABEL_LINE_MS) * total
+  pen.reset(COLORS.note, 1)
+  const first = Math.min(reach, l1) / l1
+  pen.line(c, v(c.x + (knee.x - c.x) * first, c.y + (knee.y - c.y) * first))
+  reach -= l1
+  if (reach > 0) pen.line(knee, v(knee.x + dx * reach, knee.y))
+  const alpha = Math.max(0, Math.min(1, (t - LABEL_FADE_DELAY_MS) / LABEL_FADE_MS))
+  if (alpha <= 0) return
+  const x = Math.max(0, Math.min(FIELD.w - w, Math.min(knee.x, end.x)))
+  const y = Math.max(0, Math.min(FIELD.h, down ? knee.y + 10 : knee.y - 3))
+  pen.ctx.globalAlpha = alpha
+  pen.label(text, v(x, y))
+  pen.ctx.globalAlpha = 1
 }
 
 /** Small hatched mark in the first footprint corner, to show the part is locked. */
@@ -178,8 +249,7 @@ function drawLockMark(pen: Pen, p: Placement): void {
   }
 }
 
-/** `fig` is the part's FIG. number, or null to leave the label out (while the machine runs). */
-function drawPart(pen: Pen, s: PartDrawState, fig: number | null): void {
+function drawPart(pen: Pen, s: PartDrawState): void {
   const def = partDef(s.placement.kind)
   const ctx = pen.ctx
   ctx.save()
@@ -198,8 +268,6 @@ function drawPart(pen: Pen, s: PartDrawState, fig: number | null): void {
     pen.poly(footprint(s.placement))
     pen.dashed(false)
   }
-  const top = footprint(s.placement).reduce((m, p) => (p.y < m.y ? p : m))
-  if (fig !== null) pen.label(`FIG. ${fig} · ${def.label.toUpperCase()}`, v(top.x + 4, top.y - 4))
   if (s.fixed) drawLockMark(pen, s.placement)
 }
 
@@ -259,16 +327,36 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
   const fixedIds = new Set(level.fixed.map((p) => p.id))
   const phases = gearPhases(placements)
-  placements.forEach((placement, i) => {
+  for (const placement of placements) {
     const inst = sim?.parts.find((p) => p.id === placement.id)
-    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected, phase: phases.get(placement.id) }, sim ? null : i + 1)
-  })
+    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected, phase: phases.get(placement.id) })
+  }
   if (sim) drawTrails(pen, sim)
-  if (!sim && view.showAnchors) drawAnchors(pen, placements, view.pendingAnchor)
   if (view.ghost) {
     const g = view.ghost
     const ghostPhases = gearPhases([...placements.filter((q) => q.id !== g.placement.id), g.placement])
-    drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id) }, placements.length + 1)
+    drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id) })
+  }
+  if (!sim) {
+    if (view.pendingAnchor) {
+      const at = anchorPos(view.pendingAnchor, placements)
+      if (at) drawPending(pen, at)
+    }
+    if (view.targets && view.pulse !== undefined) {
+      const ats = view.targets.flatMap((a) => anchorPos(a, placements) ?? [])
+      drawTargets(pen, ats, view.pulse)
+    }
+    if (view.pendingLine) {
+      pen.reset(COLORS.yellow, 1.5)
+      pen.dashed(true)
+      pen.line(view.pendingLine.from, view.pendingLine.to)
+      pen.reset()
+    }
+    if (view.meshMarks) drawMeshMarks(pen, view.meshMarks)
+    if (view.hover) {
+      const i = placements.findIndex((q) => q.id === view.hover?.id)
+      if (i >= 0) drawHoverLabel(pen, placements[i], i + 1, view.hover.t)
+    }
   }
   ctx.restore()
 }
