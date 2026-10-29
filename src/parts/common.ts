@@ -7,7 +7,7 @@ export const CELL = 20
 export const ROT_ANGLE = Math.PI / 12
 
 /**
- * Brief densities are relative values; DENSITY maps them to Planck kg/m² (×1, so a baseball,
+ * Brief densities are relative values; DENSITY maps them to Planck kg/m² (×1, so a steel ball,
  * r 8 units = 0.2 m, weighs about 0.13 kg and a bowling ball about 1.15 kg).
  */
 export const DENSITY = 1

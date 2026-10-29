@@ -2,7 +2,7 @@
   "v": 1,
   "id": "12-catapulte",
   "title": "Catapulte",
-  "goalText": "Amenez la boule de bowling sur la catapulte pour lancer la balle de baseball dans le seau.",
+  "goalText": "Amenez la boule de bowling sur la catapulte pour lancer la bille d’acier dans le seau.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

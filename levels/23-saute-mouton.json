@@ -2,7 +2,7 @@
   "v": 1,
   "id": "23-saute-mouton",
   "title": "Saute-mouton",
-  "goalText": "Faites sauter la balle de baseball par-dessus les deux murs.",
+  "goalText": "Faites sauter la bille d’acier par-dessus les deux murs.",
   "fixed": [
     { "id": "wall-left", "kind": "wall-brick", "x": 10, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
     { "id": "slope", "kind": "ramp", "x": 120, "y": 500, "rot": 1, "flip": false, "settings": { "length": 8 } },

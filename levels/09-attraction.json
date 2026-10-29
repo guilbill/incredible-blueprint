@@ -2,7 +2,7 @@
   "v": 1,
   "id": "09-attraction",
   "title": "Attraction",
-  "goalText": "Envoyez la balle de baseball dans le panier, tout en haut à droite.",
+  "goalText": "Envoyez la bille d’acier dans le panier, tout en haut à droite.",
   "fixed": [
     { "id": "floor-left", "kind": "wall-brick", "x": 240, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-right", "kind": "wall-brick", "x": 560, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
