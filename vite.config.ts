@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Incredible Machine Tribute',
-        short_name: 'Machine',
+        name: 'Machine Incroyable Tribute',
+        short_name: 'MIT',
         description: 'Un jeu de casse-tête physique, hommage à The Incredible Machine.',
         lang: 'fr',
         theme_color: '#0e2a4a',

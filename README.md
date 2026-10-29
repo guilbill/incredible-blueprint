@@ -1,8 +1,8 @@
-# Incredible Machine Tribute
+# Machine Incroyable Tribute (MIT)
 
 A tribute to **The Incredible Machine**, the Sierra game (1993, then TIM 2 in 1994) I played as a kid. You build Rube Goldberg machines: a ball drops on a seesaw, which wakes a cat, which chases a mouse, which spins a wheel... and if you thought it all through, the goal lights up.
 
-This project brings that feeling back in the browser, with an engineering blueprint look and a more modern interface.
+This project brings that feeling back in the browser, with an engineering blueprint look and a more modern interface. Its name, Machine Incroyable Tribute, shortens to MIT: TIM read backwards.
 
 **Play it: https://guilbill.github.io/incredible-machine-tribute/**
 
