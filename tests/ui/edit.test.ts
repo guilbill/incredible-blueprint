@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, Placement, Solution } from '../../src/level/types'
 import { clientToUnits, fitCanvas, panelPosition, unitsToClient } from '../../src/ui/geometry'
-import { addLink, addPart, draftPlacement, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
+import { addLink, addPart, draftPlacement, flipped, hitAnyPart, hitLink, hitPart, linkTargets, pickAnchor, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
 import { LIMITS } from '../../src/level/codec'
 import { MAX_STEPS_PER_FRAME, STEP_MS, stepsDue } from '../../src/ui/loop'
 
@@ -163,11 +163,8 @@ describe('links', () => {
     expect(removeLink(s2, 'l1').links.map((l) => l.id)).toEqual(['l2'])
   })
 
-  it('hit-tests anchors (fixed and placed) and links', () => {
+  it('hit-tests links', () => {
     const s1 = addLink(lv, sol, A('p1', 'center'), A('saw', 'right'))!
-    expect(hitAnchor(lv, s1, { x: 341, y: 301 })).toEqual(A('saw', 'left'))
-    expect(hitAnchor(lv, s1, { x: 200, y: 203 })).toEqual(A('p1', 'center'))
-    expect(hitAnchor(lv, s1, { x: 250, y: 250 })).toBeUndefined()
     // Rope from (200, 200) to (460, 300): its midpoint is (330, 250).
     expect(hitLink(lv, s1, { x: 330, y: 252 })).toBe('l1')
     expect(hitLink(lv, s1, { x: 330, y: 280 })).toBeUndefined()
@@ -216,5 +213,44 @@ describe('links stay valid when parts move', () => {
     const full: Solution = { ...sol, links: Array.from({ length: LIMITS.fixedLinks }, (_, i) => ({ id: `x${i}`, kind: 'belt' as const, a: { part: 'a', anchor: 'belt' }, b: { part: 'b', anchor: 'belt' } })) }
     const [ea, eb] = belt('b', 'a')
     expect(addLink(gears, full, { ...ea }, { ...eb })).toBeNull()
+  })
+})
+
+describe('link tools', () => {
+  const A = (part: string, anchor: string) => ({ part, anchor })
+  const lv: Level = {
+    ...level,
+    fixed: [P('saw', 'seesaw', 400, 300), P('pl', 'pulley', 700, 300), P('g1', 'gear-small', 1000, 300)],
+    inventory: [{ kind: 'ball-tennis', count: 1 }, { kind: 'gear-small', count: 1 }],
+  }
+  const sol: Solution = { placements: [P('b', 'ball-tennis', 200, 200)], links: [] }
+
+  it('lists the anchors matching the tool', () => {
+    expect(linkTargets(lv, sol, 'belt')).toEqual([A('pl', 'belt'), A('g1', 'belt')])
+    expect(linkTargets(lv, sol, 'rope')).toEqual([A('saw', 'left'), A('saw', 'right'), A('b', 'center')])
+  })
+
+  it('filters by the first anchor: same part, meshed gears, duplicates', () => {
+    const withGear = { ...sol, placements: [...sol.placements, P('g2', 'gear-small', 1040, 300)] }
+    expect(linkTargets(lv, withGear, 'belt', A('pl', 'belt'))).toEqual([A('g1', 'belt'), A('g2', 'belt')])
+    // g1 and g2 mesh (centres 40 apart, radii 20 + 20).
+    expect(linkTargets(lv, withGear, 'belt', A('g1', 'belt'))).toEqual([A('pl', 'belt')])
+    const s = addLink(lv, withGear, A('pl', 'belt'), A('g1', 'belt'))!
+    expect(linkTargets(lv, s, 'belt', A('pl', 'belt'))).toEqual([A('g2', 'belt')])
+  })
+
+  it('picks the seesaw end closest to the click', () => {
+    const targets = linkTargets(lv, sol, 'rope')
+    const saw = lv.fixed[0]
+    expect(pickAnchor(targets, saw, lv, sol, { x: 360, y: 300 })).toEqual(A('saw', 'left'))
+    expect(pickAnchor(targets, saw, lv, sol, { x: 440, y: 300 })).toEqual(A('saw', 'right'))
+    expect(pickAnchor(targets, lv.fixed[1], lv, sol, { x: 360, y: 300 })).toBeUndefined()
+  })
+
+  it('hits fixed parts too, player parts first', () => {
+    expect(hitAnyPart(lv, sol, { x: 700, y: 300 })?.id).toBe('pl')
+    const over = { ...sol, placements: [P('b', 'ball-tennis', 700, 300)] }
+    expect(hitAnyPart(lv, over, { x: 700, y: 300 })?.id).toBe('b')
+    expect(hitAnyPart(lv, sol, { x: 50, y: 700 })).toBeUndefined()
   })
 })

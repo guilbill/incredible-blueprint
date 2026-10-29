@@ -123,8 +123,7 @@ export function hitPart(sol: Solution, pt: Vec): Placement | undefined {
   return undefined
 }
 
-/** Click tolerance (units) around an anchor point and along a link. */
-export const ANCHOR_HIT = 6
+/** Click tolerance (units) along a link. */
 export const LINK_HIT = 5
 
 const sameAnchor = (a: Anchor, b: Anchor): boolean => a.part === b.part && a.anchor === b.anchor
@@ -159,16 +158,41 @@ export function anchorAt(level: Level, sol: Solution, a: Anchor): Vec | undefine
   return p && d ? anchorPoint(p, d) : undefined
 }
 
-/** Anchor under the point (topmost part first), fixed parts included. */
-export function hitAnchor(level: Level, sol: Solution, pt: Vec): Anchor | undefined {
-  const parts = all(level, sol)
-  for (let i = parts.length - 1; i >= 0; i--) {
-    const p = parts[i]
+export type LinkTool = 'rope' | 'belt'
+
+/** Topmost part under the point: player placements first, then fixed parts. */
+export function hitAnyPart(level: Level, sol: Solution, pt: Vec): Placement | undefined {
+  return hitPart(sol, pt) ?? [...level.fixed].reverse().find((p) => inConvex(pt, footprint(p)))
+}
+
+/** Every anchor of the tool's role; once a first anchor is chosen, only those it can be linked to. */
+export function linkTargets(level: Level, sol: Solution, tool: LinkTool, first?: Anchor): Anchor[] {
+  const out: Anchor[] = []
+  for (const p of all(level, sol)) {
     for (const d of partDef(p.kind).anchors) {
-      if (len(sub(anchorPoint(p, d), pt)) <= ANCHOR_HIT) return { part: p.id, anchor: d.key }
+      if (d.role !== tool) continue
+      const a = { part: p.id, anchor: d.key }
+      if (!first || addLink(level, sol, first, a) !== null) out.push(a)
     }
   }
-  return undefined
+  return out
+}
+
+/** The target on `part` closest to the point. */
+export function pickAnchor(targets: Anchor[], part: Placement, level: Level, sol: Solution, pt: Vec): Anchor | undefined {
+  let best: Anchor | undefined
+  let bestDist = Infinity
+  for (const a of targets) {
+    if (a.part !== part.id) continue
+    const at = anchorAt(level, sol, a)
+    if (!at) continue
+    const d = len(sub(at, pt))
+    if (d < bestDist) {
+      best = a
+      bestDist = d
+    }
+  }
+  return best
 }
 
 /** Id of the player link passing under the point (last added first). */
