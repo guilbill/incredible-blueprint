@@ -236,7 +236,7 @@ export const LINK_HIT = 5
 const sameAnchor = (a: Anchor, b: Anchor): boolean => a.part === b.part && a.anchor === b.anchor
 
 /** First free link id `l1`, `l2`… among the level's fixed links and the solution's links. */
-function nextLinkId(level: Level, sol: Solution): string {
+export function nextLinkId(level: Level, sol: Solution): string {
   const used = new Set([...level.fixedLinks, ...sol.links].map((l) => l.id))
   let n = 1
   while (used.has(`l${n}`)) n++
