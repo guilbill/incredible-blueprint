@@ -8,8 +8,8 @@
 export const STILL_STEPS = 240
 /** Steps with motion only off the board (a ball fallen out of view) before the prompt: 10 s. */
 export const OFFSCREEN_STEPS = 1200
-/** Steps after which the prompt shows even if something still moves: 45 s. */
-export const LONG_RUN_STEPS = 5400
+/** Steps after which the prompt shows even if something still moves: 20 s. */
+export const LONG_RUN_STEPS = 2400
 /** Speed (units/s) below which a body counts as stopped. */
 export const MOVING_SPEED = 5
 
