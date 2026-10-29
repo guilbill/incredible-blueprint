@@ -245,7 +245,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   if (!sim && view.showAnchors) drawAnchors(pen, placements, view.pendingAnchor)
   if (view.ghost) {
     const g = view.ghost
-    const ghostPhases = gearPhases([...placements, g.placement])
+    const ghostPhases = gearPhases([...placements.filter((q) => q.id !== g.placement.id), g.placement])
     drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id) }, placements.length + 1)
   }
   ctx.restore()

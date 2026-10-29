@@ -3,6 +3,9 @@ import { hashWorld } from '../../src/engine/hash'
 import { Simulation } from '../../src/game/simulation'
 import type { Level, Placement } from '../../src/level/types'
 import { TRAIL_BANDS, render } from '../../src/render/renderer'
+import { gearPhases } from '../../src/parts/mech/gear'
+import { partDef } from '../../src/parts/registry'
+import { Pen } from '../../src/render/pen'
 import { fakeCtx } from './fakeCtx'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number): Placement => ({ id, kind, x, y, rot: 0, flip: false, settings: {} })
@@ -93,5 +96,25 @@ describe('render', () => {
     render(won.ctx, { level: level(), sol, won: true, zoom: 1 })
     expect(won.calls).toContain('fillRect(100,100,60,60)')
     expect(won.maxBlur.v).toBeGreaterThan(plain.maxBlur.v)
+  })
+
+  it('draws a ghost gear with the phase of its new position, not of the placement it replaces', () => {
+    const small = P('s', 'gear-small', 100, 100)
+    const oldLarge = P('l', 'gear-large', 400, 400)
+    const moved = P('l', 'gear-large', 160, 100)
+    const lvl = level()
+    const f = fakeCtx()
+    render(f.ctx, { level: lvl, sol: { placements: [oldLarge, small], links: [] }, zoom: 1, ghost: { placement: moved, ghost: 'ok' } })
+    // Same gear drawn alone with the phase it gets next to the small one.
+    const ref = fakeCtx()
+    const phase = gearPhases([small, moved]).get('l')
+    const pen = new Pen(ref.ctx)
+    ref.ctx.save()
+    ref.ctx.globalAlpha = 0.5
+    partDef('gear-large').draw!(pen, { placement: moved, ghost: 'ok', phase })
+    const drawn = ref.calls.slice(1)
+    const all = f.calls.join('|')
+    expect(drawn.length).toBeGreaterThan(0)
+    expect(all).toContain(drawn.join('|'))
   })
 })

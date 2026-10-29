@@ -207,6 +207,8 @@ describe('gear drawing', () => {
     const tri = [at('a', 'gear-small', 100, 100), at('b', 'gear-small', 140, 100), at('c', 'gear-small', 120, 100 + 40 * Math.sin(Math.PI / 3))]
     const ph = gearPhases(tri)
     expect([...ph.keys()].sort()).toEqual(['a', 'b', 'c'])
+    expect(ph.get('a')).toBe(0)
+    expect([...ph.values()].every(Number.isFinite)).toBe(true)
   })
 
   it('draws a gear with phase 1 like phase 0 with the body turned by 1', () => {
