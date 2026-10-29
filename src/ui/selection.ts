@@ -160,8 +160,8 @@ export function pasteClip(level: Level, sol: Solution, clip: Clip, centre: Vec, 
 const GUIDE_TOL = 0.5
 
 /**
- * Dotted guides for a dragged group: where its box's edge or centre lines up (same kind of line)
- * with that of another part, one guide spanning both. Vertical lines come first, then horizontal.
+ * Dotted guides for a dragged group: where an edge or centre of its box lines up
+ * with an edge or centre of another part, one guide spanning both. Vertical lines come first, then horizontal.
  */
 export function guidesFor(moved: Placement[], others: Placement[]): Guide[] {
   if (moved.length === 0) return []
@@ -181,12 +181,14 @@ export function guidesFor(moved: Placement[], others: Placement[]): Guide[] {
   const horizontal: Guide[] = []
   for (const o of others) {
     const b = groupBox([o])
-    for (let i = 0; i < 3; i++) {
-      if (Math.abs(xs(m)[i] - xs(b)[i]) <= GUIDE_TOL) {
-        vertical.push({ a: v(xs(m)[i], Math.min(m.y, b.y)), b: v(xs(m)[i], Math.max(m.y + m.h, b.y + b.h)) })
+    for (const mx of xs(m)) {
+      for (const ox of xs(b)) {
+        if (Math.abs(mx - ox) <= GUIDE_TOL) vertical.push({ a: v(mx, Math.min(m.y, b.y)), b: v(mx, Math.max(m.y + m.h, b.y + b.h)) })
       }
-      if (Math.abs(ys(m)[i] - ys(b)[i]) <= GUIDE_TOL) {
-        horizontal.push({ a: v(Math.min(m.x, b.x), ys(m)[i]), b: v(Math.max(m.x + m.w, b.x + b.w), ys(m)[i]) })
+    }
+    for (const my of ys(m)) {
+      for (const oy of ys(b)) {
+        if (Math.abs(my - oy) <= GUIDE_TOL) horizontal.push({ a: v(Math.min(m.x, b.x), my), b: v(Math.max(m.x + m.w, b.x + b.w), my) })
       }
     }
   }

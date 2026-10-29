@@ -121,6 +121,15 @@ describe('pasteClip', () => {
     expect(pasteClip(lvl, one, copyGroup(one, ['p1']), { x: 600, y: 300 }, 'right')).toBeNull()
   })
 
+  it('keeps pasted gears off the fixed gears (discs overlap)', () => {
+    const lvl: Level = { ...level, fixed: [P('g', 'gear-small', 600, 300)], inventory: [{ kind: 'gear-small', count: 3 }] }
+    const c = { placements: [P('p1', 'gear-small', 100, 100)], links: [] }
+    // 30 apart: boxes and discs overlap, so the copy must go elsewhere
+    const r = pasteClip(lvl, sol([]), c, { x: 630, y: 300 }, 'at')!
+    const g = r.sol.placements[0]
+    expect(Math.hypot(g.x - 600, g.y - 300)).toBeGreaterThanOrEqual(39)
+  })
+
   it('returns null when the field has no room', () => {
     // fixed bricks tile the whole field
     const fixed: Placement[] = []
@@ -136,16 +145,21 @@ describe('pasteClip', () => {
 describe('guidesFor', () => {
   it('reports aligned edges and centres', () => {
     const a = P('a', 'ball-tennis', 200, 100)
-    const wide = P('b', 'ramp', 200, 300)
     const ab = groupBox([a])
-    const bb = groupBox([wide])
-    const g = guidesFor([P('m', 'ball-tennis', ab.x + ab.w / 2, 500)], [wide, a])
-    // the moved ball shares its centre x with both parts, and its left edge with the ball
-    expect(g.every((q) => q.a.x === q.b.x)).toBe(true)
-    expect(g.length).toBeGreaterThan(0)
-    const left = guidesFor([P('m', 'ball-tennis', ab.x + ab.w / 2 + 0, 500)], [a]).filter((q) => q.a.x === ab.x)
-    expect(left).toEqual([{ a: { x: ab.x, y: ab.y }, b: { x: ab.x, y: 500 + ab.h / 2 } }])
-    expect(bb.w).not.toBe(ab.w)
+    // same size, same x, different y: left, centre and right all line up, as one guide each
+    const g = guidesFor([P('m', 'ball-tennis', 200, 500)], [a])
+    expect(g).toHaveLength(3)
+    expect(g.map((q) => q.a.x).sort((p, q) => p - q)).toEqual([ab.x, 200, ab.x + ab.w])
+    for (const q of g) {
+      expect(q.a.x).toBe(q.b.x)
+      expect([q.a.y, q.b.y]).toEqual([ab.y, 500 + ab.h / 2])
+    }
+  })
+  it('reports an edge meeting the opposite edge of another part', () => {
+    const a = P('a', 'ball-tennis', 200, 100)
+    const ab = groupBox([a])
+    const m = P('m', 'ball-tennis', 200 + ab.w, 300) // abuts a's right edge, not aligned in y
+    expect(guidesFor([m], [a])).toEqual([{ a: { x: ab.x + ab.w, y: ab.y }, b: { x: ab.x + ab.w, y: 300 + ab.h / 2 } }])
   })
   it('returns nothing without alignment', () => {
     expect(guidesFor([P('m', 'ball-tennis', 101, 503)], [P('a', 'ball-tennis', 300, 200)])).toEqual([])
