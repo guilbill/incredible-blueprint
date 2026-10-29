@@ -15,6 +15,7 @@ import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, fr
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
+import { icon, type IconName } from './icons'
 import { getClip, setClip } from './clipboard'
 import { isMac, isTypingTarget } from './keys'
 import { openMenu, type MenuItem } from './menu'
@@ -334,26 +335,47 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     return row
   }
 
+  /** An icon-only button; the action name is its tooltip and its accessible name. */
+  function iconButton(name: IconName, action: string, run: () => void): HTMLButtonElement {
+    const b = el('button', name === 'delete' ? 'btn icon danger' : 'btn icon')
+    b.type = 'button'
+    b.title = t(`action.${action}`)
+    b.setAttribute('aria-label', b.title)
+    b.append(icon(name))
+    b.addEventListener('click', run)
+    return b
+  }
+
+  /** The action row of the selection. Task 5 adds the lock button between flip and delete. */
+  function actionRow(one: Placement | undefined): HTMLElement {
+    const row = el('div', 'row actions')
+    if (!one) row.append(el('span', 'count', String(selection.length)))
+    row.append(iconButton('duplicate', 'duplicate', duplicateSelection), iconButton('copy', 'copy', copySelection))
+    if (one && partDef(one.kind).rotStep > 0) row.append(iconButton('rotate', 'rotate', () => edit((q) => rotated(q, 1))))
+    if (one && partDef(one.kind).flippable) row.append(iconButton('flip', 'flip', () => edit(flipped)))
+    row.append(iconButton('delete', 'delete', removeSelected))
+    return row
+  }
+
   /** Builds the panel's buttons once per selection; they read the part at click time. */
   function buildSelPanel(p: Placement): void {
     const def = partDef(p.kind)
     panelValues.clear()
+    selPanel.classList.remove('bar')
     selPanel.replaceChildren(el('div', 'title', partLabel(p.kind)))
     // rotation and length live on the part's own handles
     for (const s of def.settings.filter((d) => d.key !== 'length')) {
       const by = (d: number) => () => edit((q) => withSetting(q, s.key, setting(q, s) + d * s.step))
       selPanel.append(stepper(s.key, settingLabel(s), by(-1), by(1)))
     }
-    const actions = el('div', 'row')
-    if (def.flippable) {
-      const flip = el('button', 'btn small', t('panel.flip'))
-      flip.addEventListener('click', () => edit(flipped))
-      actions.append(flip)
-    }
-    const del = el('button', 'btn small danger', t('panel.remove'))
-    del.addEventListener('click', removeSelected)
-    actions.append(del)
-    selPanel.append(actions)
+    selPanel.append(actionRow(p))
+  }
+
+  /** Several parts: just the count and the actions, above the selection box. */
+  function buildGroupPanel(): void {
+    panelValues.clear()
+    selPanel.classList.add('bar')
+    selPanel.replaceChildren(actionRow(undefined))
   }
 
   function updateSelValues(p: Placement): void {
@@ -365,6 +387,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function buildLinkPanel(kind: 'rope' | 'belt'): void {
     panelValues.clear()
+    selPanel.classList.remove('bar')
     const del = el('button', 'btn small danger', t('panel.remove'))
     del.addEventListener('click', removeSelected)
     const actions = el('div', 'row')
@@ -400,6 +423,18 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function refreshSelPanel(): void {
     if (!drag?.started && refreshLinkPanel()) return
     const p = single()
+    if (!p && selection.length > 1) {
+      if (sim || drag?.started || group?.started) {
+        selPanel.hidden = true
+        return
+      }
+      const key = `group:${selection.join(',')}`
+      if (panelFor !== key) buildGroupPanel()
+      selPanel.hidden = false
+      panelFor = key
+      positionGroupPanel()
+      return
+    }
     if (!p || drag?.started) panelFor = undefined
     if (!p || sim || drag?.started) {
       selPanel.hidden = true
@@ -411,6 +446,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     selPanel.hidden = false
     if (fresh) positionSelPanel(p)
     panelFor = p.id
+  }
+
+  /** Above the selection box (8 units of padding included), below it when there is no room. */
+  function positionGroupPanel(): void {
+    const box = groupBox(sol.placements.filter((p) => selection.includes(p.id)))
+    const r = canvas.getBoundingClientRect()
+    const stageRect = stage.getBoundingClientRect()
+    const top = unitsToClient({ x: box.x - 8, y: box.y - 8 }, r)
+    const bottom = unitsToClient({ x: box.x - 8, y: box.y + box.h + 8 }, r)
+    const h = selPanel.offsetHeight
+    const room = top.y - stageRect.top - h - 6 >= 8
+    const anchor = { x: top.x, y: room ? top.y - h - 6 : bottom.y + 6 }
+    const at = panelPosition(anchor, stageRect, { w: selPanel.offsetWidth, h }, 0)
+    selPanel.style.left = `${at.x}px`
+    selPanel.style.top = `${at.y}px`
   }
 
   function positionSelPanel(p: Placement): void {
@@ -1046,6 +1096,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     dirty = true
     const p = single()
     if (p && !selPanel.hidden) positionSelPanel(p)
+    else if (!selPanel.hidden && selection.length > 1) positionGroupPanel()
   }
   const ro = new ResizeObserver(resize)
   ro.observe(stage)
