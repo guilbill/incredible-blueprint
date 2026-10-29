@@ -1,10 +1,9 @@
 import { t } from '../i18n'
 import { LIMITS } from '../level/codec'
 import { canPlace, snap } from '../level/placement'
-import type { Goal, Level, Link, PartKind, Placement, Solution } from '../level/types'
+import type { Goal, Level, Link, PartKind, Placement, Rect, Solution } from '../level/types'
 import { canLink } from '../parts/mech/links'
 import { PART_DEFS } from '../parts/registry'
-import type { Rect } from '../ui/selection'
 
 /** Every registered part kind, in registry order (the order of the editor's lists). */
 export const ALL_KINDS = Object.keys(PART_DEFS) as PartKind[]

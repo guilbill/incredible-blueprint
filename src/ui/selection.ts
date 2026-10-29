@@ -1,18 +1,14 @@
 import { v, type Vec } from '../engine/vec'
 import { LIMITS } from '../level/codec'
 import { FIELD, canPlace, footprint, overlaps, snap } from '../level/placement'
-import type { Goal, Level, Link, PartKind, Placement, Solution } from '../level/types'
+import type { Goal, Guide, Level, Link, PartKind, Placement, Rect, Solution } from '../level/types'
 import { canLink } from '../parts/mech/links'
 import { nextId, nextLinkId, remaining } from './edit'
 
 /** Pure group operations on a player's solution (multi-selection, copy and paste). Each returns null when refused. */
 
-export type Rect = { x: number; y: number; w: number; h: number }
-
 /** Copied parts and the links between them, positions as copied. */
 export interface Clip { placements: Placement[]; links: Link[] }
-
-export type Guide = { a: Vec; b: Vec }
 
 const all = (level: Level, sol: Solution): Placement[] => [...level.fixed, ...sol.placements]
 
@@ -223,8 +219,10 @@ export function zoneCorner(zone: Rect, pt: Vec, tol: number): Corner | undefined
   return corners.find(([, x, y]) => Math.abs(pt.x - x) <= tol && Math.abs(pt.y - y) <= tol)?.[0]
 }
 
-/** The zone moved by the offset, snapped to the grid and kept inside the field. */
+/** The zone moved by the offset (unchanged when there is none), snapped to the grid and kept inside the field. */
 export function moveZone(zone: Rect, dx: number, dy: number): Rect {
+  // no offset, no move: an off-grid zone must not be snapped by a plain click
+  if (dx === 0 && dy === 0) return zone
   return {
     ...zone,
     x: clamp(snap(zone.x + dx), 0, FIELD.w - zone.w),

@@ -29,6 +29,11 @@ describe('hintsFor', () => {
     expect(labels({ author: true, count: 3 })).toEqual(['décaler (Shift ×5)', 'dupliquer', 'copier', 'verrouiller', 'supprimer', 'désélectionner'])
   })
 
+  it('offers only the lock toggle and deselect when every selected part is locked', () => {
+    expect(labels({ author: true, count: 2, allLocked: true })).toEqual(['verrouiller', 'désélectionner'])
+    expect(labels({ author: true, count: 1, single: true, allLocked: true })).toEqual(['verrouiller', 'désélectionner'])
+  })
+
   it('lists the zone actions for a goal zone', () => {
     expect(labels({ author: true, zone: true })).toEqual(['décaler', 'supprimer l’objectif', 'désélectionner'])
   })

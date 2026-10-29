@@ -11,6 +11,8 @@ export interface HintState {
   /** Selected parts. */
   count: number
   single: boolean
+  /** Every selected part is locked (editor). */
+  allLocked?: boolean
   /** A goal zone is selected (editor). */
   zone: boolean
   /** Something was copied and can be pasted. */
@@ -33,6 +35,8 @@ export function hintsFor(s: HintState): Hint[] {
     if (s.clip) out.push(h([mod, 'V'], 'hint.paste'))
     out.push(h([mod, 'Z'], 'hint.undo'))
     return out
+  } else if (s.author && s.allLocked) {
+    out.push(h(['L'], 'hint.lock'))
   } else {
     out.push(h([ARROWS], 'hint.move'), h([mod, 'D'], 'hint.duplicate'), h([mod, 'C'], 'hint.copy'))
     if (s.single) out.push(h(['R'], 'hint.rotate'), h(['F'], 'hint.flip'))

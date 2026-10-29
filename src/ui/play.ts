@@ -4,7 +4,7 @@ import { Simulation } from '../game/simulation'
 import { v, type Vec } from '../engine/vec'
 import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
 import { FIELD, footprint, gearMagnet, snap } from '../level/placement'
-import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
+import type { Anchor, Goal, Guide, Level, PartKind, Placement, Rect, Solution } from '../level/types'
 import { angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
@@ -22,7 +22,7 @@ import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
 import { allShortcuts, hintsFor, type Hint } from './shortcuts'
 import { sound } from './sound'
-import { copyGroup, groupBox, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, selectInRect, zoneAt, zoneCorner, type Clip, type Corner, type Guide, type Rect } from './selection'
+import { copyGroup, groupBox, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, selectInRect, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
 import { anyMoving, createStallWatch, type StallReason } from './stall'
 
@@ -103,6 +103,9 @@ interface ZoneDrag {
   orig: Rect
   /** Press point in units. */
   from: Vec
+  /** Press point on screen, and whether the pointer has passed the drag threshold (a plain click changes nothing). */
+  start: { x: number; y: number }
+  started: boolean
 }
 
 /** Room kept under the board for the hint line. */
@@ -188,9 +191,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let hoverEnd: { end: 'start' | 'end'; since: number } | undefined
   let drag: Drag | undefined
   let group: GroupDrag | undefined
-  /** Selected goal zone (index in `author.goals()`, author mode), exclusive with the part selection. */
-  let selectedZone: number | undefined
+  /** Selected goal (author mode), exclusive with the part selection. Kept by reference: the goals panel can remove others, which shifts indexes. */
+  let selectedGoal: Goal | undefined
   let zoneDrag: ZoneDrag | undefined
+  /** Index of the selected goal in `author.goals()`, or -1 when none is selected or it is gone. */
+  const zoneIndex = (): number => (selectedGoal && author ? author.goals().indexOf(selectedGoal) : -1)
   /** Selection rectangle dragged on empty space; `base` is the selection kept under it (Shift). */
   let marquee: { a: Vec; b: Vec; base: string[] } | undefined
   let acc = 0
@@ -741,7 +746,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       author: !!author,
       count: selection.length,
       single: !!single(),
-      zone: selectedZone !== undefined,
+      allLocked: allLocked(),
+      zone: zoneIndex() >= 0,
       clip: !!getClip(),
       mac: isMac(),
     })
@@ -774,7 +780,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function refreshUi(): void {
     dirty = true
     // a zone stays selected only while its goal is there (the panel can remove it) and nothing else is
-    if (selectedZone !== undefined && (selection.length || selectedLink || author?.goals()[selectedZone]?.type !== 'inZone')) selectedZone = undefined
+    if (selectedGoal && (selection.length || selectedLink || zoneIndex() < 0)) selectedGoal = undefined
     refreshHints()
     undoBtn.disabled = !past.length || !!sim
     redoBtn.disabled = !future.length || !!sim
@@ -886,7 +892,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (hit) {
       e.preventDefault()
       selectedLink = undefined
-      selectedZone = undefined
+      selectedGoal = undefined
       if (e.shiftKey) {
         selection = selection.includes(hit.id) ? selection.filter((id) => id !== hit.id) : [...selection, hit.id]
       } else {
@@ -896,24 +902,25 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
         // a locked part is selected by the click but does not move
         if (selection.length === 1) {
           if (ids.length) drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start, started: false, ok: false }
-        } else if (ids.length) group = { ids, pressed: hit.id, start, from: pt, started: false, dx: 0, dy: 0, next: sol, guides: [] }
+        } else if (ids.length && !isLocked(hit.id)) group = { ids, pressed: hit.id, start, from: pt, started: false, dx: 0, dy: 0, next: sol, guides: [] }
       }
       refreshUi()
       return
     }
     const zones = author?.goals() ?? []
-    const zone = selectedZone !== undefined ? zones[selectedZone] : undefined
+    const zsel = zoneIndex()
+    const zone = zsel >= 0 ? zones[zsel] : undefined
     const corner = zone?.type === 'inZone' ? zoneCorner(zone.zone, pt, HANDLE_HIT) : undefined
-    if (author && selectedZone !== undefined && zone?.type === 'inZone' && corner) {
+    if (author && zsel >= 0 && zone?.type === 'inZone' && corner) {
       e.preventDefault()
-      zoneDrag = { i: selectedZone, corner, orig: zone.zone, from: pt }
+      zoneDrag = { i: zsel, corner, orig: zone.zone, from: pt, start: { x: e.clientX, y: e.clientY }, started: false }
       refreshUi()
       return
     }
     const link = hitLink(level, sol, pt)
     if (link) {
       selection = []
-      selectedZone = undefined
+      selectedGoal = undefined
       selectedLink = link
       refreshUi()
       return
@@ -924,15 +931,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       e.preventDefault()
       selection = []
       selectedLink = undefined
-      selectedZone = zi
-      zoneDrag = { i: zi, orig: hitZone.zone, from: pt }
+      selectedGoal = hitZone
+      zoneDrag = { i: zi, orig: hitZone.zone, from: pt, start: { x: e.clientX, y: e.clientY }, started: false }
       refreshUi()
       return
     }
     // empty space: a selection rectangle, added to the current selection with Shift
     e.preventDefault()
     selectedLink = undefined
-    selectedZone = undefined
+    selectedGoal = undefined
     const base = e.shiftKey ? selection : []
     selection = base
     marquee = { a: pt, b: pt, base }
@@ -946,11 +953,22 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   /** Zone drag: the zone follows the pointer, live through the editor (the model owns it, no undo step). */
-  function updateZone(z: ZoneDrag, pt: Vec): void {
+  function updateZone(z: ZoneDrag, e: PointerEvent): void {
     if (!author) return
+    if (!z.started) {
+      const dx = e.clientX - z.start.x
+      const dy = e.clientY - z.start.y
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return
+      z.started = true
+    }
+    const pt = unitsAt(e)
     const next = z.corner ? resizeZone(z.orig, z.corner, pt) : moveZone(z.orig, pt.x - z.from.x, pt.y - z.from.y)
     const g = author.goals()[z.i]
-    if (g?.type === 'inZone' && (g.zone.x !== next.x || g.zone.y !== next.y || g.zone.w !== next.w || g.zone.h !== next.h)) author.setZone(z.i, next)
+    if (g?.type === 'inZone' && (g.zone.x !== next.x || g.zone.y !== next.y || g.zone.w !== next.w || g.zone.h !== next.h)) {
+      author.setZone(z.i, next)
+      // setZone replaces the goal object
+      selectedGoal = author.goals()[z.i]
+    }
     dirty = true
   }
 
@@ -988,7 +1006,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if (zoneDrag) {
-      updateZone(zoneDrag, unitsAt(e))
+      updateZone(zoneDrag, e)
       return
     }
     if (group) {
@@ -1061,7 +1079,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if (zoneDrag) {
-      updateZone(zoneDrag, unitsAt(e))
+      updateZone(zoneDrag, e)
       zoneDrag = undefined
       refreshUi()
       return
@@ -1125,6 +1143,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   // ---- run / stop ----
   function start(): void {
     if (sim || author) return
+    closeMenu?.()
     stall = createStallWatch()
     drag = undefined
     group = undefined
@@ -1223,7 +1242,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
-      e.preventDefault()
+      // plain text copy keeps working when no part is selected
+      if (unlocked().length > 0) e.preventDefault()
       copySelection()
       return
     }
@@ -1242,18 +1262,19 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (author && (e.key === 'l' || e.key === 'L')) toggleLock()
     else if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
     else if (e.key === 'f' || e.key === 'F') edit(flipped)
-    else if (author && selectedZone !== undefined && !selection.length && (e.key in ARROWS || e.key === 'Delete' || e.key === 'Backspace')) {
+    else if (author && selectedGoal && !selection.length && (e.key in ARROWS || e.key === 'Delete' || e.key === 'Backspace')) {
       e.preventDefault()
-      const g = author.goals()[selectedZone]
-      if (g?.type !== 'inZone') selectedZone = undefined
+      const zi = zoneIndex()
+      const g = author.goals()[zi]
+      if (g?.type !== 'inZone') selectedGoal = undefined
       else if (e.key in ARROWS) {
         const [x, y] = ARROWS[e.key]
         const step = e.shiftKey ? NUDGE_STEP_BIG : NUDGE_STEP
-        author.setZone(selectedZone, moveZone(g.zone, x * step, y * step))
+        author.setZone(zi, moveZone(g.zone, x * step, y * step))
+        selectedGoal = author.goals()[zi]
       } else {
-        const i = selectedZone
-        selectedZone = undefined
-        author.removeGoal(i)
+        selectedGoal = undefined
+        author.removeGoal(zi)
       }
       refreshUi()
     } else if (e.key in ARROWS && selection.length) {
@@ -1265,11 +1286,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       e.preventDefault()
       removeSelected()
     } else if (e.key === 'Escape') {
+      // a drag in progress is cancelled: the zone goes back where it was, the group never moved
+      if (zoneDrag && author) author.setZone(zoneDrag.i, zoneDrag.orig)
+      group = undefined
       trace = undefined
       marquee = undefined
       zoneDrag = undefined
       selection = []
-      selectedZone = undefined
+      selectedGoal = undefined
       selectedLink = undefined
       tool = undefined
       first = undefined
@@ -1379,7 +1403,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     render(ctx, {
       level: view, sol: viewSol, sim, ghost, ghosts, won, zoom: fit.zoom,
       selected: sim ? undefined : selection,
-      selectedZone: sim ? undefined : selectedZone,
+      selectedZone: sim || zoneIndex() < 0 ? undefined : zoneIndex(),
       locked: sim ? undefined : author?.locked(),
       selectionBox: !sim && boxed.length ? groupBox(boxed) : undefined,
       marquee: marquee && rectBetween(marquee.a, marquee.b),

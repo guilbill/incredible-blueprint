@@ -177,6 +177,26 @@ describe('the editor never builds a level validateLevel rejects', () => {
   })
 })
 
+describe('EditorModel goal identity', () => {
+  it('keeps the other goals as the same objects when one is removed, so a held goal can be found again', () => {
+    const m = ready()
+    m.addGoal({ type: 'event', event: 'rope-cut' })
+    m.addGoal({ type: 'inZone', part: 'ball', zone: { x: 0, y: 0, w: 20, h: 20 } })
+    const held = m.level.goals[2]
+    m.removeGoal(1)
+    expect(m.level.goals.indexOf(held)).toBe(1)
+    m.removeGoal(0)
+    expect(m.level.goals.indexOf(held)).toBe(0)
+  })
+
+  it('replaces the goal object on setZone', () => {
+    const m = ready()
+    const before = m.level.goals[0]
+    m.setZone(0, { x: 10, y: 20, w: 30, h: 40 })
+    expect(m.level.goals.indexOf(before)).toBe(-1)
+  })
+})
+
 describe('EditorModel.setZone', () => {
   it('replaces the zone of an inZone goal and marks the level unverified', () => {
     const m = ready()

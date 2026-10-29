@@ -175,6 +175,11 @@ describe('goal zones', () => {
     expect(moveZone(z, 9999, 9999)).toEqual({ x: FIELD.w - 100, y: FIELD.h - 60, w: 100, h: 60 })
   })
 
+  it('moveZone without an offset returns an off-grid zone as it is', () => {
+    const off = { x: 984, y: 720, w: 32, h: 36 }
+    expect(moveZone(off, 0, 0)).toEqual(off)
+  })
+
   it('resizeZone moves the dragged corner and keeps the opposite one', () => {
     expect(resizeZone(z, 'se', { x: 253, y: 218 })).toEqual({ x: 100, y: 100, w: 150, h: 120 })
     expect(resizeZone(z, 'nw', { x: 60, y: 41 })).toEqual({ x: 60, y: 40, w: 140, h: 120 })

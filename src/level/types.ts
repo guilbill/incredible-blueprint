@@ -37,3 +37,9 @@ export interface Level {
 }
 
 export interface Solution { placements: Placement[]; links: Link[] }
+
+/** Axis-aligned rectangle in units. */
+export type Rect = { x: number; y: number; w: number; h: number }
+
+/** Alignment guide shown while dragging: a segment between two points. */
+export type Guide = { a: { x: number; y: number }; b: { x: number; y: number } }

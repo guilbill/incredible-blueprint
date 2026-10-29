@@ -179,6 +179,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
         initial: structuredClone({ placements: model.level.fixed, links: model.level.fixedLinks }),
         onChange: (sol) => {
           model.setFixed(sol.placements, sol.links)
+          // locks are not undo steps: undoing a removal brings the part back unlocked, by design
           const kept = pruneLocks(locks, sol.placements)
           if (kept.size !== locks.size) {
             locks = kept
