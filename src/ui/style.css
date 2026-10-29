@@ -91,6 +91,7 @@ button { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -508,3 +509,67 @@ button { font: inherit; color: inherit; }
 .selpanel .count { color: var(--yellow); padding: 0 6px 0 2px; }
 .btn.icon { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; }
 .selpanel.bar { min-width: 0; }
+
+/* Shortcut hints under the board, and the full list over it. */
+.hints {
+  box-sizing: border-box;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 4px 14px;
+  overflow: hidden;
+  color: var(--note);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hints .items { display: flex; gap: 4px 14px; flex: 1 1 0; min-width: 0; overflow: hidden; }
+.hints .hint { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+.hints .more {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--note);
+  font: inherit;
+  cursor: pointer;
+}
+.hints .more:hover { color: var(--line); }
+.stage kbd {
+  display: inline-block;
+  min-width: 14px;
+  padding: 1px 5px;
+  border: 1px solid var(--grid);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--bg-deep);
+  color: var(--line);
+  font: 11px var(--mono);
+  text-align: center;
+}
+.help {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(10, 31, 56, 0.88);
+  cursor: pointer;
+}
+.help[hidden] { display: none; }
+.help .card {
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px 20px;
+  border: 1px solid var(--grid);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--line);
+  cursor: default;
+}
+.help h2 { margin: 0 0 10px; color: var(--yellow); font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
+.help .row { display: flex; align-items: baseline; gap: 14px; padding: 3px 0; }
+.help .keys { flex: 0 0 150px; text-align: right; color: var(--note); }
+.help .note { margin: 10px 0 0; color: var(--note); font-size: 12px; }

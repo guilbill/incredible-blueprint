@@ -20,6 +20,7 @@ import { getClip, setClip } from './clipboard'
 import { isMac, isTypingTarget } from './keys'
 import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
+import { allShortcuts, hintsFor, type Hint } from './shortcuts'
 import { sound } from './sound'
 import { copyGroup, groupBox, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, selectInRect, zoneAt, zoneCorner, type Clip, type Corner, type Guide, type Rect } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
@@ -105,6 +106,8 @@ interface ZoneDrag {
 }
 
 /** Arrow-key nudge (units), and with Shift. */
+/** Room kept under the board for the hint line. */
+const HINTS_H = 30
 const NUDGE_STEP = 10
 const NUDGE_STEP_BIG = 50
 /** Arrow keys as unit directions on the board. */
@@ -251,7 +254,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   retryBtn.addEventListener('click', () => stop())
   retry.append(retryText, retryBtn)
   retry.hidden = true
-  stage.append(canvas, selPanel, toast, retry)
+  // shortcuts useful right now, under the board; the help overlay lists them all
+  const hints = el('div', 'hints')
+  const help = el('div', 'help')
+  help.hidden = true
+  help.addEventListener('click', () => closeHelp())
+  stage.append(canvas, hints, selPanel, toast, retry, help)
   const ctx = canvas.getContext('2d')!
 
   const drawer = el('aside', 'drawer')
@@ -711,8 +719,61 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     closeMenu = openMenu({ x: e.clientX, y: e.clientY }, items)
   })
 
+  /** A hint as key caps followed by its label. */
+  function hintNode(hint: Hint): HTMLElement {
+    const item = el('span', 'hint')
+    hint.keys.forEach((k, i) => {
+      if (i) item.append('+')
+      item.append(el('kbd', '', k))
+    })
+    item.append(` ${hint.label}`)
+    return item
+  }
+
+  function refreshHints(): void {
+    // hidden but still taking room, so the board does not jump when the machine starts
+    hints.style.visibility = sim ? 'hidden' : ''
+    if (sim) {
+      closeHelp()
+      return
+    }
+    const list = hintsFor({
+      author: !!author,
+      count: selection.length,
+      single: !!single(),
+      zone: selectedZone !== undefined,
+      clip: !!getClip(),
+      mac: isMac(),
+    })
+    const more = el('button', 'hint more')
+    more.append(el('kbd', '', '?'), ` ${t('hint.all.link').replace(/^\?\s*/, '')}`)
+    more.addEventListener('click', openHelp)
+    // on a narrow board the list gives way, the link to the full help stays
+    const items = el('span', 'items')
+    items.append(...list.map(hintNode))
+    hints.replaceChildren(items, more)
+  }
+
+  function openHelp(): void {
+    const rows = allShortcuts(!!author, isMac()).map((hint) => {
+      const row = el('div', 'row')
+      row.append(el('span', 'keys'), el('span', 'what', hint.label))
+      row.firstElementChild!.replaceChildren(...hint.keys.flatMap((k, i) => (i ? ['+', el('kbd', '', k)] : [el('kbd', '', k)])))
+      return row
+    })
+    const card = el('div', 'card')
+    card.append(el('h2', '', t('help.title')), ...rows, el('p', 'note', t('help.close')))
+    help.replaceChildren(card)
+    help.hidden = false
+  }
+
+  function closeHelp(): void {
+    help.hidden = true
+  }
+
   function refreshUi(): void {
     dirty = true
+    refreshHints()
     // a zone stays selected only while its goal is there (the panel can remove it) and nothing else is
     if (selectedZone !== undefined && (selection.length || selectedLink || author?.goals()[selectedZone]?.type !== 'inZone')) selectedZone = undefined
     undoBtn.disabled = !past.length || !!sim
@@ -1133,12 +1194,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function onKey(e: KeyboardEvent): void {
     if (isTypingTarget(e.target)) return
+    if (e.key === 'Escape' && !help.hidden) {
+      closeHelp()
+      return
+    }
     if (e.code === 'Space') {
       e.preventDefault()
       if (!e.repeat) toggle()
       return
     }
     if (sim) return
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault()
+      openHelp()
+      return
+    }
     if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
       e.preventDefault()
       if (e.key === 'y' || e.shiftKey) redo()
@@ -1212,9 +1282,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   // ---- sizing & frame loop ----
   function resize(): void {
-    fit = fitCanvas(stage.clientWidth - 16, stage.clientHeight - 16, window.devicePixelRatio || 1)
+    fit = fitCanvas(stage.clientWidth - 16, stage.clientHeight - 16 - HINTS_H, window.devicePixelRatio || 1)
     canvas.style.width = `${fit.cssW}px`
     canvas.style.height = `${fit.cssH}px`
+    hints.style.width = `${fit.cssW}px`
     canvas.width = fit.pxW
     canvas.height = fit.pxH
     dirty = true
