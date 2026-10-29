@@ -111,10 +111,13 @@ describe('render', () => {
     const lvl = level([P('b', 'ball-base', 200, 200)])
     const f = fakeCtx()
     render(f.ctx, { level: lvl, sol: { placements: [], links: [] }, zoom: 1, pendingAnchor: { part: 'b', anchor: 'center' } })
-    const i = f.events.findIndex((x) => x.name === 'setLineDash' && (x.args[0] as number[]).length > 0)
-    expect(i).toBeGreaterThanOrEqual(0)
-    const stroke = f.events.slice(i).find((x) => x.name === 'stroke')!
-    expect(stroke.props.strokeStyle).toBe('#ffcf5a')
+    let dash = false
+    let seen = false
+    for (const x of f.events) {
+      if (x.name === 'setLineDash') dash = (x.args[0] as number[]).length > 0
+      if (x.name === 'stroke' && dash && x.props.strokeStyle === '#ffcf5a' && x.props.lineWidth === 1) seen = true
+    }
+    expect(seen).toBe(true)
   })
 
   it('marks the meshing contacts of a dragged gear', () => {
