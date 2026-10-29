@@ -103,7 +103,7 @@ describe('custom levels', () => {
     saveCustomLevel({ ...lvl('mine-1'), title: 'Renamed' })
     saveCustomLevel(lvl('mine-2'))
     const stored = JSON.parse(mem.getItem(LEVELS_KEY)!)
-    expect(stored).toEqual([{ id: 'future', v: 2 }, 'junk', { ...lvl('mine-1'), title: 'Renamed' }, lvl('mine-2')])
+    expect(stored).toEqual([{ ...lvl('mine-1'), title: 'Renamed' }, { id: 'future', v: 2 }, 'junk', lvl('mine-2')])
   })
 
   it('deleteCustomLevel reports failure when storage is unavailable', () => {

@@ -4,8 +4,8 @@ import { EditorModel, blankLevel } from './editor/model'
 import { lang, t } from './i18n'
 import type { Level } from './level/types'
 import { asShared, decodeLevel, levelFromFile } from './level/codec'
-import { forgetLocks } from './editor/locks'
-import { deleteCustomLevel, loadCustomLevels, saveCustomLevel } from './level/custom'
+import { copyLocks, forgetLocks } from './editor/locks'
+import { deleteCustomLevel, duplicateLevel, insertCustomLevelAfter, loadCustomLevels, saveCustomLevel } from './level/custom'
 import { loadProgress } from './storage'
 import { LANG_EVENT } from './ui/langSwitch'
 import { type LevelTab, loadLevels, mountLevelList } from './ui/levels'
@@ -28,12 +28,24 @@ function showList(error?: string): void {
   remount = () => showList()
   unmount = mountLevelList(app, levels, loadProgress(), {
     onPlay: play,
+    onCopyShipped: (l) => {
+      const copy = duplicateLevel(l, newLevelId())
+      if (saveCustomLevel(copy)) edit(copy)
+      else showList(t('error.saveStorage'))
+    },
     tab,
     onTab: (t) => {
       tab = t
       showList()
     },
     custom: { levels: loadCustomLevels(), onEdit: edit, onNew: () => edit(blankLevel(newLevelId())), onImport: (f) => void importFile(f),
+      onDuplicate: (l) => {
+        const copy = duplicateLevel(l, newLevelId())
+        if (insertCustomLevelAfter(copy, l.id)) {
+          copyLocks(l.id, copy.id)
+          showList()
+        } else showList(t('error.saveStorage'))
+      },
       onDelete: (l) => {
         if (deleteCustomLevel(l.id)) {
           forgetLocks(l.id)

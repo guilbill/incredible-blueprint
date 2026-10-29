@@ -1,3 +1,4 @@
+import { levelGoal, levelTitle, t } from '../i18n'
 import { LEVELS_KEY, forgetLevel, storage } from '../storage'
 import { validateLevel } from './codec'
 import type { Level } from './types'
@@ -8,11 +9,32 @@ export function loadCustomLevels(): Level[] {
   return Array.isArray(raw) ? raw.filter((l): l is Level => validateLevel(l) === null) : []
 }
 
-/** Adds or replaces (same id) a custom level. Other stored entries are kept, even ones this version cannot read. */
+/** Replaces a custom level in place (same id keeps its index) or appends a new one. Other stored entries are kept, even ones this version cannot read. */
 export function saveCustomLevel(level: Level): boolean {
   const raw = storage.get<unknown>(LEVELS_KEY, [])
-  const rest = Array.isArray(raw) ? raw.filter((l) => !hasId(l, level.id)) : []
-  return storage.set(LEVELS_KEY, [...rest, level])
+  const all = Array.isArray(raw) ? raw : []
+  const at = all.findIndex((l) => hasId(l, level.id))
+  return storage.set(LEVELS_KEY, at < 0 ? [...all, level] : all.map((l, i) => (i === at ? level : l)))
+}
+
+/** Stores a level right after another one (a duplicate next to its original). False if storage failed or `afterId` is unknown. */
+export function insertCustomLevelAfter(level: Level, afterId: string): boolean {
+  const raw = storage.get<unknown>(LEVELS_KEY, [])
+  const all = Array.isArray(raw) ? raw.filter((l) => !hasId(l, level.id)) : []
+  const at = all.findIndex((l) => hasId(l, afterId))
+  if (at < 0) return false
+  return storage.set(LEVELS_KEY, [...all.slice(0, at + 1), level, ...all.slice(at + 1)])
+}
+
+/** A fresh, not yet verified copy under `id`, in the current language, sharing nothing with the original. */
+export function duplicateLevel(level: Level, id: string): Level {
+  return {
+    ...structuredClone(level),
+    id,
+    title: t('list.copyTitle', { title: levelTitle(level) }),
+    goalText: levelGoal(level),
+    verified: false,
+  }
 }
 
 const hasId = (l: unknown, id: string): boolean => typeof l === 'object' && l !== null && (l as { id?: unknown }).id === id

@@ -22,8 +22,10 @@ export type LevelTab = 'shipped' | 'mine'
 
 export interface LevelListOpts {
   onPlay(level: Level, list: Level[]): void
+  /** Shipped levels are never edited: this makes an editable copy in "Mes niveaux". */
+  onCopyShipped(level: Level): void
   /** "Mes niveaux" tab: levels made with the editor. */
-  custom: { levels: Level[]; onEdit(level: Level): void; onNew(): void; onImport(file: File): void; onDelete(level: Level): void }
+  custom: { levels: Level[]; onEdit(level: Level): void; onNew(): void; onImport(file: File): void; onDelete(level: Level): void; onDuplicate(level: Level): void }
   tab: LevelTab
   onTab(tab: LevelTab): void
 }
@@ -53,13 +55,20 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
   const grid = el('ol', 'level-grid')
   if (opts.tab === 'shipped') {
     levels.forEach((level, i) => {
-      const li = el('li')
-      li.append(levelCard(level, i + 1, progress, () => opts.onPlay(level, levels)))
+      const li = el('li', 'shipped')
+      const copyBtn = el('button', 'btn small ghost', t('list.copyToMine'))
+      copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        opts.onCopyShipped(level)
+      })
+      const actions = el('div', 'actions')
+      actions.append(copyBtn)
+      li.append(levelCard(level, i + 1, progress, () => opts.onPlay(level, levels)), actions)
       grid.append(li)
     })
     if (levels.length === 0) grid.append(el('li', 'note', t('list.empty')))
   } else {
-    const { levels: mine, onEdit, onNew, onImport, onDelete } = opts.custom
+    const { levels: mine, onEdit, onNew, onImport, onDelete, onDuplicate } = opts.custom
     const tools = el('li', 'level-tools')
     const create = el('button', 'btn primary', t('list.new'))
     create.addEventListener('click', onNew)
@@ -83,12 +92,14 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
       card.append(level.verified ? el('span', 'badge', t('level.verified')) : el('span', 'badge todo', t('level.untested')))
       const playBtn = el('button', 'btn small', t('list.play'))
       playBtn.addEventListener('click', () => opts.onPlay(level, mine))
+      const dupBtn = el('button', 'btn small', t('list.duplicate'))
+      dupBtn.addEventListener('click', () => onDuplicate(level))
       const delBtn = el('button', 'btn small danger', t('list.delete'))
       delBtn.addEventListener('click', () => {
         if (confirm(t('list.confirmDelete', { title: level.title }))) onDelete(level)
       })
       const actions = el('div', 'actions')
-      actions.append(playBtn, delBtn)
+      actions.append(playBtn, dupBtn, delBtn)
       li.append(card, actions)
       grid.append(li)
     })

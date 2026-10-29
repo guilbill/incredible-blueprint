@@ -385,9 +385,9 @@ button { font: inherit; color: inherit; }
 .tab.active { color: var(--line); border-color: var(--grid); background: var(--bg); margin-bottom: -1px; }
 .level-tools { display: grid; align-content: center; gap: 10px; }
 .level-tools .btn { text-align: center; }
-.level-grid li.mine { position: relative; }
-.level-grid li.mine > .actions { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
-.level-grid li.mine > .actions .btn { background: var(--bg); }
+.level-grid li.mine, .level-grid li.shipped { position: relative; }
+.level-grid li.mine > .actions, .level-grid li.shipped > .actions { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+.level-grid li.mine > .actions .btn, .level-grid li.shipped > .actions .btn { background: var(--bg); }
 .level-card .badge.todo { color: var(--note); border-color: var(--note); }
 
 /* ---------- editor ---------- */
