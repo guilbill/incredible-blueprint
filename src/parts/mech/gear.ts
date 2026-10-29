@@ -131,7 +131,7 @@ export function gearsMesh(a: { x: number; y: number; r: number }, b: { x: number
 }
 
 /**
- * Meshes every pair of gears whose centres are r1 + r2 apart (±1 unit), in placement order:
+ * Meshes every pair of gears whose centres are r1 + r2 apart (±MESH_TOL units), in placement order:
  * B turns -r1/r2 times as fast as A.
  */
 export function meshGears(sim: SimCtx): void {

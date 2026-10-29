@@ -193,6 +193,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       selected = undefined
       selectedLink = undefined
       refreshUi()
+      b.blur()
     })
     tools.append(b)
     toolButtons.set(t, b)
@@ -468,8 +469,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function linkClick(t: LinkTool, pt: Vec): void {
     const part = hitAnyPart(level, sol, pt)
     if (!part) {
-      if (first) first = undefined
-      else tool = undefined
+      first = undefined
+      tool = undefined
       return
     }
     const a = pickAnchor(targets() ?? [], part, level, sol, pt)
@@ -496,6 +497,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (author?.tracing()) {
       e.preventDefault()
       trace = { a: pt, b: pt }
+      hover = undefined
+      tool = undefined
+      first = undefined
+      refreshUi()
       return
     }
     if (tool) {
@@ -558,7 +563,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       updateDrag(e)
       if (d.ghost && d.ok) {
         sound.click()
-        commit((d.moving ? updatePart(level, sol, d.ghost) : addPart(level, sol, d.ghost))!)
+        const next = (d.moving ? updatePart(level, sol, d.ghost) : addPart(level, sol, d.ghost))!
+        const dropped = sol.links.length - next.links.length
+        commit(next)
+        if (d.moving && dropped > 0) showToast("Courroie retirée : les engrenages s'entraînent déjà.")
         selected = d.id
       } else if (d.moving && drawer.contains(e.target as Node)) {
         selected = undefined
@@ -639,6 +647,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       tool = undefined
       first = undefined
       refreshUi()
+      for (const b of toolButtons.values()) b.blur()
     }
   }
   /** Stops a focused button from also "clicking" on Space keyup. */

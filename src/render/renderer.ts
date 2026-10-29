@@ -165,7 +165,13 @@ function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simul
 }
 
 /** First anchor of a link being made: yellow ring, no glow. */
-function drawPending(pen: Pen, at: Vec): void {
+function drawPending(pen: Pen, at: Vec, owner?: Placement): void {
+  if (owner) {
+    pen.reset(COLORS.yellow, 1)
+    pen.dashed(true)
+    pen.poly(footprint(owner))
+    pen.dashed(false)
+  }
   pen.reset(COLORS.yellow, 2)
   pen.circle(at, 6)
   pen.ctx.beginPath()
@@ -340,7 +346,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   if (!sim) {
     if (view.pendingAnchor) {
       const at = anchorPos(view.pendingAnchor, placements)
-      if (at) drawPending(pen, at)
+      if (at) drawPending(pen, at, placements.find((q) => q.id === view.pendingAnchor?.part))
     }
     if (view.targets && view.pulse !== undefined) {
       const ats = view.targets.flatMap((a) => anchorPos(a, placements) ?? [])

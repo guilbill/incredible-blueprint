@@ -107,6 +107,16 @@ describe('render', () => {
     expect(f.events.some((x) => x.name === 'setLineDash' && (x.args[0] as number[]).length > 0)).toBe(true)
   })
 
+  it('outlines the first part of a pending link as a yellow dashed footprint', () => {
+    const lvl = level([P('b', 'ball-base', 200, 200)])
+    const f = fakeCtx()
+    render(f.ctx, { level: lvl, sol: { placements: [], links: [] }, zoom: 1, pendingAnchor: { part: 'b', anchor: 'center' } })
+    const i = f.events.findIndex((x) => x.name === 'setLineDash' && (x.args[0] as number[]).length > 0)
+    expect(i).toBeGreaterThanOrEqual(0)
+    const stroke = f.events.slice(i).find((x) => x.name === 'stroke')!
+    expect(stroke.props.strokeStyle).toBe('#ffcf5a')
+  })
+
   it('marks the meshing contacts of a dragged gear', () => {
     const f = fakeCtx()
     render(f.ctx, { level: level(), sol: { placements: [], links: [] }, zoom: 1, meshMarks: [v(70, 80)] })

@@ -78,6 +78,22 @@ describe('mechanics', () => {
     expect(Math.abs(part(s, 'b').bodies[0].getAngularVelocity())).toBeLessThan(0.01)
   })
 
+  it('a driven triangle of meshing gears stays finite', () => {
+    const s = new Simulation(
+      level([P('a', 'gear-small', 400, 400), P('b', 'gear-small', 440, 400), P('c', 'gear-small', 420, 400 + 40 * Math.sin(Math.PI / 3))]),
+      empty,
+    )
+    motor(part(s, 'a').anchors.belt.pin!, 4, 1e7)
+    expect(() => run(s, 240)).not.toThrow()
+    for (const p of s.parts) {
+      for (const b of p.bodies) {
+        expect(Number.isFinite(b.getPosition().x)).toBe(true)
+        expect(Number.isFinite(b.getPosition().y)).toBe(true)
+        expect(Number.isFinite(b.getAngle())).toBe(true)
+      }
+    }
+  })
+
   it('a belt makes the conveyor move a box', () => {
     const lv = level(
       [P('drive', 'pulley', 200, 300), P('belt', 'conveyor', 400, 400), P('box', 'bucket', 400, 370)],
