@@ -105,9 +105,9 @@ interface ZoneDrag {
   from: Vec
 }
 
-/** Arrow-key nudge (units), and with Shift. */
 /** Room kept under the board for the hint line. */
 const HINTS_H = 30
+/** Arrow-key nudge (units), and with Shift. */
 const NUDGE_STEP = 10
 const NUDGE_STEP_BIG = 50
 /** Arrow keys as unit directions on the board. */
@@ -746,7 +746,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       mac: isMac(),
     })
     const more = el('button', 'hint more')
-    more.append(el('kbd', '', '?'), ` ${t('hint.all.link').replace(/^\?\s*/, '')}`)
+    more.append(el('kbd', '', '?'), ` ${t('hint.all.link')}`)
     more.addEventListener('click', openHelp)
     // on a narrow board the list gives way, the link to the full help stays
     const items = el('span', 'items')
@@ -773,9 +773,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function refreshUi(): void {
     dirty = true
-    refreshHints()
     // a zone stays selected only while its goal is there (the panel can remove it) and nothing else is
     if (selectedZone !== undefined && (selection.length || selectedLink || author?.goals()[selectedZone]?.type !== 'inZone')) selectedZone = undefined
+    refreshHints()
     undoBtn.disabled = !past.length || !!sim
     redoBtn.disabled = !future.length || !!sim
     refreshDrawer()
@@ -1194,8 +1194,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function onKey(e: KeyboardEvent): void {
     if (isTypingTarget(e.target)) return
-    if (e.key === 'Escape' && !help.hidden) {
-      closeHelp()
+    // while the help is shown, only Escape and ? act: the board behind must not react
+    if (!help.hidden) {
+      if (e.key === 'Escape' || e.key === '?') closeHelp()
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault()
       return
     }
     if (e.code === 'Space') {

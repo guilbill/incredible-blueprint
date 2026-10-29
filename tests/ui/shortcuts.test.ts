@@ -33,6 +33,10 @@ describe('hintsFor', () => {
     expect(labels({ author: true, zone: true })).toEqual(['décaler', 'supprimer l’objectif', 'désélectionner'])
   })
 
+  it('gives the zone precedence if a zone and a part are both flagged', () => {
+    expect(labels({ author: true, zone: true, count: 1, single: true })).toEqual(['décaler', 'supprimer l’objectif', 'désélectionner'])
+  })
+
   it('shows Cmd instead of Ctrl on a Mac', () => {
     expect(hintsFor({ ...base, mac: true })[1].keys).toEqual(['Cmd', 'A'])
   })
