@@ -174,12 +174,21 @@ describe('render', () => {
     const plain = fakeCtx()
     render(plain.ctx, { level: level(), sol, zoom: 1 })
     const sel = fakeCtx()
-    render(sel.ctx, { level: level(), sol, selected: 's', zoom: 1 })
+    render(sel.ctx, { level: level(), sol, selected: ['s'], zoom: 1 })
     expect(sel.calls.filter((c) => c.startsWith('stroke(')).length).toBeGreaterThan(plain.calls.filter((c) => c.startsWith('stroke(')).length)
     const won = fakeCtx()
     render(won.ctx, { level: level(), sol, won: true, zoom: 1 })
     expect(won.calls).toContain('fillRect(100,100,60,60)')
     expect(won.maxBlur.v).toBeGreaterThan(plain.maxBlur.v)
+  })
+
+  it('draws a dashed selection box', () => {
+    const sol = { placements: [P('b', 'ball-tennis', 300, 300)], links: [] }
+    const f = fakeCtx()
+    render(f.ctx, { level: level(), sol, selected: ['b'], selectionBox: { x: 280, y: 280, w: 40, h: 40 }, zoom: 1 })
+    const dash = f.events.find((e) => e.name === 'setLineDash' && (e.args[0] as number[]).join() === '6,4' && e.props.strokeStyle === '#ffcf5a' && e.props.lineWidth === 1)
+    expect(dash).toBeDefined()
+    expect(f.calls).toContain('strokeRect(272,272,56,56)')
   })
 
   it('draws a ghost gear with the phase of its new position, not of the placement it replaces', () => {
@@ -217,7 +226,7 @@ describe('part handles', () => {
 
   it('draws the rotate handle and one chevron at each end', () => {
     const f = fakeCtx()
-    render(f.ctx, { level: lvl, sol, selected: 'r', zoom: 1, handles: { at, t: NUDGE_MS } })
+    render(f.ctx, { level: lvl, sol, selected: ['r'], zoom: 1, handles: { at, t: NUDGE_MS } })
     expect(f.events.filter((e) => e.name === 'arc' && e.args[0] === 400 && e.args[1] === 268 && e.args[2] === 6)).toHaveLength(1)
     // chevron tips sit 3 units past each handle once the nudge is over
     const tips = f.events.filter((e) => e.name === 'lineTo' && e.props.strokeStyle === '#7fffd4' && e.props.lineWidth === 1.4).map((e) => e.args)
@@ -227,7 +236,7 @@ describe('part handles', () => {
 
   it('draws a notch dial instead of the handles while rotating, current notch in yellow', () => {
     const f = fakeCtx()
-    render(f.ctx, { level: lvl, sol, selected: 'r', zoom: 1, handles: { at, t: 0 }, dial: { center: v(400, 300), radius: 60, step: Math.PI / 2, current: Math.PI / 2, needle: 1.2, offset: -Math.PI / 2 } })
+    render(f.ctx, { level: lvl, sol, selected: ['r'], zoom: 1, handles: { at, t: 0 }, dial: { center: v(400, 300), radius: 60, step: Math.PI / 2, current: Math.PI / 2, needle: 1.2, offset: -Math.PI / 2 } })
     const labels = f.events.filter((e) => e.name === 'fillText').map((e) => [e.args[0], e.props.fillStyle])
     expect(labels).toEqual([['0°', '#7fb4e8'], ['90°', '#ffcf5a'], ['180°', '#7fb4e8'], ['270°', '#7fb4e8']])
     expect(f.events.some((e) => e.name === 'arc' && e.args[2] === 6)).toBe(false)

@@ -8,6 +8,7 @@ import type { Anchor, Level, Link, Placement, Solution } from '../level/types'
 import { CELL } from '../parts/common'
 import { gearPhases } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
+import type { Guide, Rect } from '../ui/selection'
 import { BELT_GAP, beltLoop, traceBelt } from './belt'
 import { COLORS, type PartDrawState, Pen } from './pen'
 
@@ -16,8 +17,16 @@ export interface RenderView {
   sol: Solution
   sim?: Simulation
   ghost?: PartDrawState
-  /** Id of the selected player placement (yellow dashed outline). */
-  selected?: string
+  /** Parts of a group being dragged, drawn like `ghost`. */
+  ghosts?: PartDrawState[]
+  /** Ids of the selected player placements (yellow dashed outline each). */
+  selected?: string[]
+  /** Box around the selection (drawn padded, dashed yellow). */
+  selectionBox?: Rect
+  /** Selection rectangle being dragged on empty space. */
+  marquee?: Rect
+  /** Alignment guides of a group being dragged (dotted cyan). */
+  guides?: Guide[]
   /** Goals met: goal zones glow yellow. */
   won?: boolean
   /** First anchor of a link being made (yellow). */
@@ -369,6 +378,34 @@ function drawPart(pen: Pen, s: PartDrawState): void {
   if (s.fixed) drawLockMark(pen, s.placement)
 }
 
+/** Padding (units) between the selected parts and their dashed box. */
+const SELECTION_PAD = 8
+
+function drawSelectionBox(pen: Pen, r: Rect): void {
+  pen.reset(COLORS.yellow, 1)
+  pen.ctx.setLineDash([6, 4])
+  pen.ctx.strokeRect(r.x - SELECTION_PAD, r.y - SELECTION_PAD, r.w + 2 * SELECTION_PAD, r.h + 2 * SELECTION_PAD)
+  pen.ctx.setLineDash([])
+}
+
+function drawMarquee(pen: Pen, r: Rect): void {
+  const c = pen.ctx
+  pen.reset(COLORS.note, 1)
+  c.globalAlpha = 0.1
+  c.fillRect(r.x, r.y, r.w, r.h)
+  c.globalAlpha = 1
+  c.setLineDash([4, 3])
+  c.strokeRect(r.x, r.y, r.w, r.h)
+  c.setLineDash([])
+}
+
+function drawGuides(pen: Pen, guides: Guide[]): void {
+  pen.reset(COLORS.cyan, 1)
+  pen.ctx.setLineDash([2, 3])
+  for (const g of guides) pen.line(g.a, g.b)
+  pen.ctx.setLineDash([])
+}
+
 function tracePath(ctx: CanvasRenderingContext2D, pts: Vec[], from: number, to: number): void {
   ctx.beginPath()
   ctx.moveTo(pts[from].x, pts[from].y)
@@ -425,15 +462,17 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
   const fixedIds = new Set(level.fixed.map((p) => p.id))
   const phases = gearPhases(placements)
+  const selectedIds = new Set(view.selected)
   for (const placement of placements) {
     const inst = sim?.parts.find((p) => p.id === placement.id)
-    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected, phase: phases.get(placement.id) })
+    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: selectedIds.has(placement.id), phase: phases.get(placement.id) })
   }
   if (sim) drawTrails(pen, sim)
-  if (view.ghost) {
-    const g = view.ghost
-    const ghostPhases = gearPhases([...placements.filter((q) => q.id !== g.placement.id), g.placement])
-    drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id) })
+  const ghosts = [...(view.ghost ? [view.ghost] : []), ...(view.ghosts ?? [])]
+  if (ghosts.length) {
+    const moved = new Set(ghosts.map((g) => g.placement.id))
+    const ghostPhases = gearPhases([...placements.filter((q) => !moved.has(q.id)), ...ghosts.map((g) => g.placement)])
+    for (const g of ghosts) drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id) })
   }
   if (!sim) {
     if (view.pendingAnchor) {
@@ -451,6 +490,9 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
       pen.reset()
     }
     if (view.meshMarks) drawMeshMarks(pen, view.meshMarks)
+    if (view.selectionBox) drawSelectionBox(pen, view.selectionBox)
+    if (view.marquee) drawMarquee(pen, view.marquee)
+    if (view.guides) drawGuides(pen, view.guides)
     if (view.dial) drawDial(pen, view.dial)
     else if (view.handles) drawHandles(pen, view.handles)
     if (view.hover) {

@@ -3,7 +3,7 @@ import { bodyPose } from '../engine/world'
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
 import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
-import { FIELD, footprint, gearMagnet } from '../level/placement'
+import { FIELD, footprint, gearMagnet, snap } from '../level/placement'
 import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
 import { angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
@@ -15,8 +15,10 @@ import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, fr
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
+import { isTypingTarget } from './keys'
 import { langSwitch } from './langSwitch'
 import { sound } from './sound'
+import { groupBox, guidesFor, moveGroup, removeGroup, selectInRect, type Guide, type Rect } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
 import { anyMoving, createStallWatch, type StallReason } from './stall'
 
@@ -62,6 +64,32 @@ interface Drag {
   /** Contact points with the gears the ghost meshes with, while it is valid. */
   meshMarks?: Vec[]
 }
+
+/** Press on a part of a multi-selection: past the drag threshold the whole group moves. */
+interface GroupDrag {
+  ids: string[]
+  /** Part pressed: a click without moving makes it the sole selection. */
+  pressed: string
+  start: { x: number; y: number }
+  /** Press point in units. */
+  from: Vec
+  started: boolean
+  /** Snapped offset from the press point. */
+  dx: number
+  dy: number
+  /** The moved solution, or null when the group does not fit there. */
+  next: Solution | null
+  guides: Guide[]
+}
+
+/** Arrow-key nudge (units), and with Shift. */
+const NUDGE_STEP = 10
+const NUDGE_STEP_BIG = 50
+/** Arrow keys as unit directions on the board. */
+const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+
+/** Rectangle spanned by two corners. */
+const rectBetween = (a: Vec, b: Vec): Rect => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) })
 
 /** Pixels the pointer must travel before a press on a placed part becomes a move (else it's a click). */
 const DRAG_THRESHOLD = 4
@@ -111,8 +139,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let trace: { a: Vec; b: Vec } | undefined
   let sim: Simulation | undefined
   let won = false
-  let selected: string | undefined
-  /** Selected player link (rope or belt), exclusive with `selected`. */
+  /** Selected placements of the board, in selection order, no duplicates. */
+  let selection: string[] = []
+  /** Selected player link (rope or belt), exclusive with `selection`. */
   let selectedLink: string | undefined
   /** Active link tool: clicks on the field pick anchors instead of selecting or dragging. */
   let tool: LinkTool | undefined
@@ -133,6 +162,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** Length handle under the pointer, and since when (its chevron beats while hovered). */
   let hoverEnd: { end: 'start' | 'end'; since: number } | undefined
   let drag: Drag | undefined
+  let group: GroupDrag | undefined
+  /** Selection rectangle dragged on empty space; `base` is the selection kept under it (Shift). */
+  let marquee: { a: Vec; b: Vec; base: string[] } | undefined
   let acc = 0
   let lastT: number | undefined
   let fit = fitCanvas(1, 1, 1)
@@ -220,7 +252,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       if (sim) return
       tool = tool === lt ? undefined : lt
       first = undefined
-      selected = undefined
+      selection = []
       selectedLink = undefined
       refreshUi()
       b.blur()
@@ -260,7 +292,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     li.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || sim || (remaining(level, sol).get(kind) ?? 0) <= 0) return
       e.preventDefault()
-      selected = undefined
+      selection = []
       tool = undefined
       first = undefined
       drag = { kind, id: nextId(level, sol), offset: { x: 0, y: 0 }, start: { x: e.clientX, y: e.clientY }, started: true, ok: false }
@@ -281,7 +313,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   // ---- selection panel ----
-  const selectedPart = (): Placement | undefined => sol.placements.find((p) => p.id === selected)
+  /** The selected part when exactly one is selected (handles, settings panel, R and F work on it). */
+  const single = (): Placement | undefined => (selection.length === 1 ? sol.placements.find((p) => p.id === selection[0]) : undefined)
 
   /** Id the panel was built and positioned for; reset to rebuild (new selection, move, drop). */
   let panelFor: string | undefined
@@ -364,7 +397,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
    */
   function refreshSelPanel(): void {
     if (!drag?.started && refreshLinkPanel()) return
-    const p = selectedPart()
+    const p = single()
     if (!p || drag?.started) panelFor = undefined
     if (!p || sim || drag?.started) {
       selPanel.hidden = true
@@ -429,7 +462,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** Sets the solution, drops a selection or pending link that no longer exists, and saves. */
   function apply(next: Solution): void {
     sol = next
-    if (selected && !sol.placements.some((p) => p.id === selected)) selected = undefined
+    selection = selection.filter((id) => sol.placements.some((p) => p.id === id))
     if (selectedLink && !sol.links.some((l) => l.id === selectedLink)) selectedLink = undefined
     if (first && !partExists(first.part)) first = undefined
     if (author) author.onChange(sol)
@@ -448,7 +481,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function edit(fn: (p: Placement) => Placement | null): void {
-    const p = selectedPart()
+    const p = single()
     if (!p || sim) return
     const np = fn(p)
     if (!np) return
@@ -469,10 +502,32 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       commit(removeLink(sol, id))
       return
     }
-    if (!selected) return
-    const id = selected
-    selected = undefined
-    commit(removePart(sol, id))
+    if (!selection.length) return
+    const ids = selection
+    selection = []
+    commit(removeGroup(sol, ids))
+  }
+
+  /** Moves the whole selection by a snapped offset, as one undo step; "no room" when it does not fit. */
+  function nudge(dx: number, dy: number): void {
+    if (sim || !selection.length) return
+    const next = moveGroup(level, sol, selection, dx, dy)
+    if (!next) {
+      showToast(t('toast.noRoom'))
+      return
+    }
+    sound.click()
+    const dropped = sol.links.length - next.links.length
+    commit(next)
+    if (dropped > 0) showToast(t('toast.beltDropped'))
+  }
+
+  function selectAll(): void {
+    selection = sol.placements.map((p) => p.id)
+    selectedLink = undefined
+    tool = undefined
+    first = undefined
+    refreshUi()
   }
 
   function refreshUi(): void {
@@ -481,7 +536,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     redoBtn.disabled = !future.length || !!sim
     refreshDrawer()
     refreshSelPanel()
-    canvas.classList.toggle('dragging', !!drag?.started)
+    canvas.classList.toggle('dragging', !!drag?.started || !!group?.started)
     for (const [lt, b] of toolButtons) b.classList.toggle('on', lt === tool)
     canvas.classList.toggle('linking', !!tool)
   }
@@ -575,7 +630,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       refreshUi()
       return
     }
-    const sp = selectedPart()
+    const sp = single()
     const handle = sp && hitHandle(sp, pt)
     if (handle) {
       e.preventDefault()
@@ -584,18 +639,77 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     const hit = hitPart(sol, pt)
-    selected = hit?.id
-    selectedLink = !hit ? hitLink(level, sol, pt) : undefined
     if (hit) {
       e.preventDefault()
-      drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start: { x: e.clientX, y: e.clientY }, started: false, ok: false }
+      selectedLink = undefined
+      if (e.shiftKey) {
+        selection = selection.includes(hit.id) ? selection.filter((id) => id !== hit.id) : [...selection, hit.id]
+      } else {
+        if (!selection.includes(hit.id)) selection = [hit.id]
+        const start = { x: e.clientX, y: e.clientY }
+        if (selection.length === 1) drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start, started: false, ok: false }
+        else group = { ids: [...selection], pressed: hit.id, start, from: pt, started: false, dx: 0, dy: 0, next: sol, guides: [] }
+      }
+      refreshUi()
+      return
     }
+    const link = hitLink(level, sol, pt)
+    if (link) {
+      selection = []
+      selectedLink = link
+      refreshUi()
+      return
+    }
+    // empty space: a selection rectangle, added to the current selection with Shift
+    e.preventDefault()
+    selectedLink = undefined
+    const base = e.shiftKey ? selection : []
+    selection = base
+    marquee = { a: pt, b: pt, base }
     refreshUi()
   })
+
+  /** Selection under the rectangle: the kept base plus every part it touches. */
+  function updateMarquee(m: NonNullable<typeof marquee>, pt: Vec): void {
+    m.b = pt
+    selection = [...m.base, ...selectInRect(level, sol, rectBetween(m.a, m.b), new Set(m.base))]
+  }
+
+  /** Group drag: snapped offset from the press point, the moved solution if it fits, and the guides. */
+  function updateGroup(g: GroupDrag, e: PointerEvent): void {
+    if (!g.started) {
+      const dx = e.clientX - g.start.x
+      const dy = e.clientY - g.start.y
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return
+      g.started = true
+      hover = undefined
+      refreshUi()
+    }
+    const pt = unitsAt(e)
+    g.dx = snap(pt.x - g.from.x)
+    g.dy = snap(pt.y - g.from.y)
+    g.next = moveGroup(level, sol, g.ids, g.dx, g.dy)
+    const ids = new Set(g.ids)
+    g.guides = guidesFor(movedParts(g), [...level.fixed, ...sol.placements].filter((p) => !ids.has(p.id)))
+  }
+
+  /** The group's parts at their dragged position. */
+  function movedParts(g: GroupDrag): Placement[] {
+    const ids = new Set(g.ids)
+    return sol.placements.filter((p) => ids.has(p.id)).map((p) => ({ ...p, x: p.x + g.dx, y: p.y + g.dy }))
+  }
 
   function onPointerMove(e: PointerEvent): void {
     if (trace) {
       trace.b = unitsAt(e)
+      return
+    }
+    if (marquee) {
+      updateMarquee(marquee, unitsAt(e))
+      return
+    }
+    if (group) {
+      updateGroup(group, e)
       return
     }
     if (e.target === canvas) pointer = unitsAt(e)
@@ -614,7 +728,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       const over = hitAnyPart(level, sol, pt)
       if (over?.id !== hover?.id) hover = over ? { id: over.id, since: performance.now() } : undefined
       canvas.classList.toggle('tracing', !!author?.tracing())
-      const sp = !tool ? selectedPart() : undefined
+      const sp = !tool ? single() : undefined
       const handle = sp && hitHandle(sp, pt)
       const end = handle === 'start' || handle === 'end' ? handle : undefined
       if (end !== hoverEnd?.end) hoverEnd = end ? { end, since: performance.now() } : undefined
@@ -627,7 +741,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   /** Rotates or resizes the selected part from a handle drag, once past the drag threshold. */
   function moveGrip(g: NonNullable<typeof grip>, e: PointerEvent): void {
-    const p = selectedPart()
+    const p = single()
     if (!p) return
     const dx = e.clientX - g.start.x
     const dy = e.clientY - g.start.y
@@ -669,8 +783,31 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       // a click steps once: one notch clockwise, or one cell longer on that end
       if (!g.moved) edit((q) => (g.kind === 'rot' ? rotated(q, 1) : grow(q, g.kind, 1)))
       refreshUi()
-      const sp = selectedPart()
+      const sp = single()
       if (sp && !selPanel.hidden) positionSelPanel(sp)
+      return
+    }
+    if (marquee) {
+      updateMarquee(marquee, unitsAt(e))
+      marquee = undefined
+      refreshUi()
+      return
+    }
+    if (group) {
+      const g = group
+      group = undefined
+      if (!g.started) selection = [g.pressed]
+      else {
+        updateGroup(g, e)
+        if (!g.next) showToast(t('toast.noRoom'))
+        else if (g.dx !== 0 || g.dy !== 0) {
+          sound.click()
+          const dropped = sol.links.length - g.next.links.length
+          commit(g.next)
+          if (dropped > 0) showToast(t('toast.beltDropped'))
+        }
+      }
+      refreshUi()
       return
     }
     const d = drag
@@ -684,9 +821,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
         const dropped = sol.links.length - next.links.length
         commit(next)
         if (d.moving && dropped > 0) showToast(t('toast.beltDropped'))
-        selected = d.id
+        selection = [d.id]
       } else if (d.moving && drawer.contains(e.target as Node)) {
-        selected = undefined
+        selection = []
         sound.click()
         commit(removePart(sol, d.id))
       } else if (d.ghost) {
@@ -701,6 +838,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (sim || author) return
     stall = createStallWatch()
     drag = undefined
+    group = undefined
+    marquee = undefined
     tool = undefined
     first = undefined
     hover = undefined
@@ -765,7 +904,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   replay.addEventListener('click', stop)
 
   function onKey(e: KeyboardEvent): void {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return
+    if (isTypingTarget(e.target)) return
     if (e.code === 'Space') {
       e.preventDefault()
       if (!e.repeat) toggle()
@@ -778,16 +917,27 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       else undo()
       return
     }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault()
+      selectAll()
+      return
+    }
     // Leave browser and system shortcuts (Ctrl+R, Cmd+F, Alt+Backspace…) alone.
     if (e.ctrlKey || e.metaKey || e.altKey) return
     if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
     else if (e.key === 'f' || e.key === 'F') edit(flipped)
-    else if (e.key === 'Delete' || e.key === 'Backspace') {
+    else if (e.key in ARROWS && selection.length) {
+      e.preventDefault()
+      const [x, y] = ARROWS[e.key]
+      const step = e.shiftKey ? NUDGE_STEP_BIG : NUDGE_STEP
+      nudge(x * step, y * step)
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault()
       removeSelected()
     } else if (e.key === 'Escape') {
       trace = undefined
-      selected = undefined
+      marquee = undefined
+      selection = []
       selectedLink = undefined
       tool = undefined
       first = undefined
@@ -808,7 +958,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     canvas.width = fit.pxW
     canvas.height = fit.pxH
     dirty = true
-    const p = selectedPart()
+    const p = single()
     if (p && !selPanel.hidden) positionSelPanel(p)
   }
   const ro = new ResizeObserver(resize)
@@ -860,7 +1010,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     lastT = t
     // Idle frames are skipped, except while targets pulse or a hover label is still drawing in.
     const now = performance.now()
-    const nudging = !!selected && !sim && (nudgeFor !== selected || now - selectedSince < NUDGE_MS)
+    const one = single()?.id
+    const nudging = !!one && !sim && (nudgeFor !== one || now - selectedSince < NUDGE_MS)
     const animating = !!tool || nudging || !!hoverEnd || !!grip?.moved || (hover !== undefined && !labelDone(now - hover.since))
     if (!sim && !dirty && !animating) return
     dirty = false
@@ -868,9 +1019,13 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function draw(): void {
-    const moving = drag?.started ? drag.moving?.id : undefined
-    const viewSol = moving ? { ...sol, placements: sol.placements.filter((p) => p.id !== moving) } : sol
+    const g = group?.started ? group : undefined
+    const hidden = new Set(g ? g.ids : drag?.started && drag.moving ? [drag.moving.id] : [])
+    const viewSol = hidden.size ? { ...sol, placements: sol.placements.filter((p) => !hidden.has(p.id)) } : sol
     const ghost: PartDrawState | undefined = drag?.started && drag.ghost ? { placement: drag.ghost, ghost: drag.ok ? 'ok' : 'bad' } : undefined
+    const moved = g ? movedParts(g) : undefined
+    const ghosts: PartDrawState[] | undefined = g && moved?.map((placement) => ({ placement, ghost: g.next ? 'ok' : 'bad' }))
+    const boxed = moved ?? (drag?.started ? [] : sol.placements.filter((p) => selection.includes(p.id)))
     let view = level
     if (author) {
       const zone = trace && rectFromDrag(trace.a, trace.b)
@@ -878,15 +1033,20 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       view = { ...level, goals: [...author.goals(), ...traced] }
     }
     const now = performance.now()
-    if (selected !== nudgeFor) {
-      nudgeFor = selected
+    const one = single()?.id
+    if (one !== nudgeFor) {
+      nudgeFor = one
       selectedSince = now
     }
-    const sp = !sim && !tool && !drag?.started ? selectedPart() : undefined
+    const sp = !sim && !tool && !drag?.started && !g ? single() : undefined
     const from = first && anchorAt(level, sol, first)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     render(ctx, {
-      level: view, sol: viewSol, sim, ghost, selected: sim ? undefined : selected, won, zoom: fit.zoom,
+      level: view, sol: viewSol, sim, ghost, ghosts, won, zoom: fit.zoom,
+      selected: sim ? undefined : selection,
+      selectionBox: !sim && boxed.length ? groupBox(boxed) : undefined,
+      marquee: marquee && rectBetween(marquee.a, marquee.b),
+      guides: g?.guides,
       pendingAnchor: first, selectedLink: sim ? undefined : selectedLink,
       targets: targets(), pulse: (now % PULSE_MS) / PULSE_MS,
       pendingLine: from && pointer ? { from, to: pointer } : undefined,
