@@ -6,6 +6,8 @@
 
 /** Steps (at 120 per second) without any travelling body before the prompt: 2 s. */
 export const STILL_STEPS = 240
+/** Steps with motion only off the board (a ball fallen out of view) before the prompt: 10 s. */
+export const OFFSCREEN_STEPS = 1200
 /** Steps after which the prompt shows even if something still moves: 45 s. */
 export const LONG_RUN_STEPS = 5400
 /** Speed (units/s) below which a body counts as stopped. */
@@ -19,12 +21,17 @@ export function anyMoving(speeds: Iterable<number>): boolean {
   return false
 }
 
-/** Feed it once per step; it says whether to show the prompt, and why. */
-export function createStallWatch(): (moving: boolean, step: number) => StallReason | undefined {
+/**
+ * Feed it once per step with whether something moves at all and whether something moves on the
+ * board; it says whether to show the prompt, and why.
+ */
+export function createStallWatch(): (moving: { any: boolean; onBoard: boolean }, step: number) => StallReason | undefined {
   let still = 0
+  let offBoard = 0
   return (moving, step) => {
-    still = moving ? 0 : still + 1
-    if (still >= STILL_STEPS) return 'still'
+    still = moving.any ? 0 : still + 1
+    offBoard = moving.onBoard ? 0 : offBoard + 1
+    if (still >= STILL_STEPS || offBoard >= OFFSCREEN_STEPS) return 'still'
     if (step >= LONG_RUN_STEPS) return 'long'
     return undefined
   }

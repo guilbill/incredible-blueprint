@@ -1,8 +1,9 @@
 import { data, velocity } from '../engine/bodies'
+import { bodyPose } from '../engine/world'
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
 import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
-import { footprint, gearMagnet } from '../level/placement'
+import { FIELD, footprint, gearMagnet } from '../level/placement'
 import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
 import { angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
@@ -680,12 +681,17 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   const toggle = (): void => (sim ? stop() : start())
 
-  /** Some body's centre is travelling: wheels and gears turning in place do not count. */
-  function travelling(s: Simulation): boolean {
-    return anyMoving(s.world.bodies().filter((b) => b.isDynamic() && b.isActive()).map((b) => {
+  /**
+   * Whether some body's centre is travelling (wheels and gears turning in place do not count), at
+   * all and on the board: a ball that fell out of view keeps moving but will not come back.
+   */
+  function travelling(s: Simulation): { any: boolean; onBoard: boolean } {
+    const moving = s.world.bodies().filter((b) => b.isDynamic() && b.isActive()).map((b) => {
       const u = velocity(b)
-      return Math.sqrt(u.x * u.x + u.y * u.y)
-    }))
+      return { speed: Math.sqrt(u.x * u.x + u.y * u.y), at: bodyPose(b) }
+    })
+    const onBoard = moving.filter(({ at }) => at.x >= 0 && at.x <= FIELD.w && at.y >= 0 && at.y <= FIELD.h)
+    return { any: anyMoving(moving.map((m) => m.speed)), onBoard: anyMoving(onBoard.map((m) => m.speed)) }
   }
 
   function showRetry(reason: StallReason | undefined): void {
