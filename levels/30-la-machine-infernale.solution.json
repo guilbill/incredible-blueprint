@@ -1,0 +1,94 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "ramp",
+        "x": 480,
+        "y": 240,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 6
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "gear-small",
+        "x": 760,
+        "y": 100,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p3",
+        "kind": "gear-small",
+        "x": 800,
+        "y": 100,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p4",
+        "kind": "fan",
+        "x": 300,
+        "y": 230,
+        "rot": 0,
+        "flip": true,
+        "settings": {
+          "power": 1
+        }
+      },
+      {
+        "id": "p5",
+        "kind": "scissors",
+        "x": 710,
+        "y": 450,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p6",
+        "kind": "ramp",
+        "x": 750,
+        "y": 630,
+        "rot": 2,
+        "flip": false,
+        "settings": {
+          "length": 8
+        }
+      }
+    ],
+    "links": [
+      {
+        "id": "l1",
+        "kind": "belt",
+        "a": {
+          "part": "cage",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "p2",
+          "anchor": "belt"
+        }
+      },
+      {
+        "id": "l2",
+        "kind": "belt",
+        "a": {
+          "part": "p3",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "belt-line",
+          "anchor": "belt"
+        }
+      }
+    ]
+  },
+  "step": 1068,
+  "hash": "16a36479"
+}

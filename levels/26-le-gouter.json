@@ -1,0 +1,32 @@
+{
+  "v": 1,
+  "id": "26-le-gouter",
+  "title": "Le goûter",
+  "goalText": "Mettez le tapis en marche dans le bon sens pour que la souris mange le fromage.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "kicker", "kind": "ball-base", "x": 70, "y": 80, "rot": 0, "flip": false, "settings": {} },
+    { "id": "chute", "kind": "ramp", "x": 120, "y": 120, "rot": 1, "flip": false, "settings": { "length": 6 } },
+    { "id": "cage", "kind": "mouse-cage", "x": 560, "y": 420, "rot": 0, "flip": false, "settings": {} },
+    { "id": "cage-shelf", "kind": "wall-brick", "x": 560, "y": 460, "rot": 6, "flip": false, "settings": { "length": 4 } },
+    { "id": "belt-line", "kind": "conveyor", "x": 940, "y": 520, "rot": 0, "flip": false, "settings": {} },
+    { "id": "cheese", "kind": "cheese", "x": 980, "y": 500, "rot": 0, "flip": false, "settings": {} },
+    { "id": "pen-left", "kind": "wall-brick", "x": 770, "y": 720, "rot": 0, "flip": false, "settings": { "length": 4 } },
+    { "id": "pen-right", "kind": "wall-brick", "x": 930, "y": 720, "rot": 0, "flip": false, "settings": { "length": 4 } },
+    { "id": "mouse", "kind": "mouse", "x": 850, "y": 750, "rot": 0, "flip": false, "settings": {} }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "ramp", "count": 1 },
+    { "kind": "gear-small", "count": 2 },
+    { "kind": "gear-large", "count": 1 },
+    { "kind": "wall-wood", "count": 1 },
+    { "kind": "trampoline", "count": 1 }
+  ],
+  "goals": [
+    { "type": "event", "event": "cheese-eaten", "part": "cheese" }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "v": 1,
+  "id": "17-le-bocal",
+  "title": "Le bocal",
+  "goalText": "Cassez le bocal à poisson.",
+  "fixed": [
+    {"id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "left-wall", "kind": "wall-brick", "x": 10, "y": 680, "rot": 0, "flip": false, "settings": {"length": 8}},
+    {"id": "mouse", "kind": "mouse", "x": 80, "y": 750, "rot": 0, "flip": false, "settings": {}},
+    {"id": "post", "kind": "seesaw", "x": 260, "y": 600, "rot": 0, "flip": false, "settings": {}},
+    {"id": "ceiling", "kind": "wall-brick", "x": 400, "y": 570, "rot": 6, "flip": false, "settings": {"length": 7}},
+    {"id": "shelf", "kind": "ramp", "x": 560, "y": 640, "rot": 1, "flip": false, "settings": {"length": 8}},
+    {"id": "bowling", "kind": "ball-bowling", "x": 500, "y": 590, "rot": 0, "flip": false, "settings": {}},
+    {"id": "bowl", "kind": "fishbowl", "x": 690, "y": 740, "rot": 0, "flip": false, "settings": {}},
+    {"id": "end-wall", "kind": "wall-brick", "x": 950, "y": 680, "rot": 0, "flip": false, "settings": {"length": 8}}
+  ],
+  "fixedLinks": [
+    {"id": "leash", "kind": "rope", "a": {"part": "post", "anchor": "right"}, "b": {"part": "bowling", "anchor": "center"}}
+  ],
+  "inventory": [
+    {"kind": "scissors", "count": 1},
+    {"kind": "mousetrap", "count": 1},
+    {"kind": "ball-base", "count": 1},
+    {"kind": "ball-tennis", "count": 1}
+  ],
+  "goals": [
+    {"type": "event", "event": "bowl-broken", "part": "bowl"}
+  ]
+}

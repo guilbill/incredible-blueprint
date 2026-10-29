@@ -1,0 +1,36 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "mousetrap",
+        "x": 400,
+        "y": 750,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "ball-base",
+        "x": 410,
+        "y": 730,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p3",
+        "kind": "scissors",
+        "x": 410,
+        "y": 610,
+        "rot": 6,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 680,
+  "hash": "0fddf0a9"
+}

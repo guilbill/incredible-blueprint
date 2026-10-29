@@ -1,0 +1,44 @@
+{
+  "v": 1,
+  "id": "30-la-machine-infernale",
+  "title": "La machine infernale",
+  "goalText": "Mettez toute la machine en route pour faire tomber le seau dans la caisse.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "kicker", "kind": "ball-base", "x": 250, "y": 40, "rot": 0, "flip": false, "settings": {} },
+    { "id": "chute", "kind": "ramp", "x": 300, "y": 80, "rot": 1, "flip": false, "settings": { "length": 6 } },
+    { "id": "cage", "kind": "mouse-cage", "x": 600, "y": 260, "rot": 0, "flip": true, "settings": {} },
+    { "id": "cage-shelf", "kind": "wall-brick", "x": 600, "y": 300, "rot": 6, "flip": false, "settings": { "length": 4 } },
+    { "id": "belt-line", "kind": "conveyor", "x": 1000, "y": 200, "rot": 0, "flip": false, "settings": {} },
+    { "id": "bowling", "kind": "ball-bowling", "x": 960, "y": 176, "rot": 0, "flip": false, "settings": {} },
+    { "id": "guide", "kind": "ramp", "x": 1100, "y": 330, "rot": 22, "flip": false, "settings": { "length": 6 } },
+    { "id": "cat-shelf", "kind": "wall-brick", "x": 900, "y": 400, "rot": 6, "flip": false, "settings": { "length": 12 } },
+    { "id": "cat-roof", "kind": "wall-brick", "x": 900, "y": 300, "rot": 6, "flip": false, "settings": { "length": 12 } },
+    { "id": "cat", "kind": "cat", "x": 940, "y": 370, "rot": 0, "flip": true, "settings": {} },
+    { "id": "fish-shelf", "kind": "wall-brick", "x": 200, "y": 400, "rot": 6, "flip": false, "settings": { "length": 14 } },
+    { "id": "fish-wall", "kind": "wall-brick", "x": 50, "y": 300, "rot": 0, "flip": false, "settings": { "length": 10 } },
+    { "id": "bowl-ledge", "kind": "wall-brick", "x": 220, "y": 260, "rot": 6, "flip": false, "settings": { "length": 4 } },
+    { "id": "fishbowl", "kind": "fishbowl", "x": 220, "y": 230, "rot": 0, "flip": false, "settings": {} },
+    { "id": "crane", "kind": "seesaw", "x": 640, "y": 160, "rot": 0, "flip": false, "settings": {} },
+    { "id": "bucket", "kind": "bucket", "x": 700, "y": 500, "rot": 0, "flip": false, "settings": {} },
+    { "id": "box-left", "kind": "wall-brick", "x": 870, "y": 730, "rot": 0, "flip": false, "settings": { "length": 3 } },
+    { "id": "box-right", "kind": "wall-brick", "x": 970, "y": 730, "rot": 0, "flip": false, "settings": { "length": 3 } }
+  ],
+  "fixedLinks": [
+    { "id": "rope", "kind": "rope", "a": { "part": "crane", "anchor": "right" }, "b": { "part": "bucket", "anchor": "handle" } }
+  ],
+  "inventory": [
+    { "kind": "ramp", "count": 2 },
+    { "kind": "gear-small", "count": 2 },
+    { "kind": "fan", "count": 1 },
+    { "kind": "scissors", "count": 1 },
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "candle", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "bucket", "zone": { "x": 880, "y": 700, "w": 80, "h": 60 } }
+  ]
+}

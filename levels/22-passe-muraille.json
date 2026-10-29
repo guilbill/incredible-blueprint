@@ -1,0 +1,33 @@
+{
+  "v": 1,
+  "id": "22-passe-muraille",
+  "title": "Passe-muraille",
+  "goalText": "Faites passer la balle de baseball de l’autre côté du mur, dans le bac.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-left", "kind": "wall-brick", "x": 10, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-right", "kind": "wall-brick", "x": 1270, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "divider-low", "kind": "wall-brick", "x": 640, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "divider-mid", "kind": "wall-brick", "x": 640, "y": 280, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "divider-top", "kind": "wall-brick", "x": 640, "y": 60, "rot": 0, "flip": false, "settings": { "length": 6 } },
+    { "id": "ball", "kind": "ball-base", "x": 120, "y": 60, "rot": 0, "flip": false, "settings": {} },
+    { "id": "bin-left", "kind": "wall-brick", "x": 920, "y": 720, "rot": 0, "flip": false, "settings": { "length": 4 } },
+    { "id": "bin-right", "kind": "wall-brick", "x": 1040, "y": 720, "rot": 0, "flip": false, "settings": { "length": 4 } },
+    { "id": "funnel-left", "kind": "ramp", "x": 880, "y": 620, "rot": 3, "flip": false, "settings": { "length": 4 } },
+    { "id": "funnel-right", "kind": "ramp", "x": 1080, "y": 620, "rot": 21, "flip": false, "settings": { "length": 4 } },
+    { "id": "backstop", "kind": "wall-brick", "x": 1140, "y": 460, "rot": 0, "flip": false, "settings": { "length": 12 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "portal", "count": 2 },
+    { "kind": "ramp", "count": 1 },
+    { "kind": "spring", "count": 1 },
+    { "kind": "trampoline", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 940, "y": 700, "w": 80, "h": 60 } }
+  ]
+}

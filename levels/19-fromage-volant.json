@@ -1,0 +1,33 @@
+{
+  "v": 1,
+  "id": "19-fromage-volant",
+  "title": "Fromage volant",
+  "goalText": "Faites descendre le fromage jusqu’à la souris.",
+  "fixed": [
+    {"id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "pillar", "kind": "wall-brick", "x": 560, "y": 640, "rot": 0, "flip": false, "settings": {"length": 12}},
+    {"id": "cap", "kind": "wall-brick", "x": 560, "y": 510, "rot": 6, "flip": false, "settings": {"length": 3}},
+    {"id": "cheese", "kind": "cheese", "x": 560, "y": 490, "rot": 0, "flip": false, "settings": {}},
+    {"id": "crane", "kind": "seesaw", "x": 820, "y": 160, "rot": 0, "flip": false, "settings": {}},
+    {"id": "bucket", "kind": "bucket", "x": 880, "y": 480, "rot": 0, "flip": false, "settings": {}},
+    {"id": "ball", "kind": "ball-base", "x": 100, "y": 60, "rot": 0, "flip": false, "settings": {}},
+    {"id": "slide", "kind": "ramp", "x": 140, "y": 100, "rot": 1, "flip": false, "settings": {"length": 6}},
+    {"id": "left-wall", "kind": "wall-brick", "x": 10, "y": 680, "rot": 0, "flip": false, "settings": {"length": 8}},
+    {"id": "end-wall", "kind": "wall-brick", "x": 1270, "y": 680, "rot": 0, "flip": false, "settings": {"length": 8}},
+    {"id": "mouse", "kind": "mouse", "x": 1100, "y": 750, "rot": 0, "flip": false, "settings": {}}
+  ],
+  "fixedLinks": [
+    {"id": "rope", "kind": "rope", "a": {"part": "crane", "anchor": "right"}, "b": {"part": "bucket", "anchor": "handle"}}
+  ],
+  "inventory": [
+    {"kind": "scissors", "count": 1},
+    {"kind": "ramp", "count": 2},
+    {"kind": "trampoline", "count": 1}
+  ],
+  "goals": [
+    {"type": "event", "event": "cheese-eaten", "part": "cheese"}
+  ]
+}

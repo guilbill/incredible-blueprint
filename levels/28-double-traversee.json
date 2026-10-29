@@ -1,0 +1,39 @@
+{
+  "v": 1,
+  "id": "28-double-traversee",
+  "title": "Double traversée",
+  "goalText": "Faites passer la balle à travers les deux murs, jusqu’au cadre.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "shelf", "kind": "wall-brick", "x": 60, "y": 200, "rot": 6, "flip": false, "settings": { "length": 6 } },
+    { "id": "fan-slot", "kind": "wall-brick", "x": 60, "y": 140, "rot": 6, "flip": false, "settings": { "length": 6 } },
+    { "id": "chute", "kind": "ramp", "x": 190, "y": 220, "rot": 1, "flip": false, "settings": { "length": 6 } },
+    { "id": "ball", "kind": "ball-base", "x": 100, "y": 182, "rot": 0, "flip": false, "settings": {} },
+    { "id": "wall-1a", "kind": "wall-brick", "x": 720, "y": 160, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-1b", "kind": "wall-brick", "x": 720, "y": 480, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-1c", "kind": "wall-brick", "x": 720, "y": 700, "rot": 0, "flip": false, "settings": { "length": 6 } },
+    { "id": "wall-2a", "kind": "wall-brick", "x": 1140, "y": 160, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-2b", "kind": "wall-brick", "x": 1140, "y": 480, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-2c", "kind": "wall-brick", "x": 1140, "y": 700, "rot": 0, "flip": false, "settings": { "length": 6 } },
+    { "id": "portal-in-1", "kind": "portal", "x": 650, "y": 560, "rot": 6, "flip": false, "settings": { "channel": 1 } },
+    { "id": "portal-out-1", "kind": "portal", "x": 760, "y": 700, "rot": 18, "flip": false, "settings": { "channel": 1 } },
+    { "id": "portal-in-2", "kind": "portal", "x": 1060, "y": 700, "rot": 6, "flip": false, "settings": { "channel": 2 } },
+    { "id": "portal-out-2", "kind": "portal", "x": 1170, "y": 700, "rot": 18, "flip": false, "settings": { "channel": 2 } },
+    { "id": "frame-top", "kind": "wall-brick", "x": 1230, "y": 560, "rot": 6, "flip": false, "settings": { "length": 4 } },
+    { "id": "frame-side", "kind": "wall-brick", "x": 1180, "y": 590, "rot": 0, "flip": false, "settings": { "length": 2 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "fan", "count": 1 },
+    { "kind": "spring", "count": 1 },
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "magnet", "count": 1 },
+    { "kind": "ramp", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 1190, "y": 570, "w": 80, "h": 50 } }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "monkey-bike",
+        "x": 600,
+        "y": 300,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "ball-tennis",
+        "x": 600,
+        "y": 100,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p3",
+        "kind": "mouse",
+        "x": 200,
+        "y": 750,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": [
+      {
+        "id": "l1",
+        "kind": "belt",
+        "a": {
+          "part": "p1",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "conveyor",
+          "anchor": "belt"
+        }
+      }
+    ]
+  },
+  "step": 1174,
+  "hash": "5e2fcfa5"
+}

@@ -1,0 +1,49 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "candle",
+        "x": 400,
+        "y": 620,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p3",
+        "kind": "portal",
+        "x": 400,
+        "y": 400,
+        "rot": 6,
+        "flip": false,
+        "settings": {
+          "channel": 1
+        }
+      },
+      {
+        "id": "p4",
+        "kind": "portal",
+        "x": 400,
+        "y": 200,
+        "rot": 18,
+        "flip": false,
+        "settings": {
+          "channel": 1
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "candle",
+        "x": 490,
+        "y": 670,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 216,
+  "hash": "0b09c215"
+}

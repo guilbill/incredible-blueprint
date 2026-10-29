@@ -1,0 +1,34 @@
+{
+  "v": 1,
+  "id": "29-relais",
+  "title": "Relais",
+  "goalText": "Sortez la montgolfière de son abri et faites-la monter jusqu’en haut.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "kicker", "kind": "ball-base", "x": 70, "y": 80, "rot": 0, "flip": false, "settings": {} },
+    { "id": "chute", "kind": "ramp", "x": 120, "y": 120, "rot": 1, "flip": false, "settings": { "length": 6 } },
+    { "id": "cage", "kind": "mouse-cage", "x": 760, "y": 730, "rot": 0, "flip": false, "settings": {} },
+    { "id": "belt-1", "kind": "conveyor", "x": 1000, "y": 300, "rot": 0, "flip": false, "settings": {} },
+    { "id": "ball", "kind": "ball-base", "x": 960, "y": 282, "rot": 0, "flip": false, "settings": {} },
+    { "id": "monkey", "kind": "monkey-bike", "x": 1120, "y": 500, "rot": 0, "flip": false, "settings": {} },
+    { "id": "monkey-shelf", "kind": "wall-brick", "x": 1120, "y": 530, "rot": 6, "flip": false, "settings": { "length": 4 } },
+    { "id": "end-wall", "kind": "wall-brick", "x": 1270, "y": 700, "rot": 0, "flip": false, "settings": { "length": 6 } },
+    { "id": "belt-2", "kind": "conveyor", "x": 600, "y": 160, "rot": 0, "flip": false, "settings": {} },
+    { "id": "roof", "kind": "wall-brick", "x": 650, "y": 80, "rot": 6, "flip": false, "settings": { "length": 5 } },
+    { "id": "balloon", "kind": "balloon", "x": 640, "y": 120, "rot": 0, "flip": false, "settings": {} }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "gear-small", "count": 2 },
+    { "kind": "candle", "count": 1 },
+    { "kind": "ramp", "count": 1 },
+    { "kind": "gear-large", "count": 1 }
+  ],
+  "goals": [
+    { "type": "event", "event": "balloon-ceiling", "part": "balloon" }
+  ]
+}

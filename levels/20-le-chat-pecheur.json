@@ -1,0 +1,30 @@
+{
+  "v": 1,
+  "id": "20-le-chat-pecheur",
+  "title": "Le chat pêcheur",
+  "goalText": "Réveillez le chat et faites tomber le bocal pour qu’il aille manger le poisson.",
+  "fixed": [
+    {"id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "left-wall", "kind": "wall-brick", "x": 10, "y": 680, "rot": 0, "flip": false, "settings": {"length": 8}},
+    {"id": "roof", "kind": "wall-brick", "x": 100, "y": 690, "rot": 6, "flip": false, "settings": {"length": 8}},
+    {"id": "end-wall", "kind": "wall-brick", "x": 1270, "y": 680, "rot": 0, "flip": false, "settings": {"length": 8}},
+    {"id": "cat", "kind": "cat", "x": 100, "y": 740, "rot": 0, "flip": false, "settings": {}},
+    {"id": "shelf", "kind": "wall-brick", "x": 900, "y": 320, "rot": 6, "flip": false, "settings": {"length": 8}},
+    {"id": "conveyor", "kind": "conveyor", "x": 900, "y": 300, "rot": 0, "flip": false, "settings": {}},
+    {"id": "bowl", "kind": "fishbowl", "x": 870, "y": 270, "rot": 0, "flip": false, "settings": {}}
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    {"kind": "monkey-bike", "count": 1},
+    {"kind": "ball-tennis", "count": 1},
+    {"kind": "mouse", "count": 1},
+    {"kind": "ramp", "count": 1}
+  ],
+  "goals": [
+    {"type": "event", "event": "bowl-broken", "part": "bowl"},
+    {"type": "inZone", "part": "cat", "zone": {"x": 1020, "y": 700, "w": 120, "h": 80}}
+  ]
+}

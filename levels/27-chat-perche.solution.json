@@ -1,0 +1,51 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "fan",
+        "x": 300,
+        "y": 230,
+        "rot": 0,
+        "flip": true,
+        "settings": {
+          "power": 1
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "scissors",
+        "x": 710,
+        "y": 440,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p3",
+        "kind": "ramp",
+        "x": 1080,
+        "y": 330,
+        "rot": 22,
+        "flip": false,
+        "settings": {
+          "length": 6
+        }
+      },
+      {
+        "id": "p4",
+        "kind": "ramp",
+        "x": 750,
+        "y": 630,
+        "rot": 2,
+        "flip": false,
+        "settings": {
+          "length": 8
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 848,
+  "hash": "4eceffa0"
+}

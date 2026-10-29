@@ -1,0 +1,53 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "scissors",
+        "x": 870,
+        "y": 410,
+        "rot": 0,
+        "flip": true,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "ramp",
+        "x": 330,
+        "y": 190,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 12
+        }
+      },
+      {
+        "id": "p3",
+        "kind": "ramp",
+        "x": 600,
+        "y": 280,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 12
+        }
+      }
+    ],
+    "links": [
+      {
+        "id": "l1",
+        "kind": "rope",
+        "a": {
+          "part": "bucket",
+          "anchor": "handle"
+        },
+        "b": {
+          "part": "cheese",
+          "anchor": "rope"
+        }
+      }
+    ]
+  },
+  "step": 614,
+  "hash": "c09ef1ce"
+}

@@ -41,7 +41,7 @@ describe('dictionaries', () => {
 
   it('translate the title and goal of every shipped level', () => {
     const levels = loadLevels()
-    expect(levels).toHaveLength(10)
+    expect(levels).toHaveLength(30)
     for (const l of levels) {
       expect(LEVELS_EN[l.id]?.title, l.id).toBeTruthy()
       expect(LEVELS_EN[l.id]?.goalText, l.id).toBeTruthy()

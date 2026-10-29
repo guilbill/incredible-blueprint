@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "id": "23-saute-mouton",
+  "title": "Saute-mouton",
+  "goalText": "Faites sauter la balle de baseball par-dessus les deux murs.",
+  "fixed": [
+    { "id": "wall-left", "kind": "wall-brick", "x": 10, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "slope", "kind": "ramp", "x": 120, "y": 500, "rot": 1, "flip": false, "settings": { "length": 8 } },
+    { "id": "ball", "kind": "ball-base", "x": 60, "y": 460, "rot": 0, "flip": false, "settings": {} },
+    { "id": "wall-right", "kind": "wall-brick", "x": 1270, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "hurdle-1", "kind": "wall-brick", "x": 520, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "hurdle-2", "kind": "wall-brick", "x": 900, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "hurdle-2-top", "kind": "wall-brick", "x": 900, "y": 390, "rot": 0, "flip": false, "settings": { "length": 5 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "spring", "count": 2 },
+    { "kind": "trampoline", "count": 1 },
+    { "kind": "ramp", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 920, "y": 560, "w": 330, "h": 200 } }
+  ]
+}

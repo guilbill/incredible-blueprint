@@ -21,6 +21,6 @@ test('every shipped level replays to its stored step and hash', async ({ page, b
   await expect(page.locator('#levels')).not.toBeEmpty()
   const got = JSON.parse((await page.locator('#levels').textContent()) ?? '{}')
   console.log(browserName, JSON.stringify(got))
-  expect(Object.keys(expected)).toHaveLength(10)
+  expect(Object.keys(expected)).toHaveLength(30)
   expect(got).toEqual(expected)
 })

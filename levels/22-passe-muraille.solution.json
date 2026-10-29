@@ -1,0 +1,42 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "ramp",
+        "x": 130,
+        "y": 400,
+        "rot": 2,
+        "flip": false,
+        "settings": {
+          "length": 6
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "portal",
+        "x": 400,
+        "y": 510,
+        "rot": 12,
+        "flip": false,
+        "settings": {
+          "channel": 1
+        }
+      },
+      {
+        "id": "p3",
+        "kind": "portal",
+        "x": 840,
+        "y": 260,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "channel": 1
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 496,
+  "hash": "5b8e71fa"
+}

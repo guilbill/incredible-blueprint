@@ -1,0 +1,37 @@
+{
+  "v": 1,
+  "id": "25-plafond",
+  "title": "Plafond",
+  "goalText": "Libérez la montgolfière et faites-la monter jusqu’en haut.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-left", "kind": "wall-brick", "x": 10, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall-right", "kind": "wall-brick", "x": 1270, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "ceiling-1", "kind": "wall-brick", "x": 180, "y": 320, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "ceiling-2", "kind": "wall-brick", "x": 500, "y": 320, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "ceiling-3", "kind": "wall-brick", "x": 820, "y": 320, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "ceiling-4", "kind": "wall-brick", "x": 1120, "y": 320, "rot": 6, "flip": false, "settings": { "length": 14 } },
+    { "id": "stand", "kind": "ramp", "x": 400, "y": 600, "rot": 0, "flip": false, "settings": { "length": 2 } },
+    { "id": "balloon", "kind": "balloon", "x": 400, "y": 560, "rot": 0, "flip": false, "settings": {} },
+    { "id": "weight", "kind": "ball-bowling", "x": 560, "y": 740, "rot": 0, "flip": false, "settings": {} },
+    { "id": "shaft-left", "kind": "wall-brick", "x": 360, "y": 470, "rot": 0, "flip": false, "settings": { "length": 11 } },
+    { "id": "shaft-right", "kind": "wall-brick", "x": 440, "y": 470, "rot": 0, "flip": false, "settings": { "length": 11 } },
+    { "id": "pocket-left", "kind": "wall-brick", "x": 530, "y": 740, "rot": 0, "flip": false, "settings": { "length": 2 } },
+    { "id": "pocket-right", "kind": "wall-brick", "x": 590, "y": 740, "rot": 0, "flip": false, "settings": { "length": 2 } }
+  ],
+  "fixedLinks": [
+    { "id": "mooring", "kind": "rope", "a": { "part": "balloon", "anchor": "basket" }, "b": { "part": "weight", "anchor": "center" } }
+  ],
+  "inventory": [
+    { "kind": "candle", "count": 2 },
+    { "kind": "portal", "count": 2 },
+    { "kind": "scissors", "count": 1 },
+    { "kind": "fan", "count": 1 }
+  ],
+  "goals": [
+    { "type": "event", "event": "balloon-ceiling", "part": "balloon" }
+  ]
+}

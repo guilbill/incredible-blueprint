@@ -1,0 +1,38 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "candle",
+        "x": 400,
+        "y": 620,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "fan",
+        "x": 330,
+        "y": 480,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "power": 1
+        }
+      },
+      {
+        "id": "p3",
+        "kind": "fan",
+        "x": 1140,
+        "y": 240,
+        "rot": 0,
+        "flip": true,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 525,
+  "hash": "73a73342"
+}

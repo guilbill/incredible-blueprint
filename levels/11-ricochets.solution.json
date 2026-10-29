@@ -1,0 +1,27 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "trampoline",
+        "x": 400,
+        "y": 750,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "trampoline",
+        "x": 750,
+        "y": 750,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 879,
+  "hash": "54c94e31"
+}

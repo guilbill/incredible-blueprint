@@ -1,0 +1,82 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "trampoline",
+        "x": 380,
+        "y": 740,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "gear-small",
+        "x": 1000,
+        "y": 160,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p3",
+        "kind": "gear-small",
+        "x": 1040,
+        "y": 160,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p4",
+        "kind": "candle",
+        "x": 560,
+        "y": 190,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": [
+      {
+        "id": "l1",
+        "kind": "belt",
+        "a": {
+          "part": "cage",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "belt-1",
+          "anchor": "belt"
+        }
+      },
+      {
+        "id": "l2",
+        "kind": "belt",
+        "a": {
+          "part": "monkey",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "p2",
+          "anchor": "belt"
+        }
+      },
+      {
+        "id": "l3",
+        "kind": "belt",
+        "a": {
+          "part": "p3",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "belt-2",
+          "anchor": "belt"
+        }
+      }
+    ]
+  },
+  "step": 1022,
+  "hash": "ed37a4c0"
+}

@@ -1,0 +1,34 @@
+{
+  "v": 1,
+  "id": "15-le-tamis",
+  "title": "Le tamis",
+  "goalText": "Mettez le ballon de basket dans le seau de droite et la balle de tennis dans celui de gauche.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "basket", "kind": "ball-basket", "x": 70, "y": 100, "rot": 0, "flip": false, "settings": {} },
+    { "id": "tennis", "kind": "ball-tennis", "x": 240, "y": 160, "rot": 0, "flip": false, "settings": {} },
+    { "id": "slide", "kind": "ramp", "x": 160, "y": 160, "rot": 1, "flip": false, "settings": { "length": 10 } },
+    { "id": "track", "kind": "ramp", "x": 300, "y": 200, "rot": 0, "flip": false, "settings": { "length": 4 } },
+    { "id": "track-2", "kind": "ramp", "x": 420, "y": 190, "rot": 0, "flip": false, "settings": { "length": 6 } },
+    { "id": "shelf-left", "kind": "wall-brick", "x": 220, "y": 400, "rot": 6, "flip": false, "settings": { "length": 6 } },
+    { "id": "bucket-left", "kind": "bucket", "x": 220, "y": 370, "rot": 0, "flip": false, "settings": {} },
+    { "id": "stop-left", "kind": "wall-wood", "x": 190, "y": 340, "rot": 0, "flip": false, "settings": { "length": 4 } },
+    { "id": "funnel-left", "kind": "ramp", "x": 780, "y": 680, "rot": 2, "flip": false, "settings": { "length": 4 } },
+    { "id": "funnel-right", "kind": "ramp", "x": 900, "y": 680, "rot": 22, "flip": false, "settings": { "length": 4 } },
+    { "id": "bucket-right", "kind": "bucket", "x": 840, "y": 740, "rot": 0, "flip": false, "settings": {} },
+    { "id": "end-wall", "kind": "wall-brick", "x": 960, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "wall", "kind": "wall-brick", "x": 660, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "ramp", "count": 2 },
+    { "kind": "wall-wood", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "basket", "zone": { "x": 824, "y": 720, "w": 32, "h": 36 } },
+    { "type": "inZone", "part": "tennis", "zone": { "x": 204, "y": 350, "w": 32, "h": 36 } }
+  ]
+}

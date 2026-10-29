@@ -1,0 +1,35 @@
+{
+  "v": 1,
+  "id": "21-seau-aimante",
+  "title": "Seau aimanté",
+  "goalText": "Mettez la balle de tennis dans le seau en métal.",
+  "fixed": [
+    { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-3", "kind": "wall-brick", "x": 800, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "floor-4", "kind": "wall-brick", "x": 1120, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "bucket", "kind": "bucket", "x": 320, "y": 620, "rot": 0, "flip": false, "settings": {} },
+    { "id": "ball", "kind": "ball-tennis", "x": 100, "y": 60, "rot": 0, "flip": false, "settings": {} },
+    { "id": "wall-left", "kind": "wall-brick", "x": 10, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "roof", "kind": "wall-brick", "x": 310, "y": 580, "rot": 6, "flip": false, "settings": { "length": 3 } },
+    { "id": "platform-left", "kind": "wall-brick", "x": 300, "y": 650, "rot": 6, "flip": false, "settings": { "length": 8 } },
+    { "id": "platform-right", "kind": "wall-brick", "x": 480, "y": 650, "rot": 6, "flip": false, "settings": { "length": 8 } },
+    { "id": "hopper-left", "kind": "wall-brick", "x": 280, "y": 410, "rot": 0, "flip": false, "settings": { "length": 5 } },
+    { "id": "hopper-right", "kind": "wall-brick", "x": 500, "y": 340, "rot": 0, "flip": false, "settings": { "length": 12 } },
+    { "id": "funnel-left", "kind": "ramp", "x": 340, "y": 490, "rot": 3, "flip": false, "settings": { "length": 5 } },
+    { "id": "funnel-right", "kind": "ramp", "x": 440, "y": 490, "rot": 21, "flip": false, "settings": { "length": 5 } },
+    { "id": "tube-left", "kind": "wall-brick", "x": 370, "y": 560, "rot": 0, "flip": false, "settings": { "length": 2 } },
+    { "id": "tube-right", "kind": "wall-brick", "x": 410, "y": 560, "rot": 0, "flip": false, "settings": { "length": 2 } },
+    { "id": "wall-right", "kind": "wall-brick", "x": 1270, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
+    { "id": "drain", "kind": "ramp", "x": 400, "y": 720, "rot": 4, "flip": false, "settings": { "length": 3 } }
+  ],
+  "fixedLinks": [],
+  "inventory": [
+    { "kind": "magnet", "count": 1 },
+    { "kind": "ramp", "count": 2 },
+    { "kind": "fan", "count": 1 }
+  ],
+  "goals": [
+    { "type": "inZone", "part": "ball", "zone": { "x": 375, "y": 615, "w": 30, "h": 17 }, "hold": 90 }
+  ]
+}

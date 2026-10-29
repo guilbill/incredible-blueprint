@@ -1,0 +1,31 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "ramp",
+        "x": 330,
+        "y": 280,
+        "rot": 23,
+        "flip": false,
+        "settings": {
+          "length": 6
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "ramp",
+        "x": 570,
+        "y": 270,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 8
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 1117,
+  "hash": "be1ff3f4"
+}

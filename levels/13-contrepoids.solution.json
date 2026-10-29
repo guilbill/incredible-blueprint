@@ -1,0 +1,29 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "ball-bowling",
+        "x": 300,
+        "y": 460,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p2",
+        "kind": "ramp",
+        "x": 330,
+        "y": 500,
+        "rot": 1,
+        "flip": false,
+        "settings": {
+          "length": 6
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 736,
+  "hash": "ee7589c0"
+}

@@ -1,0 +1,51 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "fan",
+        "x": 20,
+        "y": 170,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "power": 1
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "spring",
+        "x": 550,
+        "y": 740,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "force": 3
+        }
+      },
+      {
+        "id": "p3",
+        "kind": "trampoline",
+        "x": 1040,
+        "y": 750,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p4",
+        "kind": "magnet",
+        "x": 1230,
+        "y": 580,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "power": 3
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 408,
+  "hash": "8c1f9f5c"
+}

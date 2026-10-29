@@ -20,9 +20,10 @@ const NUDGES = [[-10, 0], [10, 0], [0, -10], [0, 10]] as const
 
 const levels = loadLevels()
 
-describe('the 10 shipped levels', () => {
-  it('ships levels 01 to 10 in order, each with a reference solution', () => {
-    expect(levels.map((l) => l.id.slice(0, 2))).toEqual(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10'])
+describe('the shipped levels', () => {
+  it('ships levels numbered 01 upward with no gap, each with a reference solution', () => {
+    expect(levels.length).toBeGreaterThanOrEqual(10)
+    expect(levels.map((l) => l.id.slice(0, 2))).toEqual(levels.map((_, i) => String(i + 1).padStart(2, '0')))
     for (const l of levels) expect(refOf(l), l.id).toBeDefined()
   })
 

@@ -1,0 +1,74 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "ramp",
+        "x": 290,
+        "y": 230,
+        "rot": 2,
+        "flip": false,
+        "settings": {
+          "length": 8
+        }
+      },
+      {
+        "id": "p2",
+        "kind": "gear-small",
+        "x": 680,
+        "y": 200,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p3",
+        "kind": "gear-small",
+        "x": 720,
+        "y": 200,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      },
+      {
+        "id": "p4",
+        "kind": "wall-wood",
+        "x": 770,
+        "y": 580,
+        "rot": 0,
+        "flip": false,
+        "settings": {
+          "length": 6
+        }
+      }
+    ],
+    "links": [
+      {
+        "id": "l1",
+        "kind": "belt",
+        "a": {
+          "part": "cage",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "p2",
+          "anchor": "belt"
+        }
+      },
+      {
+        "id": "l2",
+        "kind": "belt",
+        "a": {
+          "part": "p3",
+          "anchor": "belt"
+        },
+        "b": {
+          "part": "belt-line",
+          "anchor": "belt"
+        }
+      }
+    ]
+  },
+  "step": 460,
+  "hash": "ac6763b4"
+}
