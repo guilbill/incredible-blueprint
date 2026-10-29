@@ -1,13 +1,14 @@
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
-import { footprint } from '../level/placement'
+import { footprint, gearMagnet } from '../level/placement'
 import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
 import { setting } from '../parts/common'
+import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
-import { render } from '../render/renderer'
+import { labelDone, PULSE_MS, render } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
-import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, hitAnchor, hitLink, hitPart, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from './edit'
+import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, hitAnyPart, hitLink, hitPart, linkTargets, nextId, pickAnchor, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting, type LinkTool } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
@@ -53,10 +54,28 @@ interface Drag {
   started: boolean
   ghost?: Placement
   ok: boolean
+  /** Contact points with the gears the ghost meshes with, while it is valid. */
+  meshMarks?: Vec[]
 }
 
 /** Pixels the pointer must travel before a press on a placed part becomes a move (else it's a click). */
 const DRAG_THRESHOLD = 4
+
+/** Drawer icons of the link tools (rope: a line between two points; belt: a loop around two pulleys). */
+const TOOL_ICONS: Record<LinkTool, string> = {
+  rope: `<svg viewBox="15 7 80 43" width="56" height="30" aria-hidden="true">
+    <path d="M24 40 C40 30 60 20 86 14" fill="none" stroke="currentColor" stroke-width="2"/>
+    <circle cx="24" cy="40" r="3" fill="currentColor"/><circle cx="86" cy="14" r="3" fill="currentColor"/>
+  </svg>`,
+  belt: `<svg viewBox="128 12 72 38" width="56" height="30" aria-hidden="true">
+    <g fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.7">
+      <circle cx="143" cy="31" r="10"/><circle cx="189" cy="25" r="6"/>
+    </g>
+    <circle cx="143" cy="31" r="1.6" fill="currentColor"/><circle cx="189" cy="25" r="1.4" fill="currentColor"/>
+    <path d="M141.4,18.1 L188.1,16.0 A9,9 0 0 1 190.0,33.9 L144.6,43.9 A13,13 0 1 1 141.4,18.1 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
+  </svg>`,
+}
+const TOOL_LABELS: Record<LinkTool, string> = { rope: 'Corde', belt: 'Courroie' }
 
 /** Small line-art icon of a part for the drawer. */
 function partIcon(kind: PartKind): HTMLCanvasElement {
@@ -91,10 +110,16 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let selected: string | undefined
   /** Selected player link (rope or belt), exclusive with `selected`. */
   let selectedLink: string | undefined
-  /** First anchor clicked when making a link. */
-  let pendingAnchor: Anchor | undefined
-  /** Anchor under the last press, turned into an anchor click on release unless the press became a drag. */
-  let pressedAnchor: Anchor | undefined
+  /** Active link tool: clicks on the field pick anchors instead of selecting or dragging. */
+  let tool: LinkTool | undefined
+  /** First anchor of the link being made with the tool. */
+  let first: Anchor | undefined
+  /** Targets of the tool, recomputed only when the tool, the first anchor or the solution change. */
+  let targetsCache: { tool: LinkTool; first?: Anchor; sol: Solution; list: Anchor[] } | undefined
+  /** Part under the pointer and when the hover on it started (performance.now). */
+  let hover: { id: string; since: number } | undefined
+  /** Last pointer position on the field, in units (end of the pending link line). */
+  let pointer: Vec | undefined
   let drag: Drag | undefined
   let acc = 0
   let lastT: number | undefined
@@ -154,7 +179,25 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const ctx = canvas.getContext('2d')!
 
   const drawer = el('aside', 'drawer')
-  drawer.append(el('h2', '', 'Pièces'))
+  const tools = el('div', 'tools')
+  const toolButtons = new Map<LinkTool, HTMLButtonElement>()
+  for (const t of ['rope', 'belt'] as const) {
+    const b = el('button', 'tool')
+    b.dataset.tool = t
+    b.innerHTML = TOOL_ICONS[t]
+    b.append(el('span', 'name', TOOL_LABELS[t]))
+    b.addEventListener('click', () => {
+      if (sim) return
+      tool = tool === t ? undefined : t
+      first = undefined
+      selected = undefined
+      selectedLink = undefined
+      refreshUi()
+    })
+    tools.append(b)
+    toolButtons.set(t, b)
+  }
+  drawer.append(tools, el('h2', '', 'Pièces'))
   const list = el('ul', 'inventory')
   drawer.append(list)
 
@@ -187,6 +230,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       if (e.button !== 0 || sim || (remaining(level, sol).get(kind) ?? 0) <= 0) return
       e.preventDefault()
       selected = undefined
+      tool = undefined
+      first = undefined
       drag = { kind, id: nextId(level, sol), offset: { x: 0, y: 0 }, start: { x: e.clientX, y: e.clientY }, started: true, ok: false }
       updateDrag(e)
       refreshUi()
@@ -321,9 +366,20 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** Every edit goes through here: the draft is saved each time. */
   function commit(next: Solution): void {
     sol = next
+    if (first && !partExists(first.part)) first = undefined
     if (author) author.onChange(sol)
     else saveDraft(level.id, sol)
     refreshUi()
+  }
+
+  const partExists = (id: string): boolean => sol.placements.some((p) => p.id === id) || level.fixed.some((p) => p.id === id)
+
+  function targets(): Anchor[] | undefined {
+    if (!tool) return undefined
+    const c = targetsCache
+    if (c && c.tool === tool && c.first === first && c.sol === sol) return c.list
+    targetsCache = { tool, first, sol, list: linkTargets(level, sol, tool, first) }
+    return targetsCache.list
   }
 
   function edit(fn: (p: Placement) => Placement | null): void {
@@ -359,6 +415,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     refreshDrawer()
     refreshSelPanel()
     canvas.classList.toggle('dragging', !!drag?.started)
+    for (const [t, b] of toolButtons) b.classList.toggle('on', t === tool)
+    canvas.classList.toggle('linking', !!tool)
   }
 
   // ---- pointer ----
@@ -381,25 +439,55 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     const at = { x: pt.x + drag.offset.x, y: pt.y + drag.offset.y }
     const base = drag.moving ?? drawerDefaults(level, sol, draftPlacement(drag.kind, at, drag.id))
-    const ghost = { ...draftPlacement(drag.kind, at, drag.id), rot: base.rot, flip: base.flip, settings: base.settings }
+    let ghost = { ...draftPlacement(drag.kind, at, drag.id), rot: base.rot, flip: base.flip, settings: base.settings }
+    const r = gearRadius(drag.kind)
+    const others = r === undefined ? [] : [...level.fixed, ...sol.placements].filter((p) => p.id !== drag!.id)
+    // Gears snap onto a neighbour's pitch circle when close enough, else keep the grid.
+    if (r !== undefined) ghost = gearMagnet(ghost, at, others) ?? ghost
     drag.ghost = ghost
     drag.ok = (drag.moving ? updatePart(level, sol, ghost) : addPart(level, sol, ghost)) !== null
+    drag.meshMarks = r !== undefined && drag.ok ? meshMarks({ x: ghost.x, y: ghost.y, r }, others) : undefined
   }
 
-  /** Links: click an anchor, then a second one; a rope or a belt is made from their role. */
-  function anchorClicked(a: Anchor): void {
-    selected = undefined
-    selectedLink = undefined
-    const first = pendingAnchor
-    if (!first || (first.part === a.part && first.anchor === a.anchor)) {
-      pendingAnchor = first ? undefined : a
-      if (pendingAnchor) showToast("Cliquez un second point d'attache")
+  /** Where the ghost gear touches each gear it meshes with: on the other gear's circle, towards the ghost. */
+  function meshMarks(g: { x: number; y: number; r: number }, others: Placement[]): Vec[] {
+    const out: Vec[] = []
+    for (const o of others) {
+      const ro = gearRadius(o.kind)
+      if (ro === undefined || !gearsMesh(g, { x: o.x, y: o.y, r: ro })) continue
+      const dx = g.x - o.x
+      const dy = g.y - o.y
+      const d = Math.sqrt(dx * dx + dy * dy)
+      if (d === 0) continue
+      out.push({ x: o.x + (dx * ro) / d, y: o.y + (dy * ro) / d })
+    }
+    return out
+  }
+
+  /** Link tool click: a part's anchor, then a second one; a click in the void steps back. */
+  function linkClick(t: LinkTool, pt: Vec): void {
+    const part = hitAnyPart(level, sol, pt)
+    if (!part) {
+      if (first) first = undefined
+      else tool = undefined
       return
     }
-    pendingAnchor = undefined
+    const a = pickAnchor(targets() ?? [], part, level, sol, pt)
+    if (!a) {
+      const takes = partDef(part.kind).anchors.some((d) => d.role === t)
+      showToast(takes ? 'Liaison impossible' : `Cette pièce ne prend pas de ${t === 'rope' ? 'corde' : 'courroie'}.`)
+      return
+    }
+    if (!first) {
+      first = a
+      return
+    }
     const next = addLink(level, sol, first, a)
-    if (next) commit(next)
-    else showToast('Liaison impossible')
+    first = undefined
+    if (next) {
+      sound.click()
+      commit(next)
+    } else showToast('Liaison impossible')
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -410,12 +498,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       trace = { a: pt, b: pt }
       return
     }
-    pressedAnchor = hitAnchor(level, sol, pt)
+    if (tool) {
+      e.preventDefault()
+      linkClick(tool, pt)
+      refreshUi()
+      return
+    }
     const hit = hitPart(sol, pt)
-    selected = pressedAnchor ? undefined : hit?.id
-    selectedLink = !pressedAnchor && !hit ? hitLink(level, sol, pt) : undefined
-    if (!pressedAnchor) pendingAnchor = undefined
-    if (pressedAnchor) e.preventDefault()
+    selected = hit?.id
+    selectedLink = !hit ? hitLink(level, sol, pt) : undefined
     if (hit) {
       e.preventDefault()
       drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start: { x: e.clientX, y: e.clientY }, started: false, ok: false }
@@ -428,16 +519,27 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       trace.b = unitsAt(e)
       return
     }
+    if (e.target === canvas) pointer = unitsAt(e)
     if (drag) {
       updateDrag(e)
       canvas.classList.toggle('dragging', drag.started)
+      if (drag.started) hover = undefined
       return
     }
     if (!sim && e.target === canvas) {
       const pt = unitsAt(e)
+      const over = hitAnyPart(level, sol, pt)
+      if (over?.id !== hover?.id) hover = over ? { id: over.id, since: performance.now() } : undefined
       canvas.classList.toggle('tracing', !!author?.tracing())
-      canvas.classList.toggle('over-part', !author?.tracing() && !!(hitAnchor(level, sol, pt) || hitPart(sol, pt) || hitLink(level, sol, pt)))
+      const clickable = tool ? !!over : !!(hitPart(sol, pt) || hitLink(level, sol, pt))
+      canvas.classList.toggle('over-part', !author?.tracing() && clickable)
     }
+  }
+
+  function onPointerLeave(): void {
+    hover = undefined
+    pointer = undefined
+    dirty = true
   }
 
   function onPointerUp(e: PointerEvent): void {
@@ -450,14 +552,6 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     const d = drag
-    const a = pressedAnchor
-    pressedAnchor = undefined
-    if (a && !d?.started) {
-      drag = undefined
-      anchorClicked(a)
-      refreshUi()
-      return
-    }
     if (!d) return
     drag = undefined
     if (d.started) {
@@ -481,8 +575,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function start(): void {
     if (sim || author) return
     drag = undefined
-    pendingAnchor = undefined
-    pressedAnchor = undefined
+    tool = undefined
+    first = undefined
+    hover = undefined
     // Always a fresh Simulation from the saved solution: nothing is carried over between runs.
     sim = new Simulation(level, sol)
     prevGlow = new Map()
@@ -541,7 +636,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       trace = undefined
       selected = undefined
       selectedLink = undefined
-      pendingAnchor = undefined
+      tool = undefined
+      first = undefined
       refreshUi()
     }
   }
@@ -606,7 +702,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     raf = requestAnimationFrame(frame)
     guarded(() => advance(t), (err) => jammed(err, false))
     lastT = t
-    if (!sim && !dirty) return
+    // Idle frames are skipped, except while targets pulse or a hover label is still drawing in.
+    const animating = !!tool || (hover !== undefined && !labelDone(performance.now() - hover.since))
+    if (!sim && !dirty && !animating) return
     dirty = false
     guarded(draw, (err) => jammed(err, true))
   }
@@ -621,14 +719,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       const traced: Goal[] = zone ? [{ type: 'inZone', part: '', zone }] : []
       view = { ...level, goals: [...author.goals(), ...traced] }
     }
+    const now = performance.now()
+    const from = first && anchorAt(level, sol, first)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     render(ctx, {
       level: view, sol: viewSol, sim, ghost, selected: sim ? undefined : selected, won, zoom: fit.zoom,
-      showAnchors: !sim, pendingAnchor, selectedLink: sim ? undefined : selectedLink,
+      pendingAnchor: first, selectedLink: sim ? undefined : selectedLink,
+      targets: targets(), pulse: (now % PULSE_MS) / PULSE_MS,
+      pendingLine: from && pointer ? { from, to: pointer } : undefined,
+      hover: hover && !drag?.started ? { id: hover.id, t: now - hover.since } : undefined,
+      meshMarks: drag?.started ? drag.meshMarks : undefined,
     })
   }
 
   window.addEventListener('pointermove', onPointerMove)
+  canvas.addEventListener('pointerleave', onPointerLeave)
   window.addEventListener('pointerup', onPointerUp)
   window.addEventListener('keydown', onKey)
   window.addEventListener('keyup', onKeyUp)
