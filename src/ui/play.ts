@@ -857,6 +857,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   raf = requestAnimationFrame(frame)
 
   return () => {
+    // leaving the screen (back, next level, language switch) must silence the running machine
+    sound.stopLoops()
     cancelAnimationFrame(raf)
     window.clearTimeout(toastTimer)
     ro.disconnect()
