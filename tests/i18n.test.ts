@@ -61,7 +61,7 @@ describe('t', () => {
 
   it('shows English names and shipped level text in English, custom levels as authored', () => {
     setLang('en')
-    expect(partLabel('ramp')).toBe('Incline')
+    expect(partLabel('ramp')).toBe('Ramp')
     expect(levelTitle({ id: '10-la-grande-machine', title: 'La grande machine' })).toBe('The Big Machine')
     expect(levelGoal({ id: 'niveau-x', goalText: 'Mon objectif' })).toBe('Mon objectif')
     setLang('fr')
