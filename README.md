@@ -1,54 +1,56 @@
-# La Machine Incroyable
+# Incredible Machine Tribute
 
-Un hommage à **The Incredible Machine**, le jeu de Sierra (1993, puis TIM 2 en 1994) auquel je jouais petit. On y construit des machines à la Rube Goldberg : une balle tombe sur une bascule, qui réveille un chat, qui court après une souris, qui fait tourner une roue... et si tout a été bien pensé, l'objectif s'allume.
+A tribute to **The Incredible Machine**, the Sierra game (1993, then TIM 2 in 1994) I played as a kid. You build Rube Goldberg machines: a ball drops on a seesaw, which wakes a cat, which chases a mouse, which spins a wheel... and if you thought it all through, the goal lights up.
 
-Ce projet recrée ce plaisir dans le navigateur, avec un look de plan d'ingénieur et une interface plus moderne.
+This project brings that feeling back in the browser, with an engineering blueprint look and a more modern interface.
 
-**Jouer : https://guilbill.github.io/incredible-machine-tribute/**
+**Play it: https://guilbill.github.io/incredible-machine-tribute/**
 
-## Ce qu'il y a dedans
+The game is available in English and French.
 
-- 10 niveaux, du tutoriel à « La grande machine ».
-- Les pièces classiques : balles, murs, planches, seau, trampoline, bascule, engrenages, poulies, tapis roulant, courroies et cordes, ciseaux, bougie, montgolfière, cage à souris, singe à vélo, chat, souris, fromage, piège, bocal.
-- Quelques pièces modernes : aimant, portails, ressort réglable, ventilateur à minuterie.
-- Un éditeur de niveaux. Un niveau doit être réussi par son auteur avant de pouvoir être partagé, par lien ou par fichier.
-- Une physique déterministe : la même machine donne exactement le même résultat à chaque lancement, dans Chrome, Firefox ou Safari.
-- Tout tourne dans le navigateur, sans serveur ni compte. Le jeu marche aussi hors ligne.
+## What's inside
 
-## Comment on joue
+- 10 levels, from the tutorial to "The Big Machine".
+- The classic parts: balls, walls, ramps, bucket, trampoline, seesaw, gears, pulleys, conveyor belt, belts and ropes, scissors, candle, hot-air balloon, mouse cage, monkey on a bike, cat, mouse, cheese, mousetrap, fishbowl.
+- A few modern parts: magnet, portals, adjustable spring, fan with a timer.
+- A level editor. A level has to be solved by its author before it can be shared, as a link or a file.
+- Deterministic physics: the same machine gives exactly the same result every run, in Chrome, Firefox or Safari.
+- Everything runs in the browser, with no server and no account. It also works offline.
 
-1. Glisse les pièces du tiroir de droite sur le plan.
-2. Clique une pièce pour la régler : la petite flèche ronde la fait tourner, les chevrons au bout l'allongent.
-3. Relie les pièces avec les outils **Corde** et **Courroie**, en haut du tiroir.
-4. Appuie sur **Lancer** (ou Espace) et regarde la machine faire le reste.
+## How to play
 
-## Lancer le projet en local
+1. Drag parts from the drawer on the right onto the board.
+2. Click a part to adjust it: the small round arrow rotates it, the chevrons at its ends make it longer or shorter.
+3. Connect parts with the **Rope** and **Belt** tools at the top of the drawer.
+4. Press **Run** (or Space) and watch the machine do the rest.
 
-Il faut Node.js 22.12 ou plus récent.
+## Run it locally
+
+You need Node.js 22.12 or newer.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Puis ouvre http://localhost:5173.
+Then open http://localhost:5173.
 
-Les autres commandes utiles :
+Other useful commands:
 
 ```bash
-npm test           # tests unitaires (Vitest)
-npm run build      # build de production dans dist/
-npm run test:e2e   # vérifie le déterminisme dans Chromium, Firefox et WebKit (Playwright)
+npm test           # unit tests (Vitest)
+npm run build      # production build in dist/
+npm run test:e2e   # checks determinism in Chromium, Firefox and WebKit (Playwright)
 ```
 
-Le site est publié sur GitHub Pages depuis la branche `main`.
+The site is published to GitHub Pages from the `main` branch.
 
-## Sous le capot
+## Under the hood
 
-TypeScript, Vite, un rendu sur canvas et le moteur physique [Planck.js](https://piqnt.com/planck.js/). Pour que les résultats soient identiques d'un navigateur à l'autre, le pas de simulation est fixe et les fonctions trigonométriques sont remplacées par une version maison.
+TypeScript, Vite, canvas rendering and the [Planck.js](https://piqnt.com/planck.js/) physics engine. To get identical results across browsers, the simulation uses a fixed time step and its own trigonometric functions.
 
-## Licence
+## License
 
-Libre à chacun : le code est sous licence [MIT](LICENSE). Tu peux l'utiliser, le copier, le modifier et le partager.
+Free for everyone: the code is under the [MIT](LICENSE) license. You can use it, copy it, change it and share it.
 
-Ce projet n'est ni affilié à Sierra ni à ses ayants droit. The Incredible Machine est une marque de ses propriétaires respectifs ; aucun élément du jeu original (images, sons, niveaux) n'est repris ici.
+This project is not affiliated with Sierra or its rights holders. The Incredible Machine is a trademark of its respective owners, and nothing from the original game (art, sounds, levels) is reused here.
