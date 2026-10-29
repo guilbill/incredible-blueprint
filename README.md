@@ -12,7 +12,7 @@ The game is available in English and French.
 
 ## What's inside
 
-- 10 levels, from the tutorial to "The Big Machine".
+- 30 levels, from the tutorial to "The Infernal Machine".
 - The classic parts: balls, walls, ramps, bucket, trampoline, seesaw, gears, pulleys, conveyor belt, belts and ropes, scissors, candle, hot-air balloon, mouse cage, monkey on a bike, cat, mouse, cheese, mousetrap, fishbowl.
 - A few modern parts: magnet, portals, adjustable spring, fan with a timer.
 - A level editor. A level has to be solved by its author before it can be shared, as a link or a file.
