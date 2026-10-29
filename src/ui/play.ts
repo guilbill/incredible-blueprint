@@ -1,4 +1,4 @@
-import { data } from '../engine/bodies'
+import { data, velocity } from '../engine/bodies'
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
 import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
@@ -17,6 +17,7 @@ import { el } from './dom'
 import { langSwitch } from './langSwitch'
 import { sound } from './sound'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
+import { anyMoving, createStallWatch, type StallReason } from './stall'
 
 export interface PlayOpts {
   onWin(): void
@@ -122,6 +123,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let hover: { id: string; since: number } | undefined
   /** Last pointer position on the field, in units (end of the pending link line). */
   let pointer: Vec | undefined
+  let stall = createStallWatch()
   /** Handle of the selected part being pressed: a click steps it, a drag sets it from the pointer. */
   let grip: { kind: HandleKind; start: { x: number; y: number }; moved: boolean; free?: number } | undefined
   /** Part whose chevrons last nudged, and since when (they nudge again each time a part is selected). */
@@ -184,7 +186,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const canvas = el('canvas')
   const selPanel = el('div', 'selpanel')
   const toast = el('div', 'toast')
-  stage.append(canvas, selPanel, toast)
+  // "Try again?" prompt: never blocks the run, so a slow machine can still reach its goal behind it
+  const retry = el('div', 'retry')
+  const retryText = el('span')
+  const retryBtn = el('button', 'btn small', t('retry.button'))
+  retryBtn.addEventListener('click', () => stop())
+  retry.append(retryText, retryBtn)
+  retry.hidden = true
+  stage.append(canvas, selPanel, toast, retry)
   const ctx = canvas.getContext('2d')!
 
   const drawer = el('aside', 'drawer')
@@ -641,6 +650,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   // ---- run / stop ----
   function start(): void {
     if (sim || author) return
+    stall = createStallWatch()
     drag = undefined
     tool = undefined
     first = undefined
@@ -659,6 +669,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function stop(): void {
     sound.stopLoops()
+    showRetry(undefined)
     sim = undefined
     won = false
     winPanel.hidden = true
@@ -669,7 +680,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   const toggle = (): void => (sim ? stop() : start())
 
+  /** Some body's centre is travelling: wheels and gears turning in place do not count. */
+  function travelling(s: Simulation): boolean {
+    return anyMoving(s.world.bodies().filter((b) => b.isDynamic() && b.isActive()).map((b) => {
+      const u = velocity(b)
+      return Math.sqrt(u.x * u.x + u.y * u.y)
+    }))
+  }
+
+  function showRetry(reason: StallReason | undefined): void {
+    retry.hidden = !reason
+    if (reason) retryText.textContent = t(reason === 'still' ? 'retry.still' : 'retry.long')
+  }
+
   function onGoalsMet(): void {
+    showRetry(undefined)
     won = true
     sound.win()
     markSolved(level.id)
@@ -765,6 +790,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       sim.step()
       listen(sim)
       if (sim.goalsMet && !won) onGoalsMet()
+      if (!won) showRetry(stall(travelling(sim), sim.stepIndex))
     }
   }
 
