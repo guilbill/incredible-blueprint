@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { World, toU } from '../../src/engine/world'
 import { partDef } from '../../src/parts/registry'
 import type { PartKind, Placement } from '../../src/level/types'
+import { Pen } from '../../src/render/pen'
+import { fakeCtx } from '../render/fakeCtx'
 
 const P = (kind: PartKind, x: number, y: number, o: Partial<Placement> = {}): Placement => ({
   id: kind, kind, x, y, rot: 0, flip: false, settings: {}, ...o,
@@ -66,5 +68,27 @@ describe('base parts', () => {
     const onWall = rebound(P('wall-wood', 400, 610, { rot: 6, settings: { length: 3 } }))
     const onTramp = rebound(P('trampoline', 400, 610))
     expect(onTramp).toBeGreaterThan(onWall * 1.5)
+  })
+
+  it('each ball has its own drawing, not the old circle plus cross', () => {
+    const drawn = (kind: PartKind) => {
+      const f = fakeCtx()
+      partDef(kind).draw!(new Pen(f.ctx), { placement: P(kind, 0, 0) })
+      return f.calls.join('|')
+    }
+    const kinds: PartKind[] = ['ball-bowling', 'ball-base', 'ball-basket', 'ball-tennis']
+    const old = (r: number) => {
+      const f = fakeCtx()
+      const pen = new Pen(f.ctx)
+      pen.reset()
+      pen.circle({ x: 0, y: 0 }, r)
+      pen.line({ x: -r, y: 0 }, { x: r, y: 0 })
+      pen.line({ x: 0, y: -r }, { x: 0, y: r })
+      return f.calls.join('|')
+    }
+    const radii = [14, 8, 14, 7]
+    const all = kinds.map(drawn)
+    expect(new Set(all).size).toBe(4)
+    all.forEach((d, i) => expect(d).not.toBe(old(radii[i])))
   })
 })
