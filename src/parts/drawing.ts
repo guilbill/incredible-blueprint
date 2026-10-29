@@ -23,3 +23,24 @@ export function applyGlow(pen: Pen, s: PartDrawState): void {
   const g = s.inst?.glow ?? 0
   if (g > 0) pen.glow(g, 'cyan')
 }
+
+/**
+ * Blueprint section hatching: 45° lines `spacing` units apart inside the w×h rectangle centred on
+ * the pose, sloping up to the right (dir 1) or down (dir -1), drawn thin.
+ */
+export function hatch(pen: Pen, pose: Pose, w: number, h: number, spacing: number, dir: 1 | -1 = 1): void {
+  const hw = w / 2
+  const hh = h / 2
+  const step = spacing * Math.SQRT2
+  const width = pen.ctx.lineWidth
+  pen.ctx.lineWidth = Math.min(width, 0.8)
+  // lines x + dir·y = k, clipped to |x| ≤ hw and |y| ≤ hh
+  for (let k = -(hw + hh) + step / 2; k < hw + hh; k += step) {
+    const lo = Math.max(-hh, dir === 1 ? k - hw : -k - hw)
+    const hi = Math.min(hh, dir === 1 ? k + hw : -k + hw)
+    if (hi - lo < 0.5) continue
+    const [a, b] = toWorld(pose, [v(k - dir * lo, lo), v(k - dir * hi, hi)])
+    pen.line(a, b)
+  }
+  pen.ctx.lineWidth = width
+}
