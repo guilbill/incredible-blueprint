@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LIMITS, validateLevel } from '../../src/level/codec'
 import type { Placement } from '../../src/level/types'
+import { pruneLocks } from '../../src/editor/locks'
 import { EditorModel, blankLevel } from '../../src/editor/model'
 import { rectFromDrag } from '../../src/ui/geometry'
 
@@ -165,5 +166,13 @@ describe('the editor never builds a level validateLevel rejects', () => {
     for (let i = m.level.goals.length; i < LIMITS.goals; i++) expect(m.addGoal({ type: 'event', event: 'rope-cut' })).toBe(true)
     expect(m.addGoal({ type: 'event', event: 'rope-cut' })).toBe(false)
     expect(validateLevel(m.level)).toBeNull()
+  })
+
+  it('locks follow the fixed parts: a removed part loses its lock', () => {
+    const m = ready()
+    m.addFixed(P('floor', 'ramp', 300, 500))
+    const locks = new Set(['floor', 'ball'])
+    m.removeFixed('floor')
+    expect([...pruneLocks(locks, m.level.fixed)]).toEqual(['ball'])
   })
 })

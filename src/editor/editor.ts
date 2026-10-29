@@ -5,6 +5,7 @@ import type { Level, Solution } from '../level/types'
 import { el } from '../ui/dom'
 import { mountPlay } from '../ui/play'
 import { goalsPanel } from './goals-panel'
+import { loadLocks, pruneLocks, saveLocks } from './locks'
 import { ALL_KINDS, type EditorModel } from './model'
 
 export interface EditorOpts {
@@ -39,6 +40,8 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
   let tracing: { part: string; hold: number } | undefined
   let saved = true
   let noticeTimer = 0
+  /** Locked parts of the board: an author aid kept next to the level, never in it. */
+  let locks = pruneLocks(loadLocks(model.level.id), model.level.fixed)
 
   function persist(): void {
     saved = saveCustomLevel(model.level)
@@ -176,10 +179,21 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
         initial: structuredClone({ placements: model.level.fixed, links: model.level.fixedLinks }),
         onChange: (sol) => {
           model.setFixed(sol.placements, sol.links)
+          const kept = pruneLocks(locks, sol.placements)
+          if (kept.size !== locks.size) {
+            locks = kept
+            saveLocks(model.level.id, locks)
+          }
           if (tracing && !model.hasTarget(tracing.part)) cancelTracing()
           changed()
         },
         goals: () => model.level.goals,
+        locked: () => locks,
+        setLocked: (ids, on) => {
+          locks = new Set(locks)
+          for (const id of ids) on ? locks.add(id) : locks.delete(id)
+          saveLocks(model.level.id, locks)
+        },
         tracing: () => !!tracing,
         onTraced: (zone) => {
           if (!tracing) return

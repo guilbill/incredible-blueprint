@@ -4,6 +4,7 @@ import { EditorModel, blankLevel } from './editor/model'
 import { lang, t } from './i18n'
 import type { Level } from './level/types'
 import { asShared, decodeLevel, levelFromFile } from './level/codec'
+import { forgetLocks } from './editor/locks'
 import { deleteCustomLevel, loadCustomLevels, saveCustomLevel } from './level/custom'
 import { loadProgress } from './storage'
 import { LANG_EVENT } from './ui/langSwitch'
@@ -34,8 +35,10 @@ function showList(error?: string): void {
     },
     custom: { levels: loadCustomLevels(), onEdit: edit, onNew: () => edit(blankLevel(newLevelId())), onImport: (f) => void importFile(f),
       onDelete: (l) => {
-        if (deleteCustomLevel(l.id)) showList()
-        else showList(t('error.deleteStorage'))
+        if (deleteCustomLevel(l.id)) {
+          forgetLocks(l.id)
+          showList()
+        } else showList(t('error.deleteStorage'))
       },
     },
   })

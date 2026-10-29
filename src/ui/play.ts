@@ -48,6 +48,10 @@ export interface AuthorOpts {
   /** While true, a press and drag on the field traces a zone instead of editing parts. */
   tracing(): boolean
   onTraced(zone: { x: number; y: number; w: number; h: number }): void
+  /** Ids of the locked parts (author aid, kept outside the level); read every frame. */
+  locked(): ReadonlySet<string>
+  /** Locks or unlocks parts. Not an undo step. */
+  setLocked(ids: readonly string[], on: boolean): void
   /** Toolbar content after the back button, and the side panel left of the field. */
   toolbar: HTMLElement[]
   side: HTMLElement
@@ -319,6 +323,20 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** The selected part when exactly one is selected (handles, settings panel, R and F work on it). */
   const single = (): Placement | undefined => (selection.length === 1 ? sol.placements.find((p) => p.id === selection[0]) : undefined)
 
+  // ---- locks (author only) ----
+  const isLocked = (id: string): boolean => !!author?.locked().has(id)
+  /** The selection without its locked parts: what moving, copying and deleting act on. */
+  const unlocked = (): string[] => selection.filter((id) => !isLocked(id))
+  const allLocked = (): boolean => selection.length > 0 && selection.every(isLocked)
+
+  /** All selected parts locked: unlock them, else lock them all. */
+  function toggleLock(): void {
+    if (!author || sim || !selection.length) return
+    author.setLocked(selection, !allLocked())
+    panelFor = undefined
+    refreshUi()
+  }
+
   /** Id the panel was built and positioned for; reset to rebuild (new selection, move, drop). */
   let panelFor: string | undefined
   const panelValues = new Map<string, HTMLSpanElement>()
@@ -346,16 +364,19 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     return b
   }
 
-  /** The action row of the selection. Task 5 adds the lock button between flip and delete. */
+  /** The action row of the selection. */
   function actionRow(one: Placement | undefined): HTMLElement {
     const row = el('div', 'row actions')
     if (!one) row.append(el('span', 'count', String(selection.length)))
     row.append(iconButton('duplicate', 'duplicate', duplicateSelection), iconButton('copy', 'copy', copySelection))
     if (one && partDef(one.kind).rotStep > 0) row.append(iconButton('rotate', 'rotate', () => edit((q) => rotated(q, 1))))
     if (one && partDef(one.kind).flippable) row.append(iconButton('flip', 'flip', () => edit(flipped)))
+    if (author) row.append(lockButton())
     row.append(iconButton('delete', 'delete', removeSelected))
     return row
   }
+
+  const lockButton = (): HTMLButtonElement => iconButton(allLocked() ? 'unlock' : 'lock', allLocked() ? 'unlock' : 'lock', toggleLock)
 
   /** Builds the panel's buttons once per selection; they read the part at click time. */
   function buildSelPanel(p: Placement): void {
@@ -376,6 +397,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     panelValues.clear()
     selPanel.classList.add('bar')
     selPanel.replaceChildren(actionRow(undefined))
+  }
+
+  /** Only locked parts selected: nothing to do with them but unlock. */
+  function buildLockedPanel(): void {
+    panelValues.clear()
+    selPanel.classList.add('bar')
+    const row = el('div', 'row actions')
+    row.append(lockButton())
+    selPanel.replaceChildren(row)
   }
 
   function updateSelValues(p: Placement): void {
@@ -422,6 +452,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
    */
   function refreshSelPanel(): void {
     if (!drag?.started && refreshLinkPanel()) return
+    if (author && allLocked() && !sim && !drag?.started && !group?.started) {
+      const key = `locked:${selection.join(',')}`
+      if (panelFor !== key) buildLockedPanel()
+      selPanel.hidden = false
+      panelFor = key
+      positionGroupPanel()
+      return
+    }
     const p = single()
     if (!p && selection.length > 1) {
       if (sim || drag?.started || group?.started) {
@@ -534,7 +572,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function edit(fn: (p: Placement) => Placement | null): void {
     const p = single()
-    if (!p || sim) return
+    if (!p || sim || isLocked(p.id)) return
     const np = fn(p)
     if (!np) return
     const r = updatePart(level, sol, np)
@@ -554,16 +592,17 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       commit(removeLink(sol, id))
       return
     }
-    if (!selection.length) return
-    const ids = selection
-    selection = []
+    const ids = unlocked()
+    if (!ids.length) return
+    selection = selection.filter(isLocked)
     commit(removeGroup(sol, ids))
   }
 
   /** Moves the whole selection by a snapped offset, as one undo step; "no room" when it does not fit. */
   function nudge(dx: number, dy: number): void {
-    if (sim || !selection.length) return
-    const next = moveGroup(level, sol, selection, dx, dy)
+    const ids = unlocked()
+    if (sim || !ids.length) return
+    const next = moveGroup(level, sol, ids, dx, dy)
     if (!next) {
       showToast(t('toast.noRoom'))
       return
@@ -575,7 +614,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function selectAll(): void {
-    selection = sol.placements.map((p) => p.id)
+    selection = sol.placements.filter((p) => !isLocked(p.id)).map((p) => p.id)
     selectedLink = undefined
     tool = undefined
     first = undefined
@@ -584,8 +623,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   /** Copies the selected parts (and the links between them) to the clipboard. */
   function copySelection(): void {
-    if (sim || !selection.length) return
-    setClip(copyGroup(sol, selection))
+    const ids = unlocked()
+    if (sim || !ids.length) return
+    setClip(copyGroup(sol, ids))
   }
 
   /** Pastes a clip as one undo step and selects the copies; the toast says why when it does not fit. */
@@ -607,9 +647,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function duplicateSelection(): void {
-    if (sim || !selection.length) return
-    const box = groupBox(sol.placements.filter((p) => selection.includes(p.id)))
-    pasteInto(copyGroup(sol, selection), v(box.x + box.w / 2, box.y + box.h / 2), 'right')
+    const ids = unlocked()
+    if (sim || !ids.length) return
+    const box = groupBox(sol.placements.filter((p) => ids.includes(p.id)))
+    pasteInto(copyGroup(sol, ids), v(box.x + box.w / 2, box.y + box.h / 2), 'right')
   }
 
   /** Pastes at `at` (the pointer or the click), else where the copy came from. */
@@ -636,11 +677,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       refreshUi()
       const one = single()
       items = [
-        { label: t('menu.copy'), shortcut: `${modKey}C`, run: copySelection, enabled: true },
-        { label: t('menu.duplicate'), shortcut: `${modKey}D`, run: duplicateSelection, enabled: true },
-        { label: t('menu.rotate'), shortcut: 'R', run: () => edit((p) => rotated(p, 1)), enabled: !!one && partDef(one.kind).rotStep > 0 },
-        { label: t('menu.flip'), shortcut: 'F', run: () => edit(flipped), enabled: !!one && partDef(one.kind).flippable },
-        { label: t('menu.delete'), shortcut: 'Del', run: removeSelected, enabled: true },
+        { label: t('menu.copy'), shortcut: `${modKey}C`, run: copySelection, enabled: unlocked().length > 0 },
+        { label: t('menu.duplicate'), shortcut: `${modKey}D`, run: duplicateSelection, enabled: unlocked().length > 0 },
+        { label: t('menu.rotate'), shortcut: 'R', run: () => edit((p) => rotated(p, 1)), enabled: !!one && !isLocked(one.id) && partDef(one.kind).rotStep > 0 },
+        { label: t('menu.flip'), shortcut: 'F', run: () => edit(flipped), enabled: !!one && !isLocked(one.id) && partDef(one.kind).flippable },
+        ...(author ? [{ label: t(allLocked() ? 'action.unlock' : 'action.lock'), shortcut: 'L', run: toggleLock, enabled: true }] : []),
+        { label: t('menu.delete'), shortcut: 'Del', run: removeSelected, enabled: unlocked().length > 0 },
       ]
     } else {
       items = [
@@ -752,7 +794,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     const sp = single()
-    const handle = sp && hitHandle(sp, pt)
+    const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt)
     if (handle) {
       e.preventDefault()
       grip = { kind: handle, start: { x: e.clientX, y: e.clientY }, moved: false }
@@ -768,8 +810,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       } else {
         if (!selection.includes(hit.id)) selection = [hit.id]
         const start = { x: e.clientX, y: e.clientY }
-        if (selection.length === 1) drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start, started: false, ok: false }
-        else group = { ids: [...selection], pressed: hit.id, start, from: pt, started: false, dx: 0, dy: 0, next: sol, guides: [] }
+        const ids = unlocked()
+        // a locked part is selected by the click but does not move
+        if (selection.length === 1) {
+          if (ids.length) drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start, started: false, ok: false }
+        } else if (ids.length) group = { ids, pressed: hit.id, start, from: pt, started: false, dx: 0, dy: 0, next: sol, guides: [] }
       }
       refreshUi()
       return
@@ -793,7 +838,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** Selection under the rectangle: the kept base plus every part it touches. */
   function updateMarquee(m: NonNullable<typeof marquee>, pt: Vec): void {
     m.b = pt
-    selection = [...m.base, ...selectInRect(level, sol, rectBetween(m.a, m.b), new Set(m.base))]
+    selection = [...m.base, ...selectInRect(level, sol, rectBetween(m.a, m.b), new Set([...m.base, ...(author?.locked() ?? [])]))]
   }
 
   /** Group drag: snapped offset from the press point, the moved solution if it fits, and the guides. */
@@ -850,7 +895,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       if (over?.id !== hover?.id) hover = over ? { id: over.id, since: performance.now() } : undefined
       canvas.classList.toggle('tracing', !!author?.tracing())
       const sp = !tool ? single() : undefined
-      const handle = sp && hitHandle(sp, pt)
+      const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt)
       const end = handle === 'start' || handle === 'end' ? handle : undefined
       if (end !== hoverEnd?.end) hoverEnd = end ? { end, since: performance.now() } : undefined
       canvas.classList.toggle('over-rot', handle === 'rot')
@@ -1060,7 +1105,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     // Leave browser and system shortcuts (Ctrl+R, Cmd+F, Alt+Backspace…) alone.
     if (e.ctrlKey || e.metaKey || e.altKey) return
-    if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
+    if (author && (e.key === 'l' || e.key === 'L')) toggleLock()
+    else if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
     else if (e.key === 'f' || e.key === 'F') edit(flipped)
     else if (e.key in ARROWS && selection.length) {
       e.preventDefault()
@@ -1175,12 +1221,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       nudgeFor = one
       selectedSince = now
     }
-    const sp = !sim && !tool && !drag?.started && !g ? single() : undefined
+    const lone = single()
+    const sp = !sim && !tool && !drag?.started && !g && lone && !isLocked(lone.id) ? lone : undefined
     const from = first && anchorAt(level, sol, first)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     render(ctx, {
       level: view, sol: viewSol, sim, ghost, ghosts, won, zoom: fit.zoom,
       selected: sim ? undefined : selection,
+      locked: sim ? undefined : author?.locked(),
       selectionBox: !sim && boxed.length ? groupBox(boxed) : undefined,
       marquee: marquee && rectBetween(marquee.a, marquee.b),
       guides: g?.guides,

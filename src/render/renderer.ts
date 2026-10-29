@@ -21,6 +21,8 @@ export interface RenderView {
   ghosts?: PartDrawState[]
   /** Ids of the selected player placements (yellow dashed outline each). */
   selected?: string[]
+  /** Ids of the parts the author locked: a small padlock by each (never set in play mode). */
+  locked?: ReadonlySet<string>
   /** Box around the selection (drawn padded, dashed yellow). */
   selectionBox?: Rect
   /** Selection rectangle being dragged on empty space. */
@@ -356,6 +358,19 @@ function drawLockMark(pen: Pen, p: Placement): void {
   }
 }
 
+/** Author-only padlock (9x7 body, shackle arc) 12 units out from the footprint's top right corner. */
+function drawPadlock(pen: Pen, p: Placement): void {
+  const c = footprint(p).reduce((m, q) => (q.x - q.y > m.x - m.y ? q : m))
+  const x = Math.min(FIELD.w - 6, c.x + 12)
+  const y = Math.max(10, c.y - 12)
+  const ctx = pen.ctx
+  pen.reset(COLORS.line, 1.2)
+  ctx.strokeRect(x - 4.5, y - 3.5, 9, 7)
+  ctx.beginPath()
+  ctx.arc(x, y - 3.5, 3, Math.PI, 0)
+  ctx.stroke()
+}
+
 function drawPart(pen: Pen, s: PartDrawState): void {
   const def = partDef(s.placement.kind)
   const ctx = pen.ctx
@@ -466,6 +481,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   for (const placement of placements) {
     const inst = sim?.parts.find((p) => p.id === placement.id)
     drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: selectedIds.has(placement.id), phase: phases.get(placement.id) })
+    if (view.locked?.has(placement.id)) drawPadlock(pen, placement)
   }
   if (sim) drawTrails(pen, sim)
   const ghosts = [...(view.ghost ? [view.ghost] : []), ...(view.ghosts ?? [])]
