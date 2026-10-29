@@ -1,7 +1,7 @@
 import { data, velocity } from '../engine/bodies'
 import { bodyPose } from '../engine/world'
 import { Simulation } from '../game/simulation'
-import type { Vec } from '../engine/vec'
+import { v, type Vec } from '../engine/vec'
 import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
 import { FIELD, footprint, gearMagnet, snap } from '../level/placement'
 import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
@@ -15,10 +15,12 @@ import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, fr
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
-import { isTypingTarget } from './keys'
+import { getClip, setClip } from './clipboard'
+import { isMac, isTypingTarget } from './keys'
+import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
 import { sound } from './sound'
-import { groupBox, guidesFor, moveGroup, removeGroup, selectInRect, type Guide, type Rect } from './selection'
+import { copyGroup, groupBox, guidesFor, moveGroup, pasteClip, removeGroup, selectInRect, type Clip, type Guide, type Rect } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
 import { anyMoving, createStallWatch, type StallReason } from './stall'
 
@@ -530,6 +532,75 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     refreshUi()
   }
 
+  /** Copies the selected parts (and the links between them) to the clipboard. */
+  function copySelection(): void {
+    if (sim || !selection.length) return
+    setClip(copyGroup(sol, selection))
+  }
+
+  /** Pastes a clip as one undo step and selects the copies; the toast says why when it does not fit. */
+  function pasteInto(clip: Clip, centre: Vec, prefer: 'at' | 'right'): void {
+    if (sim) return
+    const left = remaining(level, sol)
+    const need = new Map<PartKind, number>()
+    for (const p of clip.placements) need.set(p.kind, (need.get(p.kind) ?? 0) + 1)
+    const short = [...need].some(([kind, n]) => (left.get(kind) ?? 0) < n)
+    const r = pasteClip(level, sol, clip, centre, prefer)
+    if (!r) {
+      showToast(t(short ? 'toast.notEnoughParts' : 'toast.noRoom'))
+      return
+    }
+    sound.click()
+    selectedLink = undefined
+    selection = r.ids
+    commit(r.sol)
+  }
+
+  function duplicateSelection(): void {
+    if (sim || !selection.length) return
+    const box = groupBox(sol.placements.filter((p) => selection.includes(p.id)))
+    pasteInto(copyGroup(sol, selection), v(box.x + box.w / 2, box.y + box.h / 2), 'right')
+  }
+
+  /** Pastes at `at` (the pointer or the click), else where the copy came from. */
+  function pasteClipboard(at: Vec | undefined): void {
+    const clip = getClip()
+    if (!clip || sim) return
+    const box = groupBox(clip.placements)
+    pasteInto(clip, at ?? v(box.x + box.w / 2, box.y + box.h / 2), 'at')
+  }
+
+  let closeMenu: (() => void) | undefined
+  const modKey = isMac() ? 'Cmd+' : 'Ctrl+'
+
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+    closeMenu?.()
+    if (sim) return
+    const pt = unitsAt(e)
+    const hit = hitPart(sol, pt)
+    let items: MenuItem[]
+    if (hit) {
+      selectedLink = undefined
+      if (!selection.includes(hit.id)) selection = [hit.id]
+      refreshUi()
+      const one = single()
+      items = [
+        { label: t('menu.copy'), shortcut: `${modKey}C`, run: copySelection, enabled: true },
+        { label: t('menu.duplicate'), shortcut: `${modKey}D`, run: duplicateSelection, enabled: true },
+        { label: t('menu.rotate'), shortcut: 'R', run: () => edit((p) => rotated(p, 1)), enabled: !!one && partDef(one.kind).rotStep > 0 },
+        { label: t('menu.flip'), shortcut: 'F', run: () => edit(flipped), enabled: !!one && partDef(one.kind).flippable },
+        { label: t('menu.delete'), shortcut: 'Del', run: removeSelected, enabled: true },
+      ]
+    } else {
+      items = [
+        { label: t('menu.pasteHere'), shortcut: `${modKey}V`, run: () => pasteClipboard(pt), enabled: !!getClip() },
+        { label: t('menu.selectAll'), shortcut: `${modKey}A`, run: selectAll, enabled: sol.placements.length > 0 },
+      ]
+    }
+    closeMenu = openMenu({ x: e.clientX, y: e.clientY }, items)
+  })
+
   function refreshUi(): void {
     dirty = true
     undoBtn.disabled = !past.length || !!sim
@@ -922,6 +993,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       selectAll()
       return
     }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault()
+      copySelection()
+      return
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault()
+      duplicateSelection()
+      return
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault()
+      pasteClipboard(pointer)
+      return
+    }
     // Leave browser and system shortcuts (Ctrl+R, Cmd+F, Alt+Backspace…) alone.
     if (e.ctrlKey || e.metaKey || e.altKey) return
     if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
@@ -1081,6 +1167,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     sound.stopLoops()
     cancelAnimationFrame(raf)
     window.clearTimeout(toastTimer)
+    closeMenu?.()
     ro.disconnect()
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)

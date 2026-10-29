@@ -206,6 +206,33 @@ button { font: inherit; color: inherit; }
 .selpanel .label { flex: 1; color: var(--note); }
 .selpanel .value { min-width: 34px; text-align: center; color: var(--cyan); }
 
+.ctxmenu {
+  position: fixed;
+  z-index: 10;
+  min-width: 200px;
+  padding: 4px;
+  background: rgba(14, 42, 74, 0.94);
+  border: 1px solid var(--note);
+  border-radius: 3px;
+  display: grid;
+  font-size: 12px;
+}
+.ctxmenu .item {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 5px 8px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ctxmenu .item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.ctxmenu .item:disabled { opacity: 0.35; cursor: default; }
+.ctxmenu .shortcut { color: var(--note); }
+
 .toast {
   position: absolute;
   left: 50%;
