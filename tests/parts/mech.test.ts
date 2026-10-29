@@ -4,8 +4,12 @@ import { motor } from '../../src/engine/joints'
 import { toM, toU } from '../../src/engine/world'
 import { Simulation } from '../../src/game/simulation'
 import type { Level, Link, PartKind, Placement, Solution } from '../../src/level/types'
+import { gearOutline, gearPhases } from '../../src/parts/mech/gear'
 import { canLink } from '../../src/parts/mech/links'
+import type { PartInstance } from '../../src/parts/types'
 import { partDef } from '../../src/parts/registry'
+import { Pen } from '../../src/render/pen'
+import { fakeCtx } from '../render/fakeCtx'
 
 const P = (id: string, kind: PartKind, x: number, y: number, o: Partial<Placement> = {}): Placement => ({
   id, kind, x, y, rot: 0, flip: false, settings: {}, ...o,
@@ -171,5 +175,47 @@ describe('mechanics', () => {
     expect(first.state.cut).toEqual({ closed: 1 })
     expect(go()).toEqual(first)
     expect(lv).toEqual(before)
+  })
+})
+
+describe('gear drawing', () => {
+  const at = (id: string, kind: PartKind, x: number, y: number) => P(id, kind, x, y)
+
+  it('outlines a gear with r / 2 trapezoid teeth between r - 3 and r + 3', () => {
+    const c = { x: 50, y: 60 }
+    const pts = gearOutline(c, 0, 20)
+    const d = pts.map((p) => Math.sqrt((p.x - c.x) ** 2 + (p.y - c.y) ** 2))
+    expect(Math.min(...d)).toBeGreaterThanOrEqual(17 - 1e-9)
+    expect(Math.max(...d)).toBeCloseTo(23, 9)
+    expect(pts.length).toBe(10 * 6)
+    expect(d.filter((x) => Math.abs(x - 23) < 1e-9).length).toBe(10 * 3)
+    const near0 = pts.filter((p) => Math.abs(Math.atan2(p.y - c.y, p.x - c.x)) < 0.05)
+    expect(Math.max(...near0.map((p) => Math.sqrt((p.x - c.x) ** 2 + (p.y - c.y) ** 2)))).toBeCloseTo(23, 9)
+  })
+
+  it('phases a meshing pair so teeth fall in gaps', () => {
+    const ph = gearPhases([at('s', 'gear-small', 100, 100), at('l', 'gear-large', 160, 100)])
+    expect(ph.get('s')).toBe(0)
+    const expected = Math.PI + Math.PI / 20
+    const diff = (((ph.get('l')! - expected) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+    expect(Math.min(diff, 2 * Math.PI - diff)).toBeLessThan(1e-9)
+  })
+
+  it('gives a gear with no partner phase 0 and survives a cycle of gears', () => {
+    expect(gearPhases([at('a', 'gear-small', 100, 100)]).get('a')).toBe(0)
+    // Three small gears on an equilateral triangle (side 40) all mesh each other.
+    const tri = [at('a', 'gear-small', 100, 100), at('b', 'gear-small', 140, 100), at('c', 'gear-small', 120, 100 + 40 * Math.sin(Math.PI / 3))]
+    const ph = gearPhases(tri)
+    expect([...ph.keys()].sort()).toEqual(['a', 'b', 'c'])
+  })
+
+  it('draws a gear with phase 1 like phase 0 with the body turned by 1', () => {
+    const rec = (phase: number, angle: number) => {
+      const f = fakeCtx()
+      const inst = { bodies: [{ getPosition: () => ({ x: 0, y: 0 }), getAngle: () => angle }] } as unknown as PartInstance
+      partDef('gear-large').draw!(new Pen(f.ctx), { placement: at('g', 'gear-large', 0, 0), inst, phase })
+      return f.calls
+    }
+    expect(rec(1, 0)).toEqual(rec(0, 1))
   })
 })

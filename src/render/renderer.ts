@@ -5,6 +5,7 @@ import type { Simulation } from '../game/simulation'
 import { FIELD, anchorPoint, footprint } from '../level/placement'
 import type { Anchor, Level, Link, Placement, Solution } from '../level/types'
 import { CELL } from '../parts/common'
+import { gearPhases } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import { COLORS, type PartDrawState, Pen } from './pen'
 
@@ -235,12 +236,17 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   const placements = [...level.fixed, ...sol.placements]
   drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
   const fixedIds = new Set(level.fixed.map((p) => p.id))
+  const phases = gearPhases(placements)
   placements.forEach((placement, i) => {
     const inst = sim?.parts.find((p) => p.id === placement.id)
-    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected }, sim ? null : i + 1)
+    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: placement.id === view.selected, phase: phases.get(placement.id) }, sim ? null : i + 1)
   })
   if (sim) drawTrails(pen, sim)
   if (!sim && view.showAnchors) drawAnchors(pen, placements, view.pendingAnchor)
-  if (view.ghost) drawPart(pen, view.ghost, placements.length + 1)
+  if (view.ghost) {
+    const g = view.ghost
+    const ghostPhases = gearPhases([...placements, g.placement])
+    drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id) }, placements.length + 1)
+  }
   ctx.restore()
 }

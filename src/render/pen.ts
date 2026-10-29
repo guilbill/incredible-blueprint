@@ -18,6 +18,8 @@ export interface PartDrawState {
   selected?: boolean
   /** Locked part of the level (the renderer adds a hatched corner mark). */
   fixed?: boolean
+  /** Gears: drawing angle offset so meshing teeth interlock. */
+  phase?: number
 }
 
 /** Blueprint drawing primitives over a 2D context; all coordinates are in game units. */
