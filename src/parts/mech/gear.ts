@@ -70,11 +70,14 @@ export function gearRadius(kind: PartKind): number | undefined {
   return undefined
 }
 
-/** Two gears mesh when their centres are r1 + r2 apart (±1 unit). */
+/** How far (units) the centre distance may stray from r1 + r2 and still count as meshing. */
+export const MESH_TOL = 1
+
+/** Two gears mesh when their centres are r1 + r2 apart (±MESH_TOL units). */
 export function gearsMesh(a: { x: number; y: number; r: number }, b: { x: number; y: number; r: number }): boolean {
   const dx = b.x - a.x
   const dy = b.y - a.y
-  return Math.abs(Math.sqrt(dx * dx + dy * dy) - (a.r + b.r)) <= 1
+  return Math.abs(Math.sqrt(dx * dx + dy * dy) - (a.r + b.r)) <= MESH_TOL
 }
 
 /**
