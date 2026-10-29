@@ -126,7 +126,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let pointer: Vec | undefined
   let stall = createStallWatch()
   /** Handle of the selected part being pressed: a click steps it, a drag sets it from the pointer. */
-  let grip: { kind: HandleKind; start: { x: number; y: number }; moved: boolean; free?: number } | undefined
+  let grip: { kind: HandleKind; start: { x: number; y: number }; moved: boolean; free?: number; recorded?: boolean } | undefined
   /** Part whose chevrons last nudged, and since when (they nudge again each time a part is selected). */
   let nudgeFor: string | undefined
   let selectedSince = 0
@@ -198,6 +198,17 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const ctx = canvas.getContext('2d')!
 
   const drawer = el('aside', 'drawer')
+  // undo / redo of placements, links and settings (not of the run)
+  const history = el('div', 'history')
+  const undoBtn = el('button', 'hist', '↶')
+  const redoBtn = el('button', 'hist', '↷')
+  undoBtn.title = t('drawer.undo')
+  redoBtn.title = t('drawer.redo')
+  undoBtn.setAttribute('aria-label', undoBtn.title)
+  redoBtn.setAttribute('aria-label', redoBtn.title)
+  undoBtn.addEventListener('click', () => { undo(); undoBtn.blur() })
+  redoBtn.addEventListener('click', () => { redo(); redoBtn.blur() })
+  history.append(undoBtn, redoBtn)
   const tools = el('div', 'tools')
   const toolButtons = new Map<LinkTool, HTMLButtonElement>()
   for (const lt of ['rope', 'belt'] as const) {
@@ -217,7 +228,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     tools.append(b)
     toolButtons.set(lt, b)
   }
-  drawer.append(tools, el('h2', '', t('play.parts')))
+  drawer.append(history, tools, el('h2', '', t('play.parts')))
   const list = el('ul', 'inventory')
   drawer.append(list)
 
@@ -384,9 +395,42 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     toastTimer = window.setTimeout(() => toast.classList.remove('show'), ms)
   }
 
-  /** Every edit goes through here: the draft is saved each time. */
-  function commit(next: Solution): void {
+  /** Solutions before (past) and after (future) the current one; a new edit clears the future. */
+  const past: Solution[] = []
+  let future: Solution[] = []
+  const HISTORY_MAX = 100
+
+  /** Every edit goes through `commit`; `record` false folds it into the previous step (a handle drag). */
+  function commit(next: Solution, record = true): void {
+    if (record) {
+      past.push(sol)
+      if (past.length > HISTORY_MAX) past.shift()
+      future = []
+    }
+    apply(next)
+  }
+
+  function undo(): void {
+    const prev = past.pop()
+    if (!prev || sim) return
+    future.push(sol)
+    sound.click()
+    apply(prev)
+  }
+
+  function redo(): void {
+    const next = future.pop()
+    if (!next || sim) return
+    past.push(sol)
+    sound.click()
+    apply(next)
+  }
+
+  /** Sets the solution, drops a selection or pending link that no longer exists, and saves. */
+  function apply(next: Solution): void {
     sol = next
+    if (selected && !sol.placements.some((p) => p.id === selected)) selected = undefined
+    if (selectedLink && !sol.links.some((l) => l.id === selectedLink)) selectedLink = undefined
     if (first && !partExists(first.part)) first = undefined
     if (author) author.onChange(sol)
     else saveDraft(level.id, sol)
@@ -433,6 +477,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function refreshUi(): void {
     dirty = true
+    undoBtn.disabled = !past.length || !!sim
+    redoBtn.disabled = !future.length || !!sim
     refreshDrawer()
     refreshSelPanel()
     canvas.classList.toggle('dragging', !!drag?.started)
@@ -594,7 +640,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const r = np && updatePart(level, sol, np)
     if (r) {
       sound.click()
-      commit(r)
+      // one undo step per drag, however many notches or cells it went through
+      commit(r, !g.recorded)
+      g.recorded = true
     }
     dirty = true
   }
@@ -724,6 +772,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if (sim) return
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
+      e.preventDefault()
+      if (e.key === 'y' || e.shiftKey) redo()
+      else undo()
+      return
+    }
     // Leave browser and system shortcuts (Ctrl+R, Cmd+F, Alt+Backspace…) alone.
     if (e.ctrlKey || e.metaKey || e.altKey) return
     if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))

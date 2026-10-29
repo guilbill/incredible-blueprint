@@ -470,3 +470,9 @@ button { font: inherit; color: inherit; }
 }
 .retry[hidden] { display: none; }
 @keyframes retry-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+/* undo / redo, top right of the drawer */
+.history { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
+.hist { width: 30px; height: 26px; padding: 0; font-size: 16px; line-height: 1; color: var(--cyan); background: var(--panel, #123a63); border: 1px solid var(--note); border-radius: 4px; cursor: pointer; }
+.hist:hover:not(:disabled) { border-color: var(--cyan); box-shadow: 0 0 8px rgba(127, 255, 212, 0.25); }
+.hist:disabled { color: var(--note); opacity: 0.35; cursor: default; }
