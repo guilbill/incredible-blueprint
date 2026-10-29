@@ -1,3 +1,4 @@
+import { data } from '../engine/bodies'
 import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
 import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
@@ -15,7 +16,7 @@ import { guarded, stepsDue } from './loop'
 import { el } from './dom'
 import { langSwitch } from './langSwitch'
 import { sound } from './sound'
-import { createImpactTracker } from './soundLogic'
+import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
 
 export interface PlayOpts {
   onWin(): void
@@ -144,7 +145,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const DIRTY_EVENTS = ['pointerdown', 'pointermove', 'pointerup', 'keydown', 'keyup', 'click', 'input', 'change', 'wheel'] as const
   let toastTimer = 0
   sound.arm()
-  const impacts = createImpactTracker()
+  const impacts = createImpactTracker<{ key: string; impulse: number; kinds: (PartKind | undefined)[] }>()
   let nextBodyId = 0
   const bodyIds = new WeakMap<object, number>()
   const bodyId = (b: object): number => {
@@ -657,6 +658,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function stop(): void {
+    sound.stopLoops()
     sim = undefined
     won = false
     winPanel.hidden = true
@@ -729,18 +731,19 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   /** Sound only reads the sim after a step: new impacts and parts whose glow just jumped. */
   function listen(s: Simulation): void {
+    const kindOf = (b: Parameters<typeof data>[0]): PartKind | undefined => {
+      const id = data(b).part
+      return id === null ? undefined : s.parts.find((p) => p.id === id)?.kind
+    }
     const hit = impacts(s.lastContacts.filter((c) => !c.began).map((c) => {
       const a = bodyId(c.a)
       const b = bodyId(c.b)
-      return { key: a < b ? `${a}:${b}` : `${b}:${a}`, impulse: c.impulse }
+      return { key: a < b ? `${a}:${b}` : `${b}:${a}`, impulse: c.impulse, kinds: [kindOf(c.a), kindOf(c.b)] }
     }))
-    if (hit > 0) sound.tick(hit)
-    const next = new Map<string, number>()
-    for (const p of s.parts) {
-      next.set(p.id, p.glow)
-      if (p.glow > (prevGlow.get(p.id) ?? 0)) sound.activate(p.kind)
-    }
-    prevGlow = next
+    if (hit) sound.impact(impactVoice(hit.kinds), hit.impulse)
+    for (const p of startedParts(prevGlow, s.parts)) sound.activate(p.kind)
+    sound.setLoops(activeLoops(s.parts))
+    prevGlow = new Map(s.parts.map((p) => [p.id, p.glow]))
   }
 
   /** A step or a draw threw: stop the run, say so, keep the loop alive (drawing errors are logged once). */
