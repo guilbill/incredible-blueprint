@@ -1,9 +1,10 @@
-import { dot, len, pointSegmentDistance, sub, type Vec } from '../engine/vec'
+import { add, dot, len, pointSegmentDistance, rotate, sub, v, type Vec } from '../engine/vec'
 import { LIMITS } from '../level/codec'
-import { anchorPoint, canPlace, footprint, snap } from '../level/placement'
+import { anchorPoint, canPlace, footprint, sizeOf, snap } from '../level/placement'
 import type { Anchor, Level, Link, PartKind, Placement, Solution } from '../level/types'
 import { BELT_GAP, beltLoop, distanceToBelt } from '../render/belt'
 import { anchorDef, canLink } from '../parts/mech/links'
+import { CELL, angleOf } from '../parts/common'
 import { partDef } from '../parts/registry'
 
 /** Pure edit operations on a player's solution. Each returns a new Solution, or null when refused. */
@@ -99,6 +100,112 @@ export function withSetting(p: Placement, key: string, value: number): Placement
   const val = Math.min(s.max, Math.max(s.min, s.min + Math.round((value - s.min) / s.step) * s.step))
   if ((p.settings[key] ?? s.def) === val) return null
   return { ...p, settings: { ...p.settings, [key]: val } }
+}
+
+/** Distance (units) from the part's edge to its rotate handle, and past each end to its length handle. */
+export const ROT_GAP = 22
+export const END_GAP = 8
+/** Click tolerance (units) around a handle. */
+export const HANDLE_HIT = 9
+
+export type HandleKind = 'rot' | 'start' | 'end'
+
+/** Local frame of a part: its long axis (the one `length` sets, if any), half-length and half-thickness. */
+function frameOf(p: Placement): { axis: Vec; half: number; thick: number } {
+  const { w, h } = sizeOf(p)
+  return w >= h ? { axis: v(1, 0), half: (w * CELL) / 2, thick: (h * CELL) / 2 } : { axis: v(0, 1), half: (h * CELL) / 2, thick: (w * CELL) / 2 }
+}
+
+const toWorldPt = (p: Placement, local: Vec): Vec => add(v(p.x, p.y), rotate(local, angleOf(p)))
+const hasLength = (p: Placement): boolean => partDef(p.kind).settings.some((s) => s.key === 'length')
+
+/** Local direction (from the centre) of the rotate handle: above the part, beside it for upright ones. */
+function rotDir(p: Placement): Vec {
+  const { axis } = frameOf(p)
+  return axis.x === 1 ? v(0, -1) : v(1, 0)
+}
+
+/**
+ * Handle positions in units: `rot` beside the long side when the part rotates, `start`/`end` past
+ * both ends of the long axis when the part has a length.
+ */
+export function handlesOf(p: Placement): Partial<Record<HandleKind, Vec>> {
+  const { axis, half, thick } = frameOf(p)
+  const out: Partial<Record<HandleKind, Vec>> = {}
+  if (partDef(p.kind).rotStep) {
+    const d = rotDir(p)
+    out.rot = toWorldPt(p, v(d.x * (thick + ROT_GAP), d.y * (thick + ROT_GAP)))
+  }
+  if (hasLength(p)) {
+    const r = half + END_GAP
+    out.start = toWorldPt(p, v(-axis.x * r, -axis.y * r))
+    out.end = toWorldPt(p, v(axis.x * r, axis.y * r))
+  }
+  return out
+}
+
+/** Handle of the part under the point, if any. */
+export function hitHandle(p: Placement, pt: Vec): HandleKind | undefined {
+  const hs = handlesOf(p)
+  for (const k of ['rot', 'start', 'end'] as const) {
+    const at = hs[k]
+    if (at && len(sub(at, pt)) <= HANDLE_HIT) return k
+  }
+  return undefined
+}
+
+/** The part turned so its rotate handle points at `pt`, snapped to its rotation step; null if it cannot rotate or nothing changes. */
+export function rotateToward(p: Placement, pt: Vec): Placement | null {
+  const step = partDef(p.kind).rotStep
+  if (!step) return null
+  const d = rotDir(p)
+  const a = Math.atan2(pt.y - p.y, pt.x - p.x) - Math.atan2(d.y, d.x)
+  const notches = Math.round(a / ((step * Math.PI) / 12))
+  const rot = ((((notches * step) % 24) + 24) % 24)
+  return rot === p.rot ? null : { ...p, rot }
+}
+
+/** Free angle (radians, same convention as `angleOf`) the rotate handle would give at `pt`, before snapping. */
+export function freeAngle(p: Placement, pt: Vec): number {
+  const d = rotDir(p)
+  return Math.atan2(pt.y - p.y, pt.x - p.x) - Math.atan2(d.y, d.x)
+}
+
+/** Sets the length to `cells` (clamped) keeping the other end in place; null if unchanged. */
+export function resizeFrom(p: Placement, side: 'start' | 'end', cells: number): Placement | null {
+  const s = partDef(p.kind).settings.find((d) => d.key === 'length')
+  if (!s) return null
+  const n = Math.min(s.max, Math.max(s.min, Math.round(cells)))
+  const { axis, half } = frameOf(p)
+  const sign = side === 'end' ? 1 : -1
+  // the other end stays at -sign·half along the axis; the centre moves to the middle of the new span
+  const shift = sign * ((n * CELL) / 2 - half)
+  if (shift === 0) return null
+  const c = add(v(p.x, p.y), rotate(v(axis.x * shift, axis.y * shift), angleOf(p)))
+  const r2 = (x: number) => Math.round(x * 100) / 100
+  return { ...p, x: r2(c.x), y: r2(c.y), settings: { ...p.settings, length: n } }
+}
+
+/** One cell longer (`by` = 1) or shorter on the `side` end; null at the limit. */
+export function grow(p: Placement, side: 'start' | 'end', by: number): Placement | null {
+  const s = partDef(p.kind).settings.find((d) => d.key === 'length')
+  return s ? resizeFrom(p, side, (p.settings.length ?? s.def) + by) : null
+}
+
+/** Direction (radians) of the rotate handle relative to the part's own angle. */
+export function rotHandleOffset(p: Placement): number {
+  const d = rotDir(p)
+  return Math.atan2(d.y, d.x)
+}
+
+/** Length from dragging the `side` handle to `pt`: the span from the fixed end to the pointer, in whole cells. */
+export function resizeToward(p: Placement, side: 'start' | 'end', pt: Vec): Placement | null {
+  const { axis, half } = frameOf(p)
+  const sign = side === 'end' ? 1 : -1
+  const local = rotate(sub(pt, v(p.x, p.y)), -angleOf(p))
+  const along = dot(local, axis)
+  const span = sign * along - END_GAP + half
+  return resizeFrom(p, side, span / CELL)
 }
 
 function inConvex(pt: Vec, poly: Vec[]): boolean {

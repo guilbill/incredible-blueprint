@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, Placement, Solution } from '../../src/level/types'
 import { clientToUnits, fitCanvas, panelPosition, unitsToClient } from '../../src/ui/geometry'
+import { freeAngle, handlesOf, hitHandle, resizeFrom, resizeToward, rotateToward } from '../../src/ui/edit'
 import { addLink, addPart, draftPlacement, flipped, hitAnyPart, hitLink, hitPart, linkTargets, pickAnchor, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
 import { LIMITS } from '../../src/level/codec'
 import { MAX_STEPS_PER_FRAME, STEP_MS, stepsDue } from '../../src/ui/loop'
@@ -252,5 +253,60 @@ describe('link tools', () => {
     const over = { ...sol, placements: [P('b', 'ball-tennis', 700, 300)] }
     expect(hitAnyPart(lv, over, { x: 700, y: 300 })?.id).toBe('b')
     expect(hitAnyPart(lv, sol, { x: 50, y: 700 })).toBeUndefined()
+  })
+})
+
+describe('part handles', () => {
+  const ramp = (extra: Partial<Placement> = {}) => P('r', 'ramp', 400, 300, { settings: { length: 4 }, ...extra })
+  const wall = (extra: Partial<Placement> = {}) => P('w', 'wall-brick', 400, 300, { settings: { length: 4 }, ...extra })
+
+  it('places the rotate handle above a ramp and the length handles past its ends', () => {
+    const h = handlesOf(ramp())
+    expect(h.rot!.x).toBeCloseTo(400)
+    expect(h.rot!.y).toBeCloseTo(300 - 10 - 22)
+    expect(h.start!.x).toBeCloseTo(400 - 40 - 8)
+    expect(h.end!.x).toBeCloseTo(400 + 40 + 8)
+    expect(hitHandle(ramp(), { x: 448, y: 302 })).toBe('end')
+    expect(hitHandle(ramp(), { x: 400, y: 300 })).toBeUndefined()
+  })
+
+  it('puts the length handles along an upright wall and the rotate handle beside it', () => {
+    const h = handlesOf(wall())
+    expect(h.start!.y).toBeCloseTo(300 - 48)
+    expect(h.end!.y).toBeCloseTo(300 + 48)
+    expect(h.rot!.x).toBeCloseTo(400 + 10 + 22)
+  })
+
+  it('has no handles a part cannot use', () => {
+    expect(handlesOf(P('b', 'ball-tennis', 100, 100))).toEqual({})
+  })
+
+  it('rotates toward the pointer by whole steps', () => {
+    // ramp: 15° steps; pointer to the right of the centre turns the "up" handle by 90°
+    expect(rotateToward(ramp(), { x: 500, y: 300 })!.rot).toBe(6)
+    expect(rotateToward(ramp(), { x: 400, y: 200 })).toBeNull()
+    // wall: 90° steps, so a 30° pull does nothing yet, 60° snaps to 90°
+    const w = wall()
+    const at = (deg: number) => ({ x: 400 + 100 * Math.cos((deg * Math.PI) / 180), y: 300 + 100 * Math.sin((deg * Math.PI) / 180) })
+    expect(rotateToward(w, at(30))).toBeNull()
+    expect(rotateToward(w, at(60))!.rot).toBe(6)
+    expect(freeAngle(w, at(30))).toBeCloseTo(Math.PI / 6)
+  })
+
+  it('grows from one end and keeps the other end in place', () => {
+    const r = resizeFrom(ramp(), 'end', 6)!
+    expect(r.settings.length).toBe(6)
+    expect(r.x).toBeCloseTo(420)
+    const left = resizeFrom(ramp(), 'start', 6)!
+    expect(left.x).toBeCloseTo(380)
+    expect(resizeFrom(ramp(), 'end', 4)).toBeNull()
+    expect(resizeFrom(ramp(), 'end', 99)!.settings.length).toBe(12)
+  })
+
+  it('sets the length from a drag of an end handle', () => {
+    // fixed start end at x = 360; pointer at 360 + 6 cells + END_GAP
+    const r = resizeToward(ramp(), 'end', { x: 360 + 120 + 8, y: 305 })!
+    expect(r.settings.length).toBe(6)
+    expect(r.x).toBeCloseTo(420)
   })
 })

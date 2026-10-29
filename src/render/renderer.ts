@@ -33,6 +33,10 @@ export interface RenderView {
   meshMarks?: Vec[]
   /** Id of the selected player link (yellow). */
   selectedLink?: string
+  /** Handles of the selected part (positions from `handlesOf`); `t` = ms since selection, `hover` = end under the pointer and ms since. */
+  handles?: { at: Partial<Record<'rot' | 'start' | 'end', Vec>>; t: number; hover?: { end: 'start' | 'end'; t: number } }
+  /** Rotation in progress: notch dial around `center`; angles in radians, `offset` turns a part angle into the handle direction. */
+  dial?: { center: Vec; radius: number; step: number; current: number; needle: number; offset: number }
   zoom: number
 }
 
@@ -42,6 +46,17 @@ export const LABEL_FADE_DELAY_MS = 160
 export const LABEL_FADE_MS = 180
 /** Period of the pulsing link targets. */
 export const PULSE_MS = 1200
+/** Length chevrons: two outward nudges of NUDGE_MS/2 after selection, then a beat of HOVER_NUDGE_MS while hovered. */
+export const NUDGE_MS = 2800
+export const HOVER_NUDGE_MS = 800
+const NUDGE = 4
+
+/** Outward offset (units) of a length chevron, `t` ms after selection (or after the hover started). */
+export function chevronOffset(t: number, hovered: boolean): number {
+  const period = hovered ? HOVER_NUDGE_MS : NUDGE_MS / 2
+  if (!hovered && t >= NUDGE_MS) return 0
+  return NUDGE * Math.sin((Math.PI * (t % period)) / period)
+}
 
 export function labelDone(t: number): boolean {
   return t >= LABEL_FADE_DELAY_MS + LABEL_FADE_MS
@@ -205,6 +220,82 @@ function drawMeshMarks(pen: Pen, marks: Vec[]): void {
   pen.reset()
 }
 
+function drawRotHandle(pen: Pen, at: Vec): void {
+  const c = pen.ctx
+  pen.reset(COLORS.cyan, 1)
+  c.fillStyle = COLORS.bg
+  c.beginPath()
+  c.arc(at.x, at.y, 6, 0, Math.PI * 2)
+  c.fill()
+  c.stroke()
+  // small circular arrow
+  c.beginPath()
+  c.arc(at.x, at.y, 3.2, -Math.PI * 0.35, Math.PI * 1.35)
+  c.stroke()
+  pen.path([v(at.x + 1.2, at.y - 4.6), v(at.x + 2.4, at.y - 2.4), v(at.x + 0.2, at.y - 1.6)])
+  pen.reset()
+}
+
+/** Thin chevron at `at` pointing along `u`, pushed `off` units outward. */
+function drawChevron(pen: Pen, at: Vec, u: Vec, off: number): void {
+  const n = v(-u.y, u.x)
+  const tip = add(at, v(u.x * (off + 3), u.y * (off + 3)))
+  const back = add(at, v(u.x * (off - 3), u.y * (off - 3)))
+  pen.path([add(back, v(n.x * 6, n.y * 6)), tip, add(back, v(-n.x * 6, -n.y * 6))])
+}
+
+function drawHandles(pen: Pen, h: NonNullable<RenderView['handles']>): void {
+  if (h.at.rot) drawRotHandle(pen, h.at.rot)
+  const { start, end } = h.at
+  if (start && end) {
+    const d = v(end.x - start.x, end.y - start.y)
+    const l = Math.sqrt(d.x * d.x + d.y * d.y) || 1
+    const u = v(d.x / l, d.y / l)
+    pen.reset(COLORS.cyan, 1.4)
+    pen.ctx.lineCap = 'round'
+    const off = (side: 'start' | 'end') => (h.hover?.end === side ? chevronOffset(h.hover.t, true) : chevronOffset(h.t, false))
+    drawChevron(pen, start, v(-u.x, -u.y), off('start'))
+    drawChevron(pen, end, u, off('end'))
+    pen.ctx.lineCap = 'butt'
+    pen.reset()
+  }
+}
+
+function drawDial(pen: Pen, d: NonNullable<RenderView['dial']>): void {
+  const c = pen.ctx
+  const at = (a: number, r: number) => v(d.center.x + r * Math.cos(a + d.offset), d.center.y + r * Math.sin(a + d.offset))
+  pen.reset(COLORS.grid, 1)
+  c.setLineDash([2, 4])
+  pen.circle(d.center, d.radius)
+  c.setLineDash([])
+  const n = Math.round((2 * Math.PI) / d.step)
+  for (let i = 0; i < n; i++) {
+    const a = i * d.step
+    const on = Math.abs(((a - d.current) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)) < 1e-6
+    pen.reset(on ? COLORS.yellow : COLORS.cyan, on ? 2.5 : 1.5)
+    pen.line(at(a, d.radius - (on ? 10 : 6)), at(a, d.radius + (on ? 4 : 2)))
+    const deg = Math.round((a * 180) / Math.PI) % 360
+    if (d.step >= Math.PI / 4 - 1e-9 || deg % 45 === 0) {
+      const p = at(a, d.radius + 14)
+      c.save()
+      c.fillStyle = on ? COLORS.yellow : COLORS.note
+      c.font = '9px monospace'
+      c.textAlign = 'center'
+      c.fillText(`${deg}°`, p.x, p.y + 3)
+      c.restore()
+    }
+  }
+  pen.reset(COLORS.cyan, 1)
+  c.setLineDash([3, 3])
+  const tip = at(d.needle, d.radius)
+  pen.line(d.center, tip)
+  c.setLineDash([])
+  c.beginPath()
+  c.arc(tip.x, tip.y, 3, 0, Math.PI * 2)
+  c.fill()
+  pen.reset()
+}
+
 const LABEL_CHAR_W = 5.4
 
 /** FIG. n label with a leader line from the top-right corner of the part: diagonal, then horizontal. */
@@ -359,6 +450,8 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
       pen.reset()
     }
     if (view.meshMarks) drawMeshMarks(pen, view.meshMarks)
+    if (view.dial) drawDial(pen, view.dial)
+    else if (view.handles) drawHandles(pen, view.handles)
     if (view.hover) {
       const i = placements.findIndex((q) => q.id === view.hover?.id)
       if (i >= 0) drawHoverLabel(pen, placements[i], i + 1, view.hover.t)

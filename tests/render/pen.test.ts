@@ -4,7 +4,7 @@ import { Simulation } from '../../src/game/simulation'
 import type { Level, Placement } from '../../src/level/types'
 import { v } from '../../src/engine/vec'
 import { FIELD } from '../../src/level/placement'
-import { TRAIL_BANDS, labelDone, render } from '../../src/render/renderer'
+import { NUDGE_MS, TRAIL_BANDS, chevronOffset, labelDone, render } from '../../src/render/renderer'
 import { gearPhases } from '../../src/parts/mech/gear'
 import { partDef } from '../../src/parts/registry'
 import { Pen } from '../../src/render/pen'
@@ -200,5 +200,36 @@ describe('render', () => {
     const all = f.calls.join('|')
     expect(drawn.length).toBeGreaterThan(0)
     expect(all).toContain(drawn.join('|'))
+  })
+})
+
+describe('part handles', () => {
+  const lvl: Level = { v: 1, id: 't', title: 't', goalText: '', fixed: [], fixedLinks: [], inventory: [], goals: [] }
+  const sol = { placements: [{ id: 'r', kind: 'ramp' as const, x: 400, y: 300, rot: 0, flip: false, settings: { length: 4 } }], links: [] }
+  const at = { rot: v(400, 268), start: v(352, 300), end: v(448, 300) }
+
+  it('nudges the chevrons twice after selection, then holds still; beats while hovered', () => {
+    expect(chevronOffset(NUDGE_MS / 4, false)).toBeCloseTo(4)
+    expect(chevronOffset(NUDGE_MS / 2, false)).toBeCloseTo(0)
+    expect(chevronOffset(NUDGE_MS + 300, false)).toBe(0)
+    expect(chevronOffset(400, true)).toBeCloseTo(4)
+  })
+
+  it('draws the rotate handle and one chevron at each end', () => {
+    const f = fakeCtx()
+    render(f.ctx, { level: lvl, sol, selected: 'r', zoom: 1, handles: { at, t: NUDGE_MS } })
+    expect(f.events.filter((e) => e.name === 'arc' && e.args[0] === 400 && e.args[1] === 268 && e.args[2] === 6)).toHaveLength(1)
+    // chevron tips sit 3 units past each handle once the nudge is over
+    const tips = f.events.filter((e) => e.name === 'lineTo' && e.props.strokeStyle === '#7fffd4' && e.props.lineWidth === 1.4).map((e) => e.args)
+    expect(tips.some(([x, y]) => x === 451 && y === 300)).toBe(true)
+    expect(tips.some(([x, y]) => x === 349 && y === 300)).toBe(true)
+  })
+
+  it('draws a notch dial instead of the handles while rotating, current notch in yellow', () => {
+    const f = fakeCtx()
+    render(f.ctx, { level: lvl, sol, selected: 'r', zoom: 1, handles: { at, t: 0 }, dial: { center: v(400, 300), radius: 60, step: Math.PI / 2, current: Math.PI / 2, needle: 1.2, offset: -Math.PI / 2 } })
+    const labels = f.events.filter((e) => e.name === 'fillText').map((e) => [e.args[0], e.props.fillStyle])
+    expect(labels).toEqual([['0°', '#7fb4e8'], ['90°', '#ffcf5a'], ['180°', '#7fb4e8'], ['270°', '#7fb4e8']])
+    expect(f.events.some((e) => e.name === 'arc' && e.args[2] === 6)).toBe(false)
   })
 })

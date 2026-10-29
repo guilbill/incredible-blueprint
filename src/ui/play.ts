@@ -2,13 +2,13 @@ import { Simulation } from '../game/simulation'
 import type { Vec } from '../engine/vec'
 import { footprint, gearMagnet } from '../level/placement'
 import type { Anchor, Goal, Level, PartKind, Placement, Solution } from '../level/types'
-import { setting } from '../parts/common'
+import { angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
-import { labelDone, PULSE_MS, render } from '../render/renderer'
+import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
-import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, hitAnyPart, hitLink, hitPart, linkTargets, nextId, pickAnchor, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting, type LinkTool } from './edit'
+import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, withSetting, type HandleKind, type LinkTool } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
@@ -120,6 +120,13 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let hover: { id: string; since: number } | undefined
   /** Last pointer position on the field, in units (end of the pending link line). */
   let pointer: Vec | undefined
+  /** Handle of the selected part being pressed: a click steps it, a drag sets it from the pointer. */
+  let grip: { kind: HandleKind; start: { x: number; y: number }; moved: boolean; free?: number } | undefined
+  /** Part whose chevrons last nudged, and since when (they nudge again each time a part is selected). */
+  let nudgeFor: string | undefined
+  let selectedSince = 0
+  /** Length handle under the pointer, and since when (its chevron beats while hovered). */
+  let hoverEnd: { end: 'start' | 'end'; since: number } | undefined
   let drag: Drag | undefined
   let acc = 0
   let lastT: number | undefined
@@ -274,8 +281,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const def = partDef(p.kind)
     panelValues.clear()
     selPanel.replaceChildren(el('div', 'title', def.label))
-    if (def.rotStep) selPanel.append(stepper('rot', 'Rotation', () => edit((q) => rotated(q, -1)), () => edit((q) => rotated(q, 1))))
-    for (const s of def.settings) {
+    // rotation and length live on the part's own handles
+    for (const s of def.settings.filter((d) => d.key !== 'length')) {
       const by = (d: number) => () => edit((q) => withSetting(q, s.key, setting(q, s) + d * s.step))
       selPanel.append(stepper(s.key, s.label, by(-1), by(1)))
     }
@@ -349,8 +356,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function positionSelPanel(p: Placement): void {
-    const fp = footprint(p)
-    const anchor = unitsToClient({ x: Math.max(...fp.map((q) => q.x)), y: Math.min(...fp.map((q) => q.y)) }, canvas.getBoundingClientRect())
+    // right of the part and of its handles, so the panel never covers a handle
+    const pts = [...footprint(p), ...Object.values(handlesOf(p))]
+    const anchor = unitsToClient({ x: Math.max(...pts.map((q) => q.x)) + 12, y: Math.min(...pts.map((q) => q.y)) }, canvas.getBoundingClientRect())
     const at = panelPosition(anchor, stage.getBoundingClientRect(), { w: selPanel.offsetWidth, h: selPanel.offsetHeight })
     selPanel.style.left = `${at.x}px`
     selPanel.style.top = `${at.y}px`
@@ -509,6 +517,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       refreshUi()
       return
     }
+    const sp = selectedPart()
+    const handle = sp && hitHandle(sp, pt)
+    if (handle) {
+      e.preventDefault()
+      grip = { kind: handle, start: { x: e.clientX, y: e.clientY }, moved: false }
+      refreshUi()
+      return
+    }
     const hit = hitPart(sol, pt)
     selected = hit?.id
     selectedLink = !hit ? hitLink(level, sol, pt) : undefined
@@ -525,6 +541,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if (e.target === canvas) pointer = unitsAt(e)
+    if (grip) {
+      moveGrip(grip, e)
+      return
+    }
     if (drag) {
       updateDrag(e)
       canvas.classList.toggle('dragging', drag.started)
@@ -536,12 +556,39 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       const over = hitAnyPart(level, sol, pt)
       if (over?.id !== hover?.id) hover = over ? { id: over.id, since: performance.now() } : undefined
       canvas.classList.toggle('tracing', !!author?.tracing())
-      const clickable = tool ? !!over : !!(hitPart(sol, pt) || hitLink(level, sol, pt))
+      const sp = !tool ? selectedPart() : undefined
+      const handle = sp && hitHandle(sp, pt)
+      const end = handle === 'start' || handle === 'end' ? handle : undefined
+      if (end !== hoverEnd?.end) hoverEnd = end ? { end, since: performance.now() } : undefined
+      canvas.classList.toggle('over-rot', handle === 'rot')
+      canvas.classList.toggle('over-end', !!end)
+      const clickable = tool ? !!over : !!(handle || hitPart(sol, pt) || hitLink(level, sol, pt))
       canvas.classList.toggle('over-part', !author?.tracing() && clickable)
     }
   }
 
+  /** Rotates or resizes the selected part from a handle drag, once past the drag threshold. */
+  function moveGrip(g: NonNullable<typeof grip>, e: PointerEvent): void {
+    const p = selectedPart()
+    if (!p) return
+    const dx = e.clientX - g.start.x
+    const dy = e.clientY - g.start.y
+    if (!g.moved && dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return
+    g.moved = true
+    hover = undefined
+    const pt = unitsAt(e)
+    if (g.kind === 'rot') g.free = freeAngle(p, pt)
+    const np = g.kind === 'rot' ? rotateToward(p, pt) : resizeToward(p, g.kind, pt)
+    const r = np && updatePart(level, sol, np)
+    if (r) {
+      sound.click()
+      commit(r)
+    }
+    dirty = true
+  }
+
   function onPointerLeave(): void {
+    hoverEnd = undefined
     hover = undefined
     pointer = undefined
     dirty = true
@@ -554,6 +601,16 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       if (!author?.tracing()) return
       if (zone) author.onTraced(zone)
       else showToast('Zone trop petite')
+      return
+    }
+    if (grip) {
+      const g = grip
+      grip = undefined
+      // a click steps once: one notch clockwise, or one cell longer on that end
+      if (!g.moved) edit((q) => (g.kind === 'rot' ? rotated(q, 1) : grow(q, g.kind, 1)))
+      refreshUi()
+      const sp = selectedPart()
+      if (sp && !selPanel.hidden) positionSelPanel(sp)
       return
     }
     const d = drag
@@ -712,7 +769,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     guarded(() => advance(t), (err) => jammed(err, false))
     lastT = t
     // Idle frames are skipped, except while targets pulse or a hover label is still drawing in.
-    const animating = !!tool || (hover !== undefined && !labelDone(performance.now() - hover.since))
+    const now = performance.now()
+    const nudging = !!selected && !sim && (nudgeFor !== selected || now - selectedSince < NUDGE_MS)
+    const animating = !!tool || nudging || !!hoverEnd || !!grip?.moved || (hover !== undefined && !labelDone(now - hover.since))
     if (!sim && !dirty && !animating) return
     dirty = false
     guarded(draw, (err) => jammed(err, true))
@@ -729,6 +788,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       view = { ...level, goals: [...author.goals(), ...traced] }
     }
     const now = performance.now()
+    if (selected !== nudgeFor) {
+      nudgeFor = selected
+      selectedSince = now
+    }
+    const sp = !sim && !tool && !drag?.started ? selectedPart() : undefined
     const from = first && anchorAt(level, sol, first)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     render(ctx, {
@@ -738,7 +802,17 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       pendingLine: from && pointer ? { from, to: pointer } : undefined,
       hover: hover && !drag?.started ? { id: hover.id, t: now - hover.since } : undefined,
       meshMarks: drag?.started ? drag.meshMarks : undefined,
+      handles: sp ? { at: handlesOf(sp), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since } } : undefined,
+      dial: sp && grip?.kind === 'rot' && grip.moved ? dialFor(sp, grip.free ?? angleOf(sp)) : undefined,
     })
+  }
+
+  /** Notch dial around a part being rotated: one tick per rotation step, needle on the free pointer angle. */
+  function dialFor(p: Placement, needle: number): NonNullable<RenderView['dial']> {
+    const at = handlesOf(p).rot ?? { x: p.x, y: p.y - 40 }
+    const dx = at.x - p.x
+    const dy = at.y - p.y
+    return { center: { x: p.x, y: p.y }, radius: Math.max(40, Math.sqrt(dx * dx + dy * dy)), step: (partDef(p.kind).rotStep * Math.PI) / 12, current: angleOf(p), needle, offset: rotHandleOffset(p) }
   }
 
   window.addEventListener('pointermove', onPointerMove)
