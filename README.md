@@ -6,6 +6,8 @@ This project brings that feeling back in the browser, with an engineering bluepr
 
 **Play it: https://guilbill.github.io/incredible-machine-tribute/**
 
+![The Big Machine level, running: the monkey on its bike drives the gears through belts, the conveyor carries the baseball](docs/screenshot.png)
+
 The game is available in English and French.
 
 ## What's inside
