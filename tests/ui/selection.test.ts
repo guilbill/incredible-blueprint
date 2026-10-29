@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { FIELD, snap } from '../../src/level/placement'
-import type { Level, Placement, Solution } from '../../src/level/types'
+import type { Goal, Level, Placement, Solution } from '../../src/level/types'
 import { nextId } from '../../src/ui/edit'
-import { copyGroup, groupBox, guidesFor, moveGroup, pasteClip, removeGroup, selectInRect } from '../../src/ui/selection'
+import { copyGroup, groupBox, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, selectInRect, zoneAt, zoneCorner } from '../../src/ui/selection'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number, extra: Partial<Placement> = {}): Placement =>
   ({ id, kind, x, y, rot: 0, flip: false, settings: {}, ...extra })
@@ -163,5 +163,48 @@ describe('guidesFor', () => {
   })
   it('returns nothing without alignment', () => {
     expect(guidesFor([P('m', 'ball-tennis', 101, 503)], [P('a', 'ball-tennis', 300, 200)])).toEqual([])
+  })
+})
+
+describe('goal zones', () => {
+  const z = { x: 100, y: 100, w: 100, h: 60 }
+
+  it('moveZone snaps to 10 and stays inside the field', () => {
+    expect(moveZone(z, 23, -18)).toEqual({ x: 120, y: 80, w: 100, h: 60 })
+    expect(moveZone(z, -500, -500)).toEqual({ x: 0, y: 0, w: 100, h: 60 })
+    expect(moveZone(z, 9999, 9999)).toEqual({ x: FIELD.w - 100, y: FIELD.h - 60, w: 100, h: 60 })
+  })
+
+  it('resizeZone moves the dragged corner and keeps the opposite one', () => {
+    expect(resizeZone(z, 'se', { x: 253, y: 218 })).toEqual({ x: 100, y: 100, w: 150, h: 120 })
+    expect(resizeZone(z, 'nw', { x: 60, y: 41 })).toEqual({ x: 60, y: 40, w: 140, h: 120 })
+    expect(resizeZone(z, 'ne', { x: 300, y: 70 })).toEqual({ x: 100, y: 70, w: 200, h: 90 })
+    expect(resizeZone(z, 'sw', { x: 50, y: 300 })).toEqual({ x: 50, y: 100, w: 150, h: 200 })
+  })
+
+  it('resizeZone never goes below 20x20 or past the field', () => {
+    expect(resizeZone(z, 'se', { x: 0, y: 0 })).toEqual({ x: 100, y: 100, w: 20, h: 20 })
+    expect(resizeZone(z, 'nw', { x: 900, y: 900 })).toEqual({ x: 180, y: 140, w: 20, h: 20 })
+    expect(resizeZone(z, 'se', { x: 99999, y: 99999 })).toEqual({ x: 100, y: 100, w: FIELD.w - 100, h: FIELD.h - 100 })
+    expect(resizeZone(z, 'nw', { x: -50, y: -50 })).toEqual({ x: 0, y: 0, w: 200, h: 160 })
+  })
+
+  it('zoneCorner finds the corner within the tolerance', () => {
+    expect(zoneCorner(z, { x: 104, y: 98 }, 9)).toBe('nw')
+    expect(zoneCorner(z, { x: 198, y: 103 }, 9)).toBe('ne')
+    expect(zoneCorner(z, { x: 100, y: 158 }, 9)).toBe('sw')
+    expect(zoneCorner(z, { x: 205, y: 165 }, 9)).toBe('se')
+    expect(zoneCorner(z, { x: 150, y: 130 }, 9)).toBeUndefined()
+  })
+
+  it('zoneAt returns the last inZone goal containing the point and skips event goals', () => {
+    const goals: Goal[] = [
+      { type: 'inZone', part: 'a', zone: { x: 0, y: 0, w: 100, h: 100 } },
+      { type: 'event', event: 'rope-cut' },
+      { type: 'inZone', part: 'a', zone: { x: 50, y: 50, w: 100, h: 100 } },
+    ]
+    expect(zoneAt(goals, { x: 60, y: 60 })).toBe(2)
+    expect(zoneAt(goals, { x: 10, y: 10 })).toBe(0)
+    expect(zoneAt(goals, { x: 500, y: 500 })).toBeUndefined()
   })
 })

@@ -176,3 +176,23 @@ describe('the editor never builds a level validateLevel rejects', () => {
     expect([...pruneLocks(locks, m.level.fixed)]).toEqual(['ball'])
   })
 })
+
+describe('EditorModel.setZone', () => {
+  it('replaces the zone of an inZone goal and marks the level unverified', () => {
+    const m = ready()
+    m.level.verified = true
+    expect(m.setZone(0, { x: 10, y: 20, w: 30, h: 40 })).toBe(true)
+    expect(m.level.goals[0]).toMatchObject({ type: 'inZone', part: 'ball', zone: { x: 10, y: 20, w: 30, h: 40 } })
+    expect(m.level.verified).toBe(false)
+  })
+
+  it('refuses an event goal or a bad index', () => {
+    const m = ready()
+    m.addGoal({ type: 'event', event: 'rope-cut' })
+    const before = structuredClone(m.level.goals)
+    expect(m.setZone(1, { x: 0, y: 0, w: 20, h: 20 })).toBe(false)
+    expect(m.setZone(5, { x: 0, y: 0, w: 20, h: 20 })).toBe(false)
+    expect(m.setZone(-1, { x: 0, y: 0, w: 20, h: 20 })).toBe(false)
+    expect(m.level.goals).toEqual(before)
+  })
+})

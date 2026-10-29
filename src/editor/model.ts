@@ -4,6 +4,7 @@ import { canPlace, snap } from '../level/placement'
 import type { Goal, Level, Link, PartKind, Placement, Solution } from '../level/types'
 import { canLink } from '../parts/mech/links'
 import { PART_DEFS } from '../parts/registry'
+import type { Rect } from '../ui/selection'
 
 /** Every registered part kind, in registry order (the order of the editor's lists). */
 export const ALL_KINDS = Object.keys(PART_DEFS) as PartKind[]
@@ -99,6 +100,15 @@ export class EditorModel {
     if (this.level.goals.length >= LIMITS.goals) return false
     if (g.part !== undefined && !this.hasTarget(g.part)) return false
     this.level.goals.push(structuredClone(g))
+    this.markDirty()
+    return true
+  }
+
+  /** Replaces the zone of the inZone goal `i`; false (nothing changed) for an event goal or a bad index. */
+  setZone(i: number, zone: Rect): boolean {
+    const g = this.level.goals[i]
+    if (g?.type !== 'inZone') return false
+    this.level.goals[i] = { ...g, zone: { x: zone.x, y: zone.y, w: zone.w, h: zone.h } }
     this.markDirty()
     return true
   }

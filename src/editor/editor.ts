@@ -194,6 +194,13 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
           for (const id of ids) on ? locks.add(id) : locks.delete(id)
           saveLocks(model.level.id, locks)
         },
+        setZone: (i, zone) => {
+          if (model.setZone(i, zone)) changed()
+        },
+        removeGoal: (i) => {
+          model.removeGoal(i)
+          changed()
+        },
         tracing: () => !!tracing,
         onTraced: (zone) => {
           if (!tracing) return

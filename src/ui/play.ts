@@ -11,7 +11,7 @@ import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
 import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
-import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, withSetting, type HandleKind, type LinkTool } from './edit'
+import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, HANDLE_HIT, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, withSetting, type HandleKind, type LinkTool } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
@@ -21,7 +21,7 @@ import { isMac, isTypingTarget } from './keys'
 import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
 import { sound } from './sound'
-import { copyGroup, groupBox, guidesFor, moveGroup, pasteClip, removeGroup, selectInRect, type Clip, type Guide, type Rect } from './selection'
+import { copyGroup, groupBox, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, selectInRect, zoneAt, zoneCorner, type Clip, type Corner, type Guide, type Rect } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
 import { anyMoving, createStallWatch, type StallReason } from './stall'
 
@@ -48,6 +48,10 @@ export interface AuthorOpts {
   /** While true, a press and drag on the field traces a zone instead of editing parts. */
   tracing(): boolean
   onTraced(zone: { x: number; y: number; w: number; h: number }): void
+  /** Replaces the zone of the inZone goal `i` (moved or resized on the board). Not an undo step. */
+  setZone(i: number, zone: Rect): void
+  /** Removes goal `i`. Not an undo step. */
+  removeGoal(i: number): void
   /** Ids of the locked parts (author aid, kept outside the level); read every frame. */
   locked(): ReadonlySet<string>
   /** Locks or unlocks parts. Not an undo step. */
@@ -87,6 +91,17 @@ interface GroupDrag {
   /** The moved solution, or null when the group does not fit there. */
   next: Solution | null
   guides: Guide[]
+}
+
+/** Press on a goal zone (author mode): a corner resizes it, the body moves it. */
+interface ZoneDrag {
+  i: number
+  /** Corner pressed, or undefined to move the whole zone. */
+  corner?: Corner
+  /** The zone at the press. */
+  orig: Rect
+  /** Press point in units. */
+  from: Vec
 }
 
 /** Arrow-key nudge (units), and with Shift. */
@@ -170,6 +185,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let hoverEnd: { end: 'start' | 'end'; since: number } | undefined
   let drag: Drag | undefined
   let group: GroupDrag | undefined
+  /** Selected goal zone (index in `author.goals()`, author mode), exclusive with the part selection. */
+  let selectedZone: number | undefined
+  let zoneDrag: ZoneDrag | undefined
   /** Selection rectangle dragged on empty space; `base` is the selection kept under it (Shift). */
   let marquee: { a: Vec; b: Vec; base: string[] } | undefined
   let acc = 0
@@ -695,6 +713,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function refreshUi(): void {
     dirty = true
+    // a zone stays selected only while its goal is there (the panel can remove it) and nothing else is
+    if (selectedZone !== undefined && (selection.length || selectedLink || author?.goals()[selectedZone]?.type !== 'inZone')) selectedZone = undefined
     undoBtn.disabled = !past.length || !!sim
     redoBtn.disabled = !future.length || !!sim
     refreshDrawer()
@@ -805,6 +825,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (hit) {
       e.preventDefault()
       selectedLink = undefined
+      selectedZone = undefined
       if (e.shiftKey) {
         selection = selection.includes(hit.id) ? selection.filter((id) => id !== hit.id) : [...selection, hit.id]
       } else {
@@ -819,16 +840,38 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       refreshUi()
       return
     }
+    const zones = author?.goals() ?? []
+    const zone = selectedZone !== undefined ? zones[selectedZone] : undefined
+    const corner = zone?.type === 'inZone' ? zoneCorner(zone.zone, pt, HANDLE_HIT) : undefined
+    if (author && selectedZone !== undefined && zone?.type === 'inZone' && corner) {
+      e.preventDefault()
+      zoneDrag = { i: selectedZone, corner, orig: zone.zone, from: pt }
+      refreshUi()
+      return
+    }
     const link = hitLink(level, sol, pt)
     if (link) {
       selection = []
+      selectedZone = undefined
       selectedLink = link
+      refreshUi()
+      return
+    }
+    const zi = author ? zoneAt(zones, pt) : undefined
+    const hitZone = zi !== undefined ? zones[zi] : undefined
+    if (zi !== undefined && hitZone?.type === 'inZone') {
+      e.preventDefault()
+      selection = []
+      selectedLink = undefined
+      selectedZone = zi
+      zoneDrag = { i: zi, orig: hitZone.zone, from: pt }
       refreshUi()
       return
     }
     // empty space: a selection rectangle, added to the current selection with Shift
     e.preventDefault()
     selectedLink = undefined
+    selectedZone = undefined
     const base = e.shiftKey ? selection : []
     selection = base
     marquee = { a: pt, b: pt, base }
@@ -839,6 +882,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function updateMarquee(m: NonNullable<typeof marquee>, pt: Vec): void {
     m.b = pt
     selection = [...m.base, ...selectInRect(level, sol, rectBetween(m.a, m.b), new Set([...m.base, ...(author?.locked() ?? [])]))]
+  }
+
+  /** Zone drag: the zone follows the pointer, live through the editor (the model owns it, no undo step). */
+  function updateZone(z: ZoneDrag, pt: Vec): void {
+    if (!author) return
+    const next = z.corner ? resizeZone(z.orig, z.corner, pt) : moveZone(z.orig, pt.x - z.from.x, pt.y - z.from.y)
+    const g = author.goals()[z.i]
+    if (g?.type === 'inZone' && (g.zone.x !== next.x || g.zone.y !== next.y || g.zone.w !== next.w || g.zone.h !== next.h)) author.setZone(z.i, next)
+    dirty = true
   }
 
   /** Group drag: snapped offset from the press point, the moved solution if it fits, and the guides. */
@@ -872,6 +924,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     if (marquee) {
       updateMarquee(marquee, unitsAt(e))
+      return
+    }
+    if (zoneDrag) {
+      updateZone(zoneDrag, unitsAt(e))
       return
     }
     if (group) {
@@ -941,6 +997,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       if (!author?.tracing()) return
       if (zone) author.onTraced(zone)
       else showToast(t('toast.zoneTooSmall'))
+      return
+    }
+    if (zoneDrag) {
+      updateZone(zoneDrag, unitsAt(e))
+      zoneDrag = undefined
+      refreshUi()
       return
     }
     if (grip) {
@@ -1108,7 +1170,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (author && (e.key === 'l' || e.key === 'L')) toggleLock()
     else if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
     else if (e.key === 'f' || e.key === 'F') edit(flipped)
-    else if (e.key in ARROWS && selection.length) {
+    else if (author && selectedZone !== undefined && !selection.length && (e.key in ARROWS || e.key === 'Delete' || e.key === 'Backspace')) {
+      e.preventDefault()
+      const g = author.goals()[selectedZone]
+      if (g?.type !== 'inZone') selectedZone = undefined
+      else if (e.key in ARROWS) {
+        const [x, y] = ARROWS[e.key]
+        const step = e.shiftKey ? NUDGE_STEP_BIG : NUDGE_STEP
+        author.setZone(selectedZone, moveZone(g.zone, x * step, y * step))
+      } else {
+        const i = selectedZone
+        selectedZone = undefined
+        author.removeGoal(i)
+      }
+      refreshUi()
+    } else if (e.key in ARROWS && selection.length) {
       e.preventDefault()
       const [x, y] = ARROWS[e.key]
       const step = e.shiftKey ? NUDGE_STEP_BIG : NUDGE_STEP
@@ -1119,7 +1195,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     } else if (e.key === 'Escape') {
       trace = undefined
       marquee = undefined
+      zoneDrag = undefined
       selection = []
+      selectedZone = undefined
       selectedLink = undefined
       tool = undefined
       first = undefined
@@ -1228,6 +1306,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     render(ctx, {
       level: view, sol: viewSol, sim, ghost, ghosts, won, zoom: fit.zoom,
       selected: sim ? undefined : selection,
+      selectedZone: sim ? undefined : selectedZone,
       locked: sim ? undefined : author?.locked(),
       selectionBox: !sim && boxed.length ? groupBox(boxed) : undefined,
       marquee: marquee && rectBetween(marquee.a, marquee.b),

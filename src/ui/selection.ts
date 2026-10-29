@@ -1,7 +1,7 @@
 import { v, type Vec } from '../engine/vec'
 import { LIMITS } from '../level/codec'
 import { FIELD, canPlace, footprint, overlaps, snap } from '../level/placement'
-import type { Level, Link, PartKind, Placement, Solution } from '../level/types'
+import type { Goal, Level, Link, PartKind, Placement, Solution } from '../level/types'
 import { canLink } from '../parts/mech/links'
 import { nextId, nextLinkId, remaining } from './edit'
 
@@ -194,4 +194,51 @@ export function guidesFor(moved: Placement[], others: Placement[]): Guide[] {
   }
   for (const g of [...vertical, ...horizontal]) add(g)
   return out
+}
+
+export type Corner = 'nw' | 'ne' | 'sw' | 'se'
+
+/** Smallest side (units) a goal zone can be resized to. */
+const ZONE_MIN = 20
+
+const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n))
+
+/** Index of the topmost (last) inZone goal whose zone contains the point. */
+export function zoneAt(goals: Goal[], pt: Vec): number | undefined {
+  for (let i = goals.length - 1; i >= 0; i--) {
+    const g = goals[i]
+    if (g.type === 'inZone' && pt.x >= g.zone.x && pt.x <= g.zone.x + g.zone.w && pt.y >= g.zone.y && pt.y <= g.zone.y + g.zone.h) return i
+  }
+  return undefined
+}
+
+/** The corner of the zone within `tol` units of the point (both axes), if any. */
+export function zoneCorner(zone: Rect, pt: Vec, tol: number): Corner | undefined {
+  const corners: [Corner, number, number][] = [
+    ['nw', zone.x, zone.y],
+    ['ne', zone.x + zone.w, zone.y],
+    ['sw', zone.x, zone.y + zone.h],
+    ['se', zone.x + zone.w, zone.y + zone.h],
+  ]
+  return corners.find(([, x, y]) => Math.abs(pt.x - x) <= tol && Math.abs(pt.y - y) <= tol)?.[0]
+}
+
+/** The zone moved by the offset, snapped to the grid and kept inside the field. */
+export function moveZone(zone: Rect, dx: number, dy: number): Rect {
+  return {
+    ...zone,
+    x: clamp(snap(zone.x + dx), 0, FIELD.w - zone.w),
+    y: clamp(snap(zone.y + dy), 0, FIELD.h - zone.h),
+  }
+}
+
+/** The zone with `corner` dragged to the snapped point: the opposite corner stays, at least 20x20, inside the field. */
+export function resizeZone(zone: Rect, corner: Corner, pt: Vec): Rect {
+  const west = corner === 'nw' || corner === 'sw'
+  const north = corner === 'nw' || corner === 'ne'
+  const fx = west ? zone.x + zone.w : zone.x
+  const fy = north ? zone.y + zone.h : zone.y
+  const mx = west ? clamp(snap(pt.x), 0, fx - ZONE_MIN) : clamp(snap(pt.x), fx + ZONE_MIN, FIELD.w)
+  const my = north ? clamp(snap(pt.y), 0, fy - ZONE_MIN) : clamp(snap(pt.y), fy + ZONE_MIN, FIELD.h)
+  return { x: Math.min(fx, mx), y: Math.min(fy, my), w: Math.abs(mx - fx), h: Math.abs(my - fy) }
 }

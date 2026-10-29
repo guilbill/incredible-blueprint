@@ -27,6 +27,8 @@ export interface RenderView {
   selectionBox?: Rect
   /** Selection rectangle being dragged on empty space. */
   marquee?: Rect
+  /** Index in `level.goals` of the goal zone selected on the author's board (thick outline, corner squares). */
+  selectedZone?: number
   /** Alignment guides of a group being dragged (dotted cyan). */
   guides?: Guide[]
   /** Goals met: goal zones glow yellow. */
@@ -403,6 +405,17 @@ function drawSelectionBox(pen: Pen, r: Rect): void {
   pen.ctx.setLineDash([])
 }
 
+/** Selected goal zone: solid thick outline and a square on each corner. */
+function drawSelectedZone(pen: Pen, g: Level['goals'][number] | undefined): void {
+  if (g?.type !== 'inZone') return
+  const { x, y, w, h } = g.zone
+  pen.reset(COLORS.yellow, 2)
+  pen.poly([v(x, y), v(x + w, y), v(x + w, y + h), v(x, y + h)])
+  pen.ctx.fillStyle = COLORS.yellow
+  for (const [cx, cy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) pen.ctx.fillRect(cx - 5, cy - 5, 10, 10)
+  pen.reset()
+}
+
 function drawMarquee(pen: Pen, r: Rect): void {
   const c = pen.ctx
   pen.reset(COLORS.note, 1)
@@ -507,6 +520,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
     }
     if (view.meshMarks) drawMeshMarks(pen, view.meshMarks)
     if (view.selectionBox) drawSelectionBox(pen, view.selectionBox)
+    if (view.selectedZone !== undefined) drawSelectedZone(pen, level.goals[view.selectedZone])
     if (view.marquee) drawMarquee(pen, view.marquee)
     if (view.guides) drawGuides(pen, view.guides)
     if (view.dial) drawDial(pen, view.dial)
