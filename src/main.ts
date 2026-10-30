@@ -10,6 +10,7 @@ import { isFirstVisit, loadProgress, markWelcomed } from './storage'
 import { LANG_EVENT } from './ui/langSwitch'
 import { type LevelTab, loadLevels, mountLevelList } from './ui/levels'
 import { mountPlay } from './ui/play'
+import { showTitleCard } from './ui/titleCard'
 import { mountWelcome } from './ui/welcome'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -134,7 +135,11 @@ function play(level: Level, list: Level[] = []): void {
 /** Opens a shared `#l=` link: play it, or explain what is wrong over the level list. Clears the hash. */
 async function openSharedLink(): Promise<void> {
   const m = /^#l=(.*)$/.exec(location.hash)
-  if (!m) return isFirstVisit() && levels.length > 0 ? showWelcome() : showList()
+  if (!m) {
+    if (isFirstVisit() && levels.length > 0) showWelcome()
+    else showList()
+    return showTitleCard(app)
+  }
   history.replaceState(null, '', location.pathname + location.search)
   const r = await decodeLevel(m[1])
   if (r.ok) play(asShared(r.level))
