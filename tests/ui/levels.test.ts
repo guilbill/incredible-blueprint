@@ -29,6 +29,7 @@ class FakeEl {
   textContent = ''
   hidden = false
   type = ''
+  title = ''
   accept = ''
   lang = ''
   children: FakeEl[] = []
@@ -55,7 +56,7 @@ class FakeEl {
 }
 
 describe('level list copy and duplicate buttons', () => {
-  beforeEach(() => vi.stubGlobal('document', { createElement: (tag: string) => new FakeEl(tag) }))
+  beforeEach(() => vi.stubGlobal('document', { createElement: (tag: string) => new FakeEl(tag), createElementNS: (_ns: string, tag: string) => new FakeEl(tag) }))
   afterEach(() => vi.unstubAllGlobals())
 
   const shipped = loadLevels().slice(0, 2)
@@ -76,7 +77,7 @@ describe('level list copy and duplicate buttons', () => {
 
   it('shipped cards copy without playing', () => {
     const { root, calls } = mount('shipped')
-    const btns = root.all().filter((e) => e.textContent === 'Copier dans mes niveaux')
+    const btns = root.all().filter((e) => e.title === 'Copier dans mes niveaux')
     expect(btns).toHaveLength(shipped.length)
     expect(btns[1].click()).toBe(true) // propagation stopped
     expect(calls.copy).toHaveBeenCalledWith(shipped[1])

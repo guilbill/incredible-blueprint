@@ -2,6 +2,7 @@ import { levelGoal, levelTitle, t } from '../i18n'
 import type { Level } from '../level/types'
 import type { Progress } from '../storage'
 import { el } from './dom'
+import { icon } from './icons'
 import { langSwitch } from './langSwitch'
 
 /**
@@ -56,7 +57,11 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
   if (opts.tab === 'shipped') {
     levels.forEach((level, i) => {
       const li = el('li', 'shipped')
-      const copyBtn = el('button', 'btn small ghost', t('list.copyToMine'))
+      // Icon only: a text label would cover the goal text of the card.
+      const copyBtn = el('button', 'btn icon copy')
+      copyBtn.title = t('list.copyToMine')
+      copyBtn.setAttribute('aria-label', copyBtn.title)
+      copyBtn.append(icon('duplicate'))
       copyBtn.addEventListener('click', (e) => {
         e.stopPropagation()
         opts.onCopyShipped(level)
