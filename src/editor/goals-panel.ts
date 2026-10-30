@@ -21,6 +21,12 @@ export interface GoalsPanelOpts {
   /** Start (or, with undefined, cancel) tracing a zone for `part` on the field. */
   trace(target: { part: string; hold: number } | undefined): void
   tracing(): boolean
+  /** Index of the selected goal, or -1. */
+  selected(): number
+  /** Selects goal `i` here and on the board (undefined clears it). */
+  select(i: number | undefined): void
+  /** Replaces goal `i`, edited in its row. */
+  edit(i: number, g: Goal): void
 }
 
 export interface GoalsPanel { el: HTMLElement; refresh(): void }
@@ -32,10 +38,16 @@ function partName(model: EditorModel, id: string): string {
 
 export function describeGoal(model: EditorModel, g: Goal): string {
   if (g.type === 'event') return `${eventLabel(g.event)}${g.part ? ` · ${partName(model, g.part)}` : ''}`
-  const hold = g.hold ?? 30
-  const time = (hold * STEP_MS / 1000).toFixed(2).replace(/\.?0+$/, '')
-  return t('goals.inZone', { part: partName(model, g.part), time: lang() === 'fr' ? time.replace('.', ',') : time })
+  const time = holdSeconds(g.hold ?? 30)
+  return t('goals.inZone', { part: partName(model, g.part), time })
 }
+
+function holdSeconds(steps: number): string {
+  const time = (steps * STEP_MS / 1000).toFixed(2).replace(/\.?0+$/, '')
+  return lang() === 'fr' ? time.replace('.', ',') : time
+}
+
+const describeHold = (steps: number): string => t('goals.hold', { time: `${holdSeconds(steps)} s` })
 
 function fillParts(select: HTMLSelectElement, model: EditorModel, any?: string): void {
   const keep = select.value
@@ -43,6 +55,42 @@ function fillParts(select: HTMLSelectElement, model: EditorModel, any?: string):
   if (any !== undefined) select.append(new Option(any, ''))
   for (const p of model.level.fixed) select.append(new Option(partName(model, p.id), p.id))
   if ([...select.options].some((o) => o.value === keep)) select.value = keep
+}
+
+function select(options: [value: string, label: string][], value: string, onChange: (value: string) => void): HTMLSelectElement {
+  const s = el('select')
+  for (const [v, label] of options) s.append(new Option(label, v))
+  s.value = value
+  s.addEventListener('change', () => onChange(s.value))
+  return s
+}
+
+/** Settings of goal `g` in its unfolded row: part and hold time, or event and part. */
+function goalFields(model: EditorModel, g: Goal, edit: (g: Goal) => void): HTMLElement {
+  const box = el('div', 'fields')
+  const parts: [string, string][] = model.level.fixed.map((p) => [p.id, partName(model, p.id)])
+  if (g.type === 'inZone') {
+    const hold = g.hold ?? 30
+    const holds: [string, string][] = HOLDS.map((h) => [String(h.steps), t('goals.hold', { time: h.label })])
+    // a shipped level can hold for a time the editor does not offer
+    if (!HOLDS.some((h) => h.steps === hold)) holds.push([String(hold), describeHold(hold)])
+    box.append(
+      select(parts, g.part, (part) => edit({ ...g, part })),
+      select(holds, String(hold), (v) => edit({ ...g, hold: Number(v) })),
+    )
+  } else {
+    box.append(
+      select(EVENTS.map((e) => [e, eventLabel(e)]), g.event, (v) => edit({ ...g, event: v as SimEventName })),
+      select([['', t('goals.anyPart')], ...parts], g.part ?? '', (part) => {
+        const next: Goal = { type: 'event', event: g.event }
+        if (part) next.part = part
+        edit(next)
+      }),
+    )
+  }
+  // clicks in the fields must not fold the row
+  box.addEventListener('click', (e) => e.stopPropagation())
+  return box
 }
 
 /** Goal list plus the two ways to add one: a part in a traced zone, or an event. */
@@ -78,15 +126,31 @@ export function goalsPanel(model: EditorModel, opts: GoalsPanelOpts): GoalsPanel
 
   function refresh(): void {
     list.replaceChildren()
+    const sel = opts.selected()
     model.level.goals.forEach((g, i) => {
       const li = el('li')
+      const on = i === sel
+      li.classList.toggle('on', on)
+      li.tabIndex = 0
+      li.setAttribute('aria-expanded', String(on))
+      li.title = on ? '' : t('goals.select')
+      const toggle = (): void => opts.select(on ? undefined : i)
+      li.addEventListener('click', toggle)
+      li.addEventListener('keydown', (e) => {
+        if (e.target !== li || (e.key !== 'Enter' && e.key !== ' ')) return
+        e.preventDefault()
+        toggle()
+      })
       const del = el('button', 'btn small danger', '×')
       del.title = t('goals.remove')
-      del.addEventListener('click', () => {
+      del.addEventListener('click', (e) => {
+        e.stopPropagation()
         model.removeGoal(i)
+        opts.select(sel === i ? undefined : sel > i ? sel - 1 : sel)
         opts.changed()
       })
       li.append(el('span', '', describeGoal(model, g)), del)
+      if (on) li.append(goalFields(model, g, (next) => opts.edit(i, next)))
       list.append(li)
     })
     if (model.level.goals.length === 0) list.append(el('li', 'note', t('goals.none')))

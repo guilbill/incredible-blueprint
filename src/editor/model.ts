@@ -112,6 +112,20 @@ export class EditorModel {
     return true
   }
 
+  /** Makes the inZone goal `i` aim at `part`, same zone; false (nothing changed) for a missing part, an event goal or a bad index. */
+  setGoalPart(i: number, part: string): boolean {
+    const g = this.level.goals[i]
+    return g?.type === 'inZone' && this.setGoal(i, { ...g, part })
+  }
+
+  /** Replaces goal `i`; false (nothing changed) for a bad index or a goal aiming at a part that is not there. */
+  setGoal(i: number, g: Goal): boolean {
+    if (!this.level.goals[i] || (g.part !== undefined && !this.hasTarget(g.part))) return false
+    this.level.goals[i] = structuredClone(g)
+    this.markDirty()
+    return true
+  }
+
   removeGoal(i: number): void {
     this.level.goals = this.level.goals.filter((_, j) => j !== i)
     this.markDirty()

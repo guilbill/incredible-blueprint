@@ -53,6 +53,12 @@ export interface AuthorOpts {
   onTraced(zone: { x: number; y: number; w: number; h: number }): void
   /** Replaces the zone of the inZone goal `i` (moved or resized on the board). Not an undo step. */
   setZone(i: number, zone: Rect): void
+  /** Makes the inZone goal `i` aim at another part (picked from the zone's label). Not an undo step. */
+  setGoalPart(i: number, part: string): void
+  /** The goal selected on the board changed (a zone clicked, or the selection cleared). */
+  onSelectGoal(g: Goal | undefined): void
+  /** Called once at mount: lets the editor select a goal on the board (a zone; anything else clears it). */
+  link(board: { selectGoal(g: Goal | undefined): void }): void
   /** Removes goal `i`. Not an undo step. */
   removeGoal(i: number): void
   /** Ids of the locked parts (author aid, kept outside the level); read every frame. */
@@ -209,6 +215,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let group: GroupDrag | undefined
   /** Selected goal (author mode), exclusive with the part selection. Kept by reference: the goals panel can remove others, which shifts indexes. */
   let selectedGoal: Goal | undefined
+  /** Last goal reported to the editor through onSelectGoal. */
+  let notifiedGoal: Goal | undefined
   let zoneDrag: ZoneDrag | undefined
   /** Index of the selected goal in `author.goals()`, or -1 when none is selected or it is gone. */
   const zoneIndex = (): number => (selectedGoal && author ? author.goals().indexOf(selectedGoal) : -1)
@@ -267,6 +275,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const stage = el('main', 'stage')
   const canvas = el('canvas')
   const selPanel = el('div', 'selpanel')
+  // author mode: on the selected goal zone, the part it aims at; a click lists the others
+  const zoneTag = el('button', 'zonetag')
+  zoneTag.type = 'button'
+  zoneTag.hidden = true
+  zoneTag.title = t('goals.pickPart')
+  zoneTag.setAttribute('aria-label', zoneTag.title)
+  const zoneTagText = el('span')
+  zoneTag.append(zoneTagText, icon('chevron'))
   const toast = el('div', 'toast')
   // "Try again?" prompt: never blocks the run, so a slow machine can still reach its goal behind it
   const retry = el('div', 'retry')
@@ -280,7 +296,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const help = el('div', 'help')
   help.hidden = true
   help.addEventListener('click', () => closeHelp())
-  stage.append(canvas, hints, selPanel, toast, retry, help)
+  stage.append(canvas, hints, selPanel, zoneTag, toast, retry, help)
   const ctx = canvas.getContext('2d')!
 
   const drawer = el('aside', 'drawer')
@@ -790,6 +806,27 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     closeMenu = openMenu({ x: e.clientX, y: e.clientY }, items)
   })
 
+  zoneTag.addEventListener('click', () => {
+    const zi = zoneIndex()
+    const g = author?.goals()[zi]
+    if (!author || g?.type !== 'inZone') return
+    closeMenu?.()
+    const r = zoneTag.getBoundingClientRect()
+    const items: MenuItem[] = sol.placements.map((p) => ({
+      label: `${partLabel(p.kind)} (${p.id})`,
+      shortcut: '',
+      enabled: true,
+      current: p.id === g.part,
+      run: () => {
+        author.setGoalPart(zi, p.id)
+        // setGoalPart replaces the goal object
+        selectedGoal = author.goals()[zi]
+        refreshUi()
+      },
+    }))
+    closeMenu = openMenu({ x: r.left, y: r.bottom }, items)
+  })
+
   /** A hint as key caps followed by its label. */
   function hintNode(hint: Hint): HTMLElement {
     const item = el('span', 'hint')
@@ -847,6 +884,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     dirty = true
     // a zone stays selected only while its goal is there (the panel can remove it) and nothing else is
     if (selectedGoal && (selection.length || selectedLink || zoneIndex() < 0)) selectedGoal = undefined
+    if (author && selectedGoal !== notifiedGoal) {
+      notifiedGoal = selectedGoal
+      author.onSelectGoal(selectedGoal)
+    }
     refreshHints()
     undoBtn.disabled = !past.length || !!sim
     redoBtn.disabled = !future.length || !!sim
@@ -1499,6 +1540,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (!sim && !dirty && !animating) return
     dirty = false
     guarded(draw, (err) => jammed(err, true))
+    placeZoneTag()
+  }
+
+  /** On the top edge of the selected zone, or just inside it when the zone touches the top of the board. */
+  function placeZoneTag(): void {
+    const g = author && !sim && !trace ? author.goals()[zoneIndex()] : undefined
+    zoneTag.hidden = g?.type !== 'inZone'
+    if (g?.type !== 'inZone') return
+    const p = sol.placements.find((q) => q.id === g.part)
+    zoneTagText.textContent = p ? partLabel(p.kind) : g.part
+    const stageRect = stage.getBoundingClientRect()
+    const at = unitsToClient({ x: g.zone.x, y: g.zone.y }, canvas.getBoundingClientRect())
+    const top = at.y - stageRect.top
+    zoneTag.style.left = `${at.x - stageRect.left}px`
+    zoneTag.style.top = `${top >= zoneTag.offsetHeight ? top - zoneTag.offsetHeight : top}px`
   }
 
   function draw(): void {
@@ -1570,6 +1626,19 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   void document.fonts?.ready.then(markDirty)
   resize()
   refreshUi()
+  author?.link({
+    selectGoal: (g) => {
+      if (sim) return
+      selectedGoal = g?.type === 'inZone' ? g : undefined
+      if (selectedGoal) {
+        selection = []
+        selectedLink = undefined
+      }
+      // the editor asked for it: no need to tell it back
+      notifiedGoal = selectedGoal
+      refreshUi()
+    },
+  })
   raf = requestAnimationFrame(frame)
 
   return () => {

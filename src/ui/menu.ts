@@ -7,6 +7,8 @@ export interface MenuItem {
   shortcut: string
   run(): void
   enabled: boolean
+  /** The value in use (a choice menu): drawn highlighted. */
+  current?: boolean
 }
 
 /**
@@ -35,6 +37,7 @@ export function openMenu(at: { x: number; y: number }, items: MenuItem[]): () =>
     const row = el('button', 'item')
     row.append(el('span', 'label', it.label), el('span', 'shortcut', it.shortcut))
     row.disabled = !it.enabled
+    row.classList.toggle('current', !!it.current)
     row.addEventListener('click', () => {
       close()
       it.run()

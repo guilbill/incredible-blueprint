@@ -1,7 +1,7 @@
 import { partLabel, t } from '../i18n'
 import { encodeLevel, levelToFile, shareUrl } from '../level/codec'
 import { saveCustomLevel } from '../level/custom'
-import type { Level, Solution } from '../level/types'
+import type { Goal, Level, Solution } from '../level/types'
 import { el } from '../ui/dom'
 import { mountPlay } from '../ui/play'
 import { goalsPanel } from './goals-panel'
@@ -38,6 +38,10 @@ function download(blob: Blob, name: string): void {
 export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorOpts): () => void {
   let unmountView: () => void = () => {}
   let tracing: { part: string; hold: number } | undefined
+  /** Index of the goal selected in the panel and, for a zone, on the board; -1 for none. */
+  let selectedGoal = -1
+  /** Selects a goal on the author's board; set once the board is mounted. */
+  let board: { selectGoal(g: Goal | undefined): void } | undefined
   let saved = true
   let noticeTimer = 0
   /** Locked parts of the board: an author aid kept next to the level, never in it. */
@@ -51,6 +55,10 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
     if (e.key === 'Escape' && tracing) {
       tracing = undefined
       refresh()
+    } else if (e.key === 'Escape' && model.level.goals[selectedGoal]?.type === 'event') {
+      // an event goal has no zone on the board, so the board's Escape does not clear it
+      selectedGoal = -1
+      refresh()
     }
   }
 
@@ -60,6 +68,8 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
   function showAuthor(): void {
     unmountView()
     tracing = undefined
+    selectedGoal = -1
+    board = undefined
 
     // ---- toolbar ----
     const status = el('span', 'status')
@@ -109,6 +119,18 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
         refresh()
       },
       tracing: () => !!tracing,
+      selected: () => selectedGoal,
+      select: (i) => {
+        selectedGoal = i ?? -1
+        board?.selectGoal(model.level.goals[selectedGoal])
+        refresh()
+      },
+      edit: (i, g) => {
+        if (!model.setGoal(i, g)) return
+        changed()
+        // the model replaced the goal object: the board keeps it selected
+        board?.selectGoal(model.level.goals[i])
+      },
     })
 
     const inv = el('section', 'inv')
@@ -198,6 +220,14 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
         setZone: (i, zone) => {
           if (model.setZone(i, zone)) changed()
         },
+        setGoalPart: (i, part) => {
+          if (model.setGoalPart(i, part)) changed()
+        },
+        onSelectGoal: (g) => {
+          selectedGoal = g ? model.level.goals.indexOf(g) : -1
+          refresh()
+        },
+        link: (b) => (board = b),
         removeGoal: (i) => {
           model.removeGoal(i)
           changed()

@@ -216,3 +216,46 @@ describe('EditorModel.setZone', () => {
     expect(m.level.goals).toEqual(before)
   })
 })
+
+describe('EditorModel.setGoalPart', () => {
+  it('retargets an inZone goal, keeps its zone and marks the level unverified', () => {
+    const m = ready()
+    expect(m.addFixed(P('bowl', 'ball-bowling', 300, 100))).toBe(true)
+    const zone = structuredClone((m.level.goals[0] as { zone: unknown }).zone)
+    m.level.verified = true
+    const before = m.level.goals[0]
+    expect(m.setGoalPart(0, 'bowl')).toBe(true)
+    expect(m.level.goals[0]).toMatchObject({ type: 'inZone', part: 'bowl', zone })
+    expect(m.level.goals.indexOf(before)).toBe(-1)
+    expect(m.level.verified).toBe(false)
+  })
+
+  it('refuses a missing part, an event goal or a bad index', () => {
+    const m = ready()
+    m.addGoal({ type: 'event', event: 'rope-cut' })
+    const before = structuredClone(m.level.goals)
+    expect(m.setGoalPart(0, 'nope')).toBe(false)
+    expect(m.setGoalPart(1, 'ball')).toBe(false)
+    expect(m.setGoalPart(5, 'ball')).toBe(false)
+    expect(m.level.goals).toEqual(before)
+  })
+})
+
+describe('EditorModel.setGoal', () => {
+  it('replaces goal i and marks the level unverified', () => {
+    const m = ready()
+    m.addGoal({ type: 'event', event: 'rope-cut' })
+    m.level.verified = true
+    expect(m.setGoal(1, { type: 'event', event: 'bowl-broken', part: 'ball' })).toBe(true)
+    expect(m.level.goals[1]).toEqual({ type: 'event', event: 'bowl-broken', part: 'ball' })
+    expect(m.level.verified).toBe(false)
+  })
+
+  it('refuses a missing part or a bad index', () => {
+    const m = ready()
+    const before = structuredClone(m.level.goals)
+    expect(m.setGoal(0, { type: 'event', event: 'rope-cut', part: 'nope' })).toBe(false)
+    expect(m.setGoal(3, { type: 'event', event: 'rope-cut' })).toBe(false)
+    expect(m.level.goals).toEqual(before)
+  })
+})

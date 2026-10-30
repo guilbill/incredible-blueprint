@@ -3,7 +3,7 @@ import { type Vec, add, rotate, v } from '../engine/vec'
 import { bodyPose } from '../engine/world'
 import type { Simulation } from '../game/simulation'
 import { partLabel } from '../i18n'
-import { FIELD, anchorPoint, footprint } from '../level/placement'
+import { FIELD, anchorPoint, footprint, sizeOf } from '../level/placement'
 import type { Anchor, Guide, Level, Link, Placement, Rect, Solution } from '../level/types'
 import { CELL } from '../parts/common'
 import { gearPhases } from '../parts/mech/gear'
@@ -424,9 +424,16 @@ function drawSelectionBox(pen: Pen, r: Rect, bad: boolean): void {
   pen.ctx.setLineDash([])
 }
 
-/** Selected goal zone: solid thick outline and a square on each corner. */
-function drawSelectedZone(pen: Pen, g: Level['goals'][number] | undefined): void {
+/** Selected goal zone: solid thick outline, a square on each corner and a dashed ring around the part it aims at. */
+function drawSelectedZone(pen: Pen, g: Level['goals'][number] | undefined, placements: Placement[]): void {
   if (g?.type !== 'inZone') return
+  const target = placements.find((p) => p.id === g.part)
+  if (target) {
+    const { w: cw, h: ch } = sizeOf(target)
+    pen.reset(COLORS.yellow, 1.5)
+    pen.dashed(true)
+    pen.circle(v(target.x, target.y), (Math.max(cw, ch) * CELL) / 2 + 6)
+  }
   const { x, y, w, h } = g.zone
   pen.reset(COLORS.yellow, 2)
   pen.poly([v(x, y), v(x + w, y), v(x + w, y + h), v(x, y + h)])
@@ -543,7 +550,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
       const q = placements.find((o) => o.id === id)
       if (q) drawBlocked(pen, q)
     }
-    if (view.selectedZone !== undefined) drawSelectedZone(pen, level.goals[view.selectedZone])
+    if (view.selectedZone !== undefined) drawSelectedZone(pen, level.goals[view.selectedZone], placements)
     if (view.marquee) drawMarquee(pen, view.marquee)
     if (view.guides) drawGuides(pen, view.guides)
     if (view.dial) drawDial(pen, view.dial)

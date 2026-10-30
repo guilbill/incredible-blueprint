@@ -1,6 +1,6 @@
 const NS = 'http://www.w3.org/2000/svg'
 
-export type IconName = 'duplicate' | 'copy' | 'rotate' | 'flip' | 'lock' | 'unlock' | 'delete' | 'edit'
+export type IconName = 'duplicate' | 'copy' | 'rotate' | 'flip' | 'lock' | 'unlock' | 'delete' | 'edit' | 'chevron'
 
 type Shape = [tag: string, attrs: Record<string, string | number>]
 
@@ -36,6 +36,7 @@ const SHAPES: Record<IconName, Shape[]> = {
     ['path', { d: 'M2 12 L2.6 9.4 L9.4 2.6 L11.4 4.6 L4.6 11.4 Z' }],
     ['line', { x1: 8, y1: 4, x2: 10, y2: 6 }],
   ],
+  chevron: [['path', { d: 'M3 5 L7 9 L11 5' }]],
 }
 
 /** A 14x14 line icon that takes the colour of its button. */

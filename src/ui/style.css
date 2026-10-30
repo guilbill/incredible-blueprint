@@ -262,6 +262,26 @@ button { font: inherit; color: inherit; }
 .ctxmenu .item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
 .ctxmenu .item:disabled { opacity: 0.35; cursor: default; }
 .ctxmenu .shortcut { color: var(--note); }
+.ctxmenu .item.current { color: var(--yellow); }
+
+/* Label on the selected goal zone: the part it aims at, click to pick another. */
+.zonetag {
+  position: absolute;
+  z-index: 2;
+  height: 20px;
+  padding: 0 4px 0 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 2px 2px 0 0;
+  background: var(--yellow);
+  color: var(--bg);
+  font: 11px ui-monospace, Menlo, monospace;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.zonetag[hidden] { display: none; }
 
 .toast {
   position: absolute;
@@ -487,6 +507,12 @@ button { font: inherit; color: inherit; }
 .goal-list li { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border: 1px dashed var(--yellow); border-radius: 2px; }
 .goal-list li span { flex: 1; }
 .goal-list li.note { border-color: var(--grid); }
+.goal-list li:not(.note) { flex-wrap: wrap; cursor: pointer; }
+.goal-list li:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
+.goal-list li.on { border-style: solid; background: rgba(255, 207, 90, 0.12); cursor: default; }
+.goal-list li.on > span { color: var(--yellow); }
+.goal-list .fields { flex-basis: 100%; display: grid; gap: 4px; }
+.goal-list .fields select { min-width: 0; }
 .goal-form { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--grid); border-radius: 3px; }
 .goal-form .hint { margin: 0; color: var(--yellow); }
 .goal-form .hint[hidden] { display: none; }
