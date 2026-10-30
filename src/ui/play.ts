@@ -22,7 +22,8 @@ import { getClip, setClip } from './clipboard'
 import { isMac, isTypingTarget } from './keys'
 import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
-import { allShortcuts, hintsFor, type Hint } from './shortcuts'
+import { allGestures, allShortcuts, hintsFor, type Hint } from './shortcuts'
+import { createLongPress, handleTolerance, touchUi } from './touch'
 import { sound } from './sound'
 import { copyGroup, groupBox, inStock, groupNotches, groupRotHandle, groupRotStep, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, rotationBlockers, selectInRect, turnedParts, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
@@ -224,6 +225,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const zoneIndex = (): number => (selectedGoal && author ? author.goals().indexOf(selectedGoal) : -1)
   /** Selection rectangle dragged on empty space; `base` is the selection kept under it (Shift). */
   let marquee: { a: Vec; b: Vec; base: string[] } | undefined
+  /** Touch stand-in for Shift: taps and rectangles add to the selection until it is turned off or emptied. */
+  let adding = false
+  /** Handle tolerance (units) of the current press: wider for a finger. */
+  let hitTol = HANDLE_HIT
+  /** Pointer type of the last press on the board ('mouse', 'pen', 'touch'). */
+  let lastPointer = 'mouse'
   let acc = 0
   let lastT: number | undefined
   let fit = fitCanvas(1, 1, 1)
@@ -449,6 +456,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const row = el('div', 'row actions')
     copyButtons.length = 0
     if (!one) row.append(el('span', 'count', String(selection.length)))
+    if (touchUi()) row.append(addButton())
     row.append(copyButton('duplicate', duplicateSelection), copyButton('copy', copySelection))
     if (one ? partDef(one.kind).rotStep > 0 : unlocked().length > 1) row.append(iconButton('rotate', 'rotate', () => rotateSelection(1)))
     if (one && partDef(one.kind).flippable) row.append(iconButton('flip', 'flip', () => edit(flipped)))
@@ -473,6 +481,18 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       b.disabled = !ok
       b.title = ok ? name : t('action.noStock', { action: name })
     }
+  }
+
+  /** Touch only: turns "add to the selection" on and off (what Shift does with a mouse). */
+  function addButton(): HTMLButtonElement {
+    const b = iconButton('select-add', 'addSelect', () => {
+      adding = !adding
+      refreshUi()
+    })
+    b.classList.add('toggle')
+    b.classList.toggle('on', adding)
+    b.setAttribute('aria-pressed', String(adding))
+    return b
   }
 
   const lockButton = (): HTMLButtonElement => iconButton(allLocked() ? 'unlock' : 'lock', allLocked() ? 'unlock' : 'lock', toggleLock)
@@ -800,9 +820,16 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault()
+    // a finger opens the menu with its own long press (Android would also send this one)
+    if (lastPointer === 'touch') return
+    openBoardMenu(e)
+  })
+
+  /** The board's right-click menu at a client position: actions on the part there, else paste and select all. */
+  function openBoardMenu(at: { clientX: number; clientY: number }): void {
     closeMenu?.()
     if (sim) return
-    const pt = unitsAt(e)
+    const pt = unitsAt(at)
     const hit = hitPart(sol, pt)
     let items: MenuItem[]
     if (hit) {
@@ -824,7 +851,21 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
         { label: t('menu.selectAll'), shortcut: `${modKey}A`, run: selectAll, enabled: sol.placements.length > 0 },
       ]
     }
-    closeMenu = openMenu({ x: e.clientX, y: e.clientY }, items)
+    closeMenu = openMenu({ x: at.clientX, y: at.clientY }, items)
+  }
+
+  /** A finger held still on the board: the gesture it started is dropped and the menu opens instead. */
+  const longPress = createLongPress((at) => {
+    if (sim) return
+    if (marquee) selection = marquee.base
+    drag = undefined
+    group = undefined
+    marquee = undefined
+    grip = undefined
+    spin = undefined
+    zoneDrag = undefined
+    sound.click()
+    openBoardMenu({ clientX: at.x, clientY: at.y })
   })
 
   zoneTag.addEventListener('click', () => {
@@ -876,8 +917,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       mac: isMac(),
     })
     const more = el('button', 'hint more')
-    more.append(el('kbd', '', '?'), ` ${t('hint.all.link')}`)
     more.addEventListener('click', openHelp)
+    if (touchUi()) {
+      // no keyboard: the line only leads to the gestures
+      more.append(t('hint.gestures.link'))
+      hints.replaceChildren(el('span', 'items'), more)
+      return
+    }
+    more.append(el('kbd', '', '?'), ` ${t('hint.all.link')}`)
     // on a narrow board the list gives way, the link to the full help stays
     const items = el('span', 'items')
     items.append(...list.map(hintNode))
@@ -885,6 +932,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function openHelp(): void {
+    if (touchUi()) {
+      openGestures()
+      return
+    }
     const rows = allShortcuts(!!author, isMac()).map((hint) => {
       const row = el('div', 'row')
       row.append(el('span', 'keys'), el('span', 'what', hint.label))
@@ -897,12 +948,31 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     help.hidden = false
   }
 
+  function openGestures(): void {
+    const rows = allGestures().map((gs) => {
+      const row = el('div', 'row')
+      const keys = el('span', 'keys', gs.gesture)
+      if (gs.icon) keys.append(' ', icon(gs.icon))
+      row.append(keys, el('span', 'what', gs.label))
+      return row
+    })
+    const card = el('div', 'card')
+    card.append(el('h2', '', t('gestures.title')), ...rows, el('p', 'note', t('gestures.close')))
+    help.replaceChildren(card)
+    help.hidden = false
+  }
+
   function closeHelp(): void {
     help.hidden = true
   }
 
   function refreshUi(): void {
     dirty = true
+    if (!selection.length || sim) adding = false
+    for (const b of selPanel.querySelectorAll<HTMLButtonElement>('.toggle')) {
+      b.classList.toggle('on', adding)
+      b.setAttribute('aria-pressed', String(adding))
+    }
     // a zone stays selected only while its goal is there (the panel can remove it) and nothing else is
     if (selectedGoal && (selection.length || selectedLink || zoneIndex() < 0)) selectedGoal = undefined
     if (author && selectedGoal !== notifiedGoal) {
@@ -992,8 +1062,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   canvas.addEventListener('pointerdown', (e) => {
+    lastPointer = e.pointerType
     if (e.button !== 0 || sim) return
     const pt = unitsAt(e)
+    hitTol = handleTolerance(e.pointerType, canvas.getBoundingClientRect().width)
+    const finger = e.pointerType === 'touch'
     if (author?.tracing()) {
       e.preventDefault()
       trace = { a: pt, b: pt }
@@ -1009,8 +1082,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       refreshUi()
       return
     }
+    if (finger) longPress.start({ x: e.clientX, y: e.clientY })
     const gh = groupHandle()
-    if (gh && len(sub(gh, pt)) <= HANDLE_HIT) {
+    if (gh && len(sub(gh, pt)) <= hitTol) {
       e.preventDefault()
       const ps = spinParts()!
       const pivot = spinPivot(ps)
@@ -1019,7 +1093,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     const sp = single()
-    const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt)
+    const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt, hitTol)
     if (handle) {
       e.preventDefault()
       grip = { kind: handle, start: { x: e.clientX, y: e.clientY }, moved: false }
@@ -1027,11 +1101,13 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     const hit = hitPart(sol, pt)
+    // no hover for a finger: the label shows on the part it touched
+    if (finger) hover = hit ? { id: hit.id, since: performance.now() } : undefined
     if (hit) {
       e.preventDefault()
       selectedLink = undefined
       selectedGoal = undefined
-      if (e.shiftKey) {
+      if (e.shiftKey || adding) {
         selection = selection.includes(hit.id) ? selection.filter((id) => id !== hit.id) : [...selection, hit.id]
       } else {
         if (!selection.includes(hit.id)) selection = [hit.id]
@@ -1048,7 +1124,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const zones = author?.goals() ?? []
     const zsel = zoneIndex()
     const zone = zsel >= 0 ? zones[zsel] : undefined
-    const corner = zone?.type === 'inZone' ? zoneCorner(zone.zone, pt, HANDLE_HIT) : undefined
+    const corner = zone?.type === 'inZone' ? zoneCorner(zone.zone, pt, hitTol) : undefined
     if (author && zsel >= 0 && zone?.type === 'inZone' && corner) {
       e.preventDefault()
       zoneDrag = { i: zsel, corner, orig: zone.zone, from: pt, start: { x: e.clientX, y: e.clientY }, started: false }
@@ -1078,7 +1154,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     e.preventDefault()
     selectedLink = undefined
     selectedGoal = undefined
-    const base = e.shiftKey ? selection : []
+    const base = e.shiftKey || adding ? selection : []
     selection = base
     marquee = { a: pt, b: pt, base }
     refreshUi()
@@ -1135,6 +1211,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   }
 
   function onPointerMove(e: PointerEvent): void {
+    longPress.move({ x: e.clientX, y: e.clientY })
     if (trace) {
       trace.b = unitsAt(e)
       return
@@ -1233,14 +1310,16 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     dirty = true
   }
 
-  function onPointerLeave(): void {
+  function onPointerLeave(e: PointerEvent): void {
     hoverEnd = undefined
-    hover = undefined
+    // a lifted finger leaves the board: the label of the part it touched stays
+    if (e.pointerType !== 'touch') hover = undefined
     pointer = undefined
     dirty = true
   }
 
   function onPointerUp(e: PointerEvent): void {
+    longPress.cancel()
     if (trace) {
       const zone = rectFromDrag(trace.a, unitsAt(e))
       trace = undefined
@@ -1282,8 +1361,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if (marquee) {
-      updateMarquee(marquee, unitsAt(e))
+      const m = marquee
+      updateMarquee(m, unitsAt(e))
       marquee = undefined
+      // while adding, a tap in the void (no rectangle) ends the selection
+      if (adding && m.a.x === m.b.x && m.a.y === m.b.y) selection = []
       refreshUi()
       return
     }
@@ -1324,6 +1406,20 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
         showToast(t('toast.noRoom'))
       }
     }
+    refreshUi()
+  }
+
+  /** The browser took the pointer back (a system gesture, a call): the gesture is dropped, nothing is committed. */
+  function onPointerCancel(): void {
+    longPress.cancel()
+    if (marquee) selection = marquee.base
+    trace = undefined
+    drag = undefined
+    group = undefined
+    marquee = undefined
+    grip = undefined
+    spin = undefined
+    zoneDrag = undefined
     refreshUi()
   }
 
@@ -1643,6 +1739,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   window.addEventListener('pointermove', onPointerMove)
   canvas.addEventListener('pointerleave', onPointerLeave)
   window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('pointercancel', onPointerCancel)
   window.addEventListener('keydown', onKey)
   window.addEventListener('keyup', onKeyUp)
   for (const type of DIRTY_EVENTS) window.addEventListener(type, markDirty, true)
@@ -1673,6 +1770,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     ro.disconnect()
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)
+    window.removeEventListener('pointercancel', onPointerCancel)
+    longPress.cancel()
     window.removeEventListener('keydown', onKey)
     window.removeEventListener('keyup', onKeyUp)
     for (const type of DIRTY_EVENTS) window.removeEventListener(type, markDirty, true)

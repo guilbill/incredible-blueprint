@@ -1,4 +1,5 @@
 import { t } from '../i18n'
+import type { IconName } from './icons'
 
 /** One shortcut: the keys to press (shown as key caps) and what they do. */
 export interface Hint {
@@ -69,4 +70,27 @@ export function allShortcuts(author: boolean, mac: boolean): Hint[] {
   out.push(h([mod, 'Z'], 'hint.undo'), h([mod, 'Y'], 'help.redo'), h([t('hint.esc')], 'hint.deselect'))
   if (!author) out.push(h([t('hint.space')], 'help.run'))
   return out
+}
+
+/** One touch gesture: what the finger does (with the button's icon, if any) and its effect. */
+export interface Gesture {
+  gesture: string
+  icon?: IconName
+  label: string
+}
+
+const g = (gesture: string, label: string, icon?: IconName): Gesture => ({ gesture: t(gesture), label: t(label), icon })
+
+/** Every gesture of the board, for the help overlay on a touch screen. */
+export function allGestures(): Gesture[] {
+  return [
+    g('gesture.tapPart', 'gesture.select'),
+    g('gesture.dragPart', 'gesture.move'),
+    g('gesture.handle', 'gesture.turn'),
+    g('gesture.dragVoid', 'help.rect'),
+    g('gesture.addButton', 'gesture.add', 'select-add'),
+    g('gesture.hold', 'gesture.menu'),
+    g('gesture.tapVoid', 'hint.deselect'),
+    { gesture: '↶ ↷', label: t('gesture.undo') },
+  ]
 }

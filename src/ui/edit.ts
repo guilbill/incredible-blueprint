@@ -144,12 +144,17 @@ export function handlesOf(p: Placement): Partial<Record<HandleKind, Vec>> {
   return out
 }
 
-/** Handle of the part under the point, if any. */
-export function hitHandle(p: Placement, pt: Vec): HandleKind | undefined {
+/**
+ * Handle of the part under the point, if any. A wider `tol` (a finger) only reaches past HANDLE_HIT
+ * outside the part itself, so a press on the part still moves it.
+ */
+export function hitHandle(p: Placement, pt: Vec, tol = HANDLE_HIT): HandleKind | undefined {
   const hs = handlesOf(p)
+  const onPart = tol > HANDLE_HIT && inConvex(pt, footprint(p))
   for (const k of ['rot', 'start', 'end'] as const) {
     const at = hs[k]
-    if (at && len(sub(at, pt)) <= HANDLE_HIT) return k
+    const d = at && len(sub(at, pt))
+    if (d !== undefined && (d <= HANDLE_HIT || (d <= tol && !onPart))) return k
   }
   return undefined
 }

@@ -270,6 +270,13 @@ describe('part handles', () => {
     expect(hitHandle(ramp(), { x: 400, y: 300 })).toBeUndefined()
   })
 
+  it('reaches a handle from further away with a finger, but never over the part itself', () => {
+    expect(hitHandle(ramp(), { x: 465, y: 300 })).toBeUndefined()
+    expect(hitHandle(ramp(), { x: 465, y: 300 }, 20)).toBe('end')
+    // 12 units from the handle but on the ramp: the press moves the ramp
+    expect(hitHandle(ramp(), { x: 436, y: 300 }, 20)).toBeUndefined()
+  })
+
   it('puts the length handles along an upright wall and the rotate handle beside it', () => {
     const h = handlesOf(wall())
     expect(h.start!.y).toBeCloseTo(300 - 48)

@@ -11,8 +11,10 @@ export default defineConfig({
     timeout: 120_000,
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /touch/ },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: /touch/ },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: /touch/ },
+    // real touch input needs the DevTools protocol, so Chromium only
+    { name: 'tablet', use: { ...devices['Galaxy Tab S4 landscape'] }, testMatch: /touch/ },
   ],
 })
