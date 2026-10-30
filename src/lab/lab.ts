@@ -1,6 +1,6 @@
 import { partDef } from '../parts/registry'
 import type { PartKind, Placement } from '../level/types'
-import type { Pen } from '../render/pen'
+import type { PartDrawState, Pen } from '../render/pen'
 
 /**
  * Design bench (dev only, `/lab.html`): a topic shows 2 to 5 variants side by side so the user picks
@@ -28,6 +28,13 @@ export interface LabTopic {
 }
 
 export const defineLab = (topic: LabTopic): LabTopic => topic
+
+/** Draws a candidate `draw` for a part (same signature as `PartDef.draw`) at x, y, with no live instance. */
+export function drawCandidate(pen: Pen, kind: PartKind, draw: (pen: Pen, s: PartDrawState) => void, x: number, y: number, extra: Partial<Placement> = {}): void {
+  const placement: Placement = { id: `lab-${kind}`, kind, x, y, rot: 0, flip: false, settings: {}, ...extra }
+  pen.reset()
+  draw(pen, { placement })
+}
 
 /** Draws a real part, as the game does, at x, y (centre of its footprint). */
 export function drawPart(pen: Pen, kind: PartKind, x: number, y: number, extra: Partial<Placement> = {}): void {

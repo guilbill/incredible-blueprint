@@ -18,6 +18,8 @@ export interface PartDrawState {
   selected?: boolean
   /** Locked part of the level (the renderer adds a hatched corner mark). */
   fixed?: boolean
+  /** A drawn rope is tied to this part (the cheese shows its string only then). */
+  roped?: boolean
   /** Gears: drawing angle offset so meshing teeth interlock. */
   phase?: number
 }

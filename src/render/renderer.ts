@@ -165,7 +165,9 @@ function wheelOf(a: Anchor, placements: Placement[], sim?: Simulation): { radius
   return radius === undefined ? undefined : { radius, angle: 0 }
 }
 
-function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation, selected?: string): void {
+/** Draws ropes and belts; returns the ids of the parts a drawn rope is tied to. */
+function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation, selected?: string): Set<string> {
+  const roped = new Set<string>()
   for (const l of links) {
     // A cut rope disappears, and so does one tied to a part taken out of play (an eaten cheese, a
     // caught mouse): Planck no longer simulates it. A link the simulation could not build is not drawn while it runs.
@@ -176,6 +178,10 @@ function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simul
     const a = anchorPos(l.a, placements, sim)
     const b = anchorPos(l.b, placements, sim)
     if (!a || !b) continue
+    if (l.kind === 'rope') {
+      roped.add(l.a.part)
+      roped.add(l.b.part)
+    }
     if (l.id === selected) pen.reset(COLORS.yellow, 2)
     else pen.reset(COLORS.line, 1)
     const wa = l.kind === 'belt' ? wheelOf(l.a, placements, sim) : undefined
@@ -194,6 +200,7 @@ function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simul
     pen.line(a, b)
   }
   pen.reset()
+  return roped
 }
 
 /** First anchor of a link being made: yellow ring, no glow. */
@@ -499,13 +506,13 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   if (!cached) drawGrid(ctx)
   drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
-  drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
+  const roped = drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
   const fixedIds = new Set(level.fixed.map((p) => p.id))
   const phases = gearPhases(placements)
   const selectedIds = new Set(view.selected)
   for (const placement of placements) {
     const inst = sim?.parts.find((p) => p.id === placement.id)
-    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: selectedIds.has(placement.id), phase: phases.get(placement.id) })
+    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: selectedIds.has(placement.id), phase: phases.get(placement.id), roped: roped.has(placement.id) })
     if (view.locked?.has(placement.id)) drawPadlock(pen, placement)
   }
   if (sim) drawTrails(pen, sim)
@@ -513,7 +520,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   if (ghosts.length) {
     const moved = new Set(ghosts.map((g) => g.placement.id))
     const ghostPhases = gearPhases([...placements.filter((q) => !moved.has(q.id)), ...ghosts.map((g) => g.placement)])
-    for (const g of ghosts) drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id) })
+    for (const g of ghosts) drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id), roped: roped.has(g.placement.id) })
   }
   if (!sim) {
     if (view.pendingAnchor) {

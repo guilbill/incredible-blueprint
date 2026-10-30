@@ -1,8 +1,8 @@
 import { setVelocity, staticBox, velocity } from '../../engine/bodies'
-import { add, dot, rotate, scale, sub, v } from '../../engine/vec'
+import { type Vec, add, dot, rotate, scale, sub, v } from '../../engine/vec'
 import { MAX_SPEED } from '../../engine/world'
 import { CELL, angleOf, instance, pos, setting } from '../common'
-import { applyGlow, poseOf, rectPts, toWorld } from '../drawing'
+import { applyGlow, hatch, poseOf, rectPts, toWorld } from '../drawing'
 import type { PartDef, SettingDef } from '../types'
 
 const FORCE: SettingDef = { key: 'force', label: 'Force', min: 1, max: 5, step: 1, def: 3 }
@@ -31,12 +31,26 @@ export const spring: PartDef = {
     pen.reset()
     applyGlow(pen, s)
     const pose = poseOf(s)
-    const W = (pts: { x: number; y: number }[]) => toWorld(pose, pts)
-    pen.poly(W(rectPts(2 * CELL, 4).map((q) => add(q, v(0, 8)))))
+    const W = (pts: Vec[]) => toWorld(pose, pts)
     pen.poly(W(rectPts(2 * CELL, 4).map((q) => add(q, v(0, -8)))))
-    for (const x of [-12, 12]) {
-      pen.path(W([v(x, 6), v(x - 5, 3), v(x + 5, 0), v(x - 5, -3), v(x, -6)]))
+    pen.poly(W(rectPts(2 * CELL, 4).map((q) => add(q, v(0, 8)))))
+    hatch(pen, { ...pose, ...W([v(0, 8)])[0] }, 2 * CELL, 4, 2.5)
+    // Chevron on the pad: the way it pushes.
+    pen.path(W([v(-3, -6.8), v(0, -9.2), v(3, -6.8)]))
+    // Two coil springs, the back strands thin and dashed.
+    const width = pen.ctx.lineWidth
+    for (const x of [-10, 10]) {
+      const zig = Array.from({ length: 7 }, (_, k) => v(x + (k % 2 === 0 ? -6 : 6), -6 + 2 * k))
+      const Z = W(zig)
+      for (let k = 0; k < 6; k++) {
+        const back = k % 2 === 1
+        pen.ctx.lineWidth = back ? 0.8 : width
+        pen.ctx.setLineDash(back ? [1.5, 1.5] : [])
+        pen.line(Z[k], Z[k + 1])
+      }
+      pen.ctx.setLineDash([])
     }
+    pen.ctx.lineWidth = width
   },
   build({ world }, p) {
     const pad = staticBox(world, pos(p), v(2 * CELL, CELL), angleOf(p), {

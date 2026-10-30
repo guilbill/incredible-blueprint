@@ -18,6 +18,13 @@ export const toWorld = (pose: Pose, pts: Vec[]): Vec[] =>
 
 export const rectPts = (w: number, h: number): Vec[] => [v(-w / 2, -h / 2), v(w / 2, -h / 2), v(w / 2, h / 2), v(-w / 2, h / 2)]
 
+/** n + 1 points on the ellipse arc centred at cx, cy from angle a0 to a1 (radians, y down). */
+export const arcPts = (cx: number, cy: number, rx: number, ry: number, a0: number, a1: number, n = 12): Vec[] =>
+  Array.from({ length: n + 1 }, (_, i) => {
+    const a = a0 + ((a1 - a0) * i) / n
+    return v(cx + rx * Math.cos(a), cy + ry * Math.sin(a))
+  })
+
 /** Applies the part's glow (cyan) to the pen. Call after pen.reset. */
 export function applyGlow(pen: Pen, s: PartDrawState): void {
   const g = s.inst?.glow ?? 0

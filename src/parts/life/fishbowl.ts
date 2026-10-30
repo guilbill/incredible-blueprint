@@ -1,8 +1,8 @@
 import { dynamicBox, setEnabled } from '../../engine/bodies'
-import { v } from '../../engine/vec'
+import { type Vec, v } from '../../engine/vec'
 import { bodyPose } from '../../engine/world'
 import { CELL, DENSITY, instance, pos } from '../common'
-import { applyGlow, poseOf, toWorld } from '../drawing'
+import { applyGlow, arcPts, poseOf, toWorld } from '../drawing'
 import type { PartDef, SimCtx } from '../types'
 
 const SIZE = 2 * CELL
@@ -29,21 +29,30 @@ export const fishbowl: PartDef = {
     pen.reset()
     applyGlow(pen, s)
     const bowl = poseOf(s)
-    const W = (pts: { x: number; y: number }[]) => toWorld(bowl, pts)
+    const W = (pts: Vec[]) => toWorld(bowl, pts)
     const broken = !!s.inst?.state.broken
+    // Round glass of radius 19 around (0, 1), open from the rim (y -16) to the foot (y 18).
+    const rim = Math.asin(-15 / 19)
+    const foot = Math.asin(17 / 19)
     if (broken) {
-      // shards where the bowl stood
-      for (const x of [-14, -4, 8]) pen.path(W([v(x, 20), v(x + 4, 12), v(x + 8, 20)]))
+      // what is left of the wall, and shards where the bowl stood
+      pen.path(W(arcPts(0, 1, 19, 19, 0.6, foot, 4)))
+      pen.path(W(arcPts(0, 1, 19, 19, Math.PI - foot, Math.PI - 0.7, 4)))
+      pen.poly(W([v(-4, 20), v(-1, 14), v(3, 20)]))
+      pen.poly(W([v(5, 20), v(8, 16), v(9, 20)]))
     } else {
-      pen.path(W([v(-12, -20), v(-19, -6), v(-17, 12), v(-10, 20), v(10, 20), v(17, 12), v(19, -6), v(12, -20)]))
-      const [a, b] = W([v(-18, -8), v(18, -8)])
+      pen.path(W([v(14, -16), ...arcPts(0, 1, 19, 19, rim, foot, 10), ...arcPts(0, 1, 19, 19, Math.PI - foot, Math.PI - rim, 10), v(-14, -16)]))
+      const [a, b] = W([v(-16.5, -6), v(16.5, -6)])
       pen.line(a, b)
+      // Bubbles stay under the water line (y -6), drawn in the bowl's frame so they tilt with it.
+      pen.circle(W([v(5, -1)])[0], 1.2)
+      pen.circle(W([v(8, -3.5)])[0], 1.6)
     }
     if (s.inst?.state.fishEaten) return
     const f = broken && s.inst ? bodyPose(s.inst.bodies[1]) : { ...bowl, y: bowl.y + 4 }
-    const F = (pts: { x: number; y: number }[]) => toWorld(f, pts)
-    pen.poly(F([v(-4, 0), v(0, -4), v(5, 0), v(0, 4)]))
-    pen.poly(F([v(-4, 0), v(-8, -3), v(-8, 3)]))
+    const F = (pts: Vec[]) => toWorld(f, pts)
+    pen.path(F([v(-3, 0), v(0, -3.5), v(4, -2), v(6, 0), v(4, 2), v(0, 3.5), v(-3, 0)]))
+    pen.poly(F([v(-3, 0), v(-7, -3), v(-7, 3)]))
   },
   build({ world }, p) {
     const glass = dynamicBox(world, pos(p), v(SIZE, SIZE), 0, {

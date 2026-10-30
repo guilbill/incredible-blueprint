@@ -28,14 +28,18 @@ export const mousetrap: PartDef = {
     applyGlow(pen, s)
     const { x, y } = s.placement
     const top = y + PLATE_Y - PLATE.y / 2
-    pen.poly([v(x - CELL, top), v(x + CELL, top), v(x + CELL, y + CELL / 2), v(x - CELL, y + CELL / 2)])
-    pen.circle(v(x, top - 2), 2)
+    const P = (dx: number, dy: number) => v(x + dx, top + dy)
+    // plate and the spring eye at the hinge
+    pen.poly([P(-CELL, 0), P(CELL, 0), P(CELL, PLATE.y), P(-CELL, PLATE.y)])
+    pen.circle(P(0, -3), 3)
     if (s.inst?.state.snapped) {
-      pen.line(v(x, top - 1), v(x + CELL - 2, top - 1))
+      pen.path([P(0, -3), P(17, -1.5), P(17, 0)])
+      pen.poly([P(5, -1.5), P(12, -1.5), P(12, 0), P(5, 0)])
     } else {
-      // the bar, cocked back over the spring, and the bait pedal
-      pen.path([v(x, top - 2), v(x - CELL + 2, top - 14), v(x - CELL + 4, top - 1)])
-      pen.line(v(x + 6, top - 1), v(x + 14, top - 3))
+      // the bar, cocked back with its bail, and the bait pedal
+      pen.path([P(0, -3), P(-16, -13), P(-18, -10)])
+      pen.poly([P(7, -2.5), P(14, -2.5), P(14, 0), P(7, 0)])
+      pen.circle(P(10.5, -4.5), 1.5)
     }
   },
   build({ world }, p) {

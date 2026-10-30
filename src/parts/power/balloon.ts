@@ -1,5 +1,5 @@
 import { compound } from '../../engine/bodies'
-import { v } from '../../engine/vec'
+import { type Vec, v } from '../../engine/vec'
 import { GRAVITY, bodyPose, toM } from '../../engine/world'
 import { CELL, DENSITY, instance, pos } from '../common'
 import { applyGlow, poseOf, toWorld } from '../drawing'
@@ -11,6 +11,30 @@ const R = CELL
 const ENVELOPE = v(0, -10)
 const BASKET = v(0, 26)
 const BASKET_WH = v(12, 8)
+/** Teardrop envelope: follows the circle down to y = SHOULDER, then narrows straight to the mouth. */
+const SHOULDER = 1.3
+const MOUTH = v(6, 14)
+const TOP = ENVELOPE.y - R
+
+/** Half width of the teardrop envelope at height y (local). */
+function halfWidth(y: number): number {
+  if (y <= SHOULDER) {
+    const dy = y - ENVELOPE.y
+    return Math.sqrt(Math.max(0, R * R - dy * dy))
+  }
+  const dy = SHOULDER - ENVELOPE.y
+  const w = Math.sqrt(R * R - dy * dy)
+  return w + ((MOUTH.x - w) * (y - SHOULDER)) / (MOUTH.y - SHOULDER)
+}
+
+/** Local points of a meridian at fraction k of the half width, from the top to the mouth (denser near the top). */
+const meridian = (k: number, n = 40): Vec[] =>
+  Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n
+    const y = TOP + (MOUTH.y - TOP) * t * t
+    return v(k * halfWidth(y), y)
+  })
+
 const ANCHOR: AnchorDef = { key: 'basket', local: v(0, 30), role: 'rope' }
 /** Upward force while heated, in multiples of the balloon's weight. */
 const LIFT = 1.4
@@ -38,18 +62,16 @@ export const balloon: PartDef = {
     pen.reset()
     applyGlow(pen, s)
     const pose = poseOf(s)
-    const W = (pts: { x: number; y: number }[]) => toWorld(pose, pts)
-    const [c] = W([ENVELOPE])
-    pen.circle(c, R)
-    // gores: from the envelope top to its mouth
-    const top = v(0, ENVELOPE.y - R)
-    const mouth = ENVELOPE.y + 17
-    for (const x of [-8, 0, 8]) pen.path(W([top, v(x * 1.6, ENVELOPE.y), v(x, mouth)]))
+    const W = (pts: Vec[]) => toWorld(pose, pts)
+    const right = meridian(1)
+    pen.poly(W([...right, ...right.map((q) => v(-q.x, q.y)).reverse()]))
+    for (const k of [-0.5, 0, 0.5]) pen.path(W(meridian(k)))
     const hw = BASKET_WH.x / 2
-    const hh = BASKET_WH.y / 2
-    pen.poly(W([v(-hw, BASKET.y - hh), v(hw, BASKET.y - hh), v(hw, BASKET.y + hh), v(-hw, BASKET.y + hh)]))
-    for (const x of [-hw, hw]) {
-      const [a, b] = W([v(x, BASKET.y - hh), v(x * 0.9, ENVELOPE.y + 17)])
+    const top = BASKET.y - BASKET_WH.y / 2
+    const bottom = BASKET.y + BASKET_WH.y / 2
+    pen.poly(W([v(-hw, top), v(hw, top), v(hw - 1, bottom), v(-hw + 1, bottom)]))
+    for (const x of [-1, 1]) {
+      const [a, b] = W([v(x * MOUTH.x, MOUTH.y), v(x * (hw - 0.5), top)])
       pen.line(a, b)
     }
   },

@@ -1,13 +1,14 @@
 import type { Body } from 'planck'
 import { data, dynamicBox, setEnabled } from '../../engine/bodies'
-import { v } from '../../engine/vec'
+import { type Vec, v } from '../../engine/vec'
 import { CELL, DENSITY, instance, pos } from '../common'
-import { applyGlow, poseOf } from '../drawing'
+import { applyGlow, arcPts, poseOf } from '../drawing'
 import type { PartDef, PartInstance, SimCtx } from '../types'
 import { isFree, takeMouse } from './mouse'
 import { bodiesOf, blocked, centre, nearestSeen, walk } from './walker'
 
 const SIZE = 2 * CELL
+const PI = Math.PI
 export const SPEED = 100
 /** Contact impulse (kg·units/s) that wakes the cat. */
 const WAKE_HIT = 50
@@ -40,23 +41,30 @@ export const cat: PartDef = {
     applyGlow(pen, s)
     const p = poseOf(s)
     const d = s.inst ? s.inst.state.dir : s.placement.flip ? -1 : 1
-    const X = (x: number) => p.x + x * d
-    const P = (x: number, y: number) => v(X(x), p.y + y)
+    const P = (x: number, y: number) => v(p.x + x * d, p.y + y)
+    const L = (pts: Vec[]) => pts.map((q) => P(q.x, q.y))
     const awake = !!s.inst?.state.awake
-    // body, head with ears, tail
-    pen.path([P(-16, 20), P(-18, 6), P(-6, 0), P(8, 2), P(14, 20), P(-16, 20)])
-    pen.circle(P(10, -6), 8)
-    pen.path([P(4, -12), P(5, -19), P(9, -14)])
-    pen.path([P(12, -14), P(16, -19), P(17, -11)])
-    pen.path([P(-18, 14), P(-24, 4), P(-20, -6)])
-    if (awake) {
-      pen.circle(P(9, -7), 1.5)
-      pen.circle(P(14, -7), 1.5)
-    } else {
-      pen.line(P(7, -7), P(11, -7))
-      pen.line(P(12, -7), P(16, -7))
-      pen.label('z', P(14, -24))
+    if (!awake) {
+      // curled loaf: back dome, head tucked in front, tail wrapped under
+      pen.path(L([...arcPts(-2, 20, 17, 17, PI, PI * 1.8), v(18, 20), v(-19, 20)]))
+      pen.circle(P(11, 11), 7)
+      pen.path(L([v(6, 6), v(6, -1), v(10, 4)]))
+      pen.path(L([v(13, 4), v(17, 0), v(17.5, 8)]))
+      pen.path(L(arcPts(13, 11, 2.5, 1.5, 0, PI, 6)))
+      pen.path(L(arcPts(0, 12, 16, 6, PI * 0.95, PI * 0.35)))
+      pen.label('z', P(17, -4))
+      return
     }
+    // walking profile: body, head with ears and eye, alternating legs, tail
+    const walking = !s.inst?.state.sitting
+    const sw = walking ? 3 * Math.sin(p.x * 0.3) : 0
+    pen.poly(L(arcPts(-3, 4, 15, 7, 0, PI * 2, 20)))
+    pen.circle(P(12, -6), 7)
+    pen.path(L([v(7, -11), v(7, -18), v(11, -12.5)]))
+    pen.path(L([v(13, -12.8), v(17, -17), v(18, -9)]))
+    pen.circle(P(14, -7), 1.2)
+    for (const [x, k] of [[6, 1], [1, -1], [-9, -1], [-14, 1]]) pen.line(P(x, 10), P(x + k * sw, 20))
+    pen.path(L(arcPts(-8, 4, 10, 18, PI, PI * 1.38)))
   },
   build({ world }, p) {
     const b = dynamicBox(world, pos(p), v(SIZE, SIZE), 0, {

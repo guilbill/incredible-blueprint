@@ -68,7 +68,7 @@ function showTopic(name: string, topic: LabTopic): void {
   topic.variants.forEach((v, i) => {
     const card = el('section', 'variant')
     card.dataset.variant = v.name
-    card.append(el('h2', '', `${String.fromCharCode(65 + i)} · ${v.name}`))
+    card.append(el('h2', '', `${i < 26 ? String.fromCharCode(65 + i) : i + 1} · ${v.name}`))
     if (v.note) card.append(el('p', 'note', v.note))
     if (v.draw) card.append(board(v, topic.board ?? { w: 320, h: 200 }))
     if (v.mount) {

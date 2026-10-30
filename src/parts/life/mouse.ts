@@ -1,13 +1,14 @@
 import type { Body } from 'planck'
 import { data, dynamicBox, setEnabled } from '../../engine/bodies'
-import { v } from '../../engine/vec'
+import { type Vec, v } from '../../engine/vec'
 import { bodyPose } from '../../engine/world'
 import { CELL, DENSITY, instance, pos } from '../common'
-import { applyGlow, poseOf } from '../drawing'
+import { applyGlow, arcPts, poseOf } from '../drawing'
 import type { PartDef, PartInstance, SimCtx } from '../types'
 import { bodiesOf, blocked, centre, nearestSeen, walk } from './walker'
 
 const SIZE = CELL
+const PI = Math.PI
 export const WALK = 80
 export const FLEE = 120
 /** A cat in sight closer than this (units) makes the mouse flee. */
@@ -43,14 +44,18 @@ export const mouse: PartDef = {
     applyGlow(pen, s)
     const p = poseOf(s)
     const d = s.inst ? s.inst.state.dir : s.placement.flip ? -1 : 1
-    const X = (x: number) => p.x + x * d
-    // body, head, ear, eye, tail and legs
-    pen.path([v(X(-9), p.y + 8), v(X(-8), p.y - 2), v(X(0), p.y - 6), v(X(6), p.y - 3), v(X(10), p.y + 6), v(X(-9), p.y + 8)])
-    pen.circle(v(X(2), p.y - 7), 3)
-    pen.circle(v(X(6), p.y - 1), 1)
-    pen.path([v(X(-9), p.y + 6), v(X(-14), p.y + 2), v(X(-17), p.y + 6)])
-    pen.line(v(X(-5), p.y + 8), v(X(-5), p.y + 10))
-    pen.line(v(X(5), p.y + 8), v(X(5), p.y + 10))
+    const P = (x: number, y: number) => v(p.x + x * d, p.y + y)
+    const L = (pts: Vec[]) => pts.map((q) => P(q.x, q.y))
+    // teardrop body, ear, eye (shut when held), curl of tail, speed strokes when fleeing
+    pen.poly(L([...arcPts(-1, 10, 9, 9, PI, PI * 1.75), v(10, 8), v(9, 10)]))
+    pen.circle(P(1, 0), 3)
+    if (s.inst?.state.held) pen.line(P(4.5, 5), P(6.5, 5))
+    else pen.circle(P(5.5, 5), 0.8)
+    pen.path(L(arcPts(-10, 5, 4, 4, PI * 0.5, PI * 1.3, 8)))
+    if (s.inst?.state.fleeing) {
+      pen.line(P(-14, 0), P(-19, 0))
+      pen.line(P(-13, 10), P(-18, 10))
+    }
   },
   build({ world }, p) {
     const b = dynamicBox(world, pos(p), v(SIZE, SIZE), 0, {

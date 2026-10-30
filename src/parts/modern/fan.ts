@@ -1,7 +1,7 @@
 import { applyForce, centreOf, staticBox } from '../../engine/bodies'
-import { dot, rotate, scale, sub, v } from '../../engine/vec'
+import { type Vec, dot, rotate, scale, sub, v } from '../../engine/vec'
 import { CELL, angleOf, instance, pos, setting } from '../common'
-import { applyGlow, poseOf, rectPts, toWorld } from '../drawing'
+import { applyGlow, arcPts, poseOf, toWorld } from '../drawing'
 import type { PartDef, SettingDef } from '../types'
 
 const DELAY: SettingDef = { key: 'delay', label: 'Délai (× 0,5 s)', min: 0, max: 20, step: 1, def: 0 }
@@ -33,24 +33,28 @@ export const fan: PartDef = {
     applyGlow(pen, s)
     const pose = poseOf(s)
     const sx = s.placement.flip ? -1 : 1
-    const W = (pts: { x: number; y: number }[]) => toWorld(pose, pts.map((q) => v(q.x * sx, q.y)))
-    // housing on the back, a hub and three blades facing the blow side
-    pen.poly(W(rectPts(12, 2 * HALF).map((q) => v(q.x - 14, q.y))))
-    const [hub] = W([v(4, 0)])
-    pen.circle(hub, 4)
+    const W = (pts: Vec[]) => toWorld(pose, pts.map((q) => v(q.x * sx, q.y)))
+    // desk fan in profile: motor pod, shaft, oval guard facing the blow side
+    pen.poly(W([...arcPts(-12, -4, 6, 6, Math.PI / 2, (3 * Math.PI) / 2), v(0, -10), v(0, 2)]))
+    const [s0, s1] = W([v(0, -4), v(9, -4)])
+    pen.line(s0, s1)
+    pen.poly(W(arcPts(9, -4, 5, 16, 0, 2 * Math.PI, 24).slice(0, 24)))
+    const [hub] = W([v(9, -4)])
+    pen.circle(hub, 2.2)
     const spin = s.inst?.state.on ? (s.inst.state.turn ?? 0) : 0
     for (let k = 0; k < 3; k++) {
       const a = spin + (k * 2 * Math.PI) / 3
-      const tip = v(4 + Math.cos(a) * 3, Math.sin(a) * 18)
-      const [h, t] = W([v(4, 0), tip])
+      const [h, t] = W([v(9, -4), v(9 + Math.cos(a) * 3, -4 + Math.sin(a) * 13)])
       pen.line(h, t)
     }
-    const [stem, foot] = W([v(-8, HALF - 4), v(-8, HALF)])
-    pen.line(stem, foot)
+    // neck and round foot
+    const [n0, n1] = W([v(-8, 2), v(-8, 15.5)])
+    pen.line(n0, n1)
+    pen.poly(W(arcPts(-8, HALF, 10, 4.5, Math.PI, 2 * Math.PI)))
     // airflow marks once running
     if (s.inst?.state.on) {
       pen.dashed(true)
-      for (const y of [-10, 0, 10]) {
+      for (const y of [-11, -4, 3]) {
         const [a, b] = W([v(HALF + 2, y), v(HALF + 14, y)])
         pen.line(a, b)
       }
