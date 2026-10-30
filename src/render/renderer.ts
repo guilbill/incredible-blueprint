@@ -9,6 +9,7 @@ import { CELL } from '../parts/common'
 import { gearPhases } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import { BELT_GAP, beltLoop, traceBelt } from './belt'
+import { type Brief, drawBrief, obstacles } from './brief'
 import { COLORS, type PartDrawState, Pen } from './pen'
 
 export interface RenderView {
@@ -54,6 +55,8 @@ export interface RenderView {
   handles?: { at: Partial<Record<'rot' | 'start' | 'end', Vec>>; t: number; hover?: { end: 'start' | 'end'; t: number } }
   /** Rotation in progress: notch dial around `center`; angles in radians, `offset` turns a part angle into the handle direction. */
   dial?: { center: Vec; radius: number; step: number; current: number; needle: number; offset: number; bad?: boolean }
+  /** Level title block (play mode only), drawn under the parts. */
+  brief?: Brief
   zoom: number
 }
 
@@ -511,6 +514,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   const cached = blitGrid(ctx, view.zoom)
   ctx.scale(view.zoom, view.zoom)
   if (!cached) drawGrid(ctx)
+  if (view.brief) drawBrief(pen, view.brief, obstacles(level), !!sim)
   drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
   const roped = drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)

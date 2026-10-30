@@ -39,6 +39,7 @@ const fr = {
   'error.saveStorage': 'Impossible d’enregistrer ce niveau : le stockage du navigateur est indisponible.',
 
   'play.back': '← Niveaux',
+  'brief.goal': 'OBJECTIF',
   'play.parts': 'Pièces',
   'play.run': 'Lancer',
   'play.stop': 'Stop',
@@ -222,6 +223,7 @@ const en: Record<Key, string> = {
   'error.saveStorage': 'Can’t save this level: browser storage is unavailable.',
 
   'play.back': '← Levels',
+  'brief.goal': 'GOAL',
   'play.parts': 'Parts',
   'play.run': 'Run',
   'play.stop': 'Stop',

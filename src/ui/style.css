@@ -78,13 +78,6 @@ button { font: inherit; color: inherit; }
   white-space: nowrap;
   text-shadow: 0 0 8px rgba(207, 230, 255, 0.35);
 }
-.toolbar .goal {
-  margin: 0;
-  color: var(--note);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .stage {
   grid-area: stage;

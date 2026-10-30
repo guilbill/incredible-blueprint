@@ -9,6 +9,7 @@ import { ROT_ANGLE, angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
+import { levelNumber } from '../render/brief'
 import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
 import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, HANDLE_HIT, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, withSetting, type HandleKind, type LinkTool } from './edit'
@@ -254,7 +255,6 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const toolbar = el('header', 'toolbar')
   const back = el('button', 'btn ghost', opts.backLabel ?? t('play.back'))
   const title = el('h1', '', levelTitle(level))
-  const goal = el('p', 'goal', levelGoal(level))
   const mute = el('button', 'btn ghost mute')
   const refreshMute = (): void => {
     const m = sound.isMuted()
@@ -270,7 +270,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     sound.click()
   })
   if (author) toolbar.append(back, ...author.toolbar, mute, langSwitch())
-  else toolbar.append(back, title, goal, mute, langSwitch())
+  else toolbar.append(back, title, mute, langSwitch())
 
   const stage = el('main', 'stage')
   const canvas = el('canvas')
@@ -1621,6 +1621,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       hover: hover && !drag?.started ? { id: hover.id, t: now - hover.since } : undefined,
       meshMarks: drag?.started ? drag.meshMarks : undefined,
       handles: sp ? { at: handlesOf(sp), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since } } : gh ? { at: { rot: gh }, t: now - selectedSince } : undefined,
+      brief: author ? undefined : { number: levelNumber(level.id), title: levelTitle(level), heading: t('brief.goal'), goal: levelGoal(level) },
       dial: sp && grip?.kind === 'rot' && grip.moved ? dialFor(sp, grip.free ?? angleOf(sp)) : spin?.moved ? spinDial(spin) : undefined,
     })
   }
