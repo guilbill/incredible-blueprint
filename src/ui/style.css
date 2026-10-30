@@ -355,6 +355,9 @@ button { font: inherit; color: inherit; }
   text-shadow: 0 0 14px rgba(127, 255, 212, 0.45);
 }
 .note { color: var(--note); }
+.levels-foot { max-width: 960px; margin: 40px auto 0; text-align: center; font-size: 12px; }
+.levels-foot a { color: var(--note); text-decoration: none; }
+.levels-foot a:hover, .levels-foot a:focus-visible { color: var(--cyan); }
 .level-grid {
   list-style: none;
   max-width: 960px;

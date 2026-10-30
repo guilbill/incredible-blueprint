@@ -19,6 +19,8 @@ export function loadLevels(): Level[] {
     .map((k) => mods[k])
 }
 
+const REPO_URL = 'https://github.com/guilbill/incredible-machine-tribute'
+
 export type LevelTab = 'shipped' | 'mine'
 
 export interface LevelListOpts {
@@ -109,7 +111,13 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
       grid.append(li)
     })
   }
-  screen.append(head, grid)
+  const foot = el('footer', 'levels-foot')
+  const source = el('a', '', t('list.source'))
+  source.href = REPO_URL
+  source.target = '_blank'
+  source.rel = 'noopener'
+  foot.append(source)
+  screen.append(head, grid, foot)
   root.replaceChildren(screen)
   return () => root.replaceChildren()
 }
