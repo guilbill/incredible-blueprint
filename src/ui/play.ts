@@ -22,7 +22,7 @@ import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
 import { allShortcuts, hintsFor, type Hint } from './shortcuts'
 import { sound } from './sound'
-import { copyGroup, groupBox, groupNotches, groupRotHandle, groupRotStep, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, rotationBlockers, selectInRect, turnedParts, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
+import { copyGroup, groupBox, inStock, groupNotches, groupRotHandle, groupRotStep, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, rotationBlockers, selectInRect, turnedParts, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
 import { anyMoving, createStallWatch, type StallReason } from './stall'
 
@@ -401,6 +401,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const isLocked = (id: string): boolean => !!author?.locked().has(id)
   /** The selection without its locked parts: what moving, copying and deleting act on. */
   const unlocked = (): string[] => selection.filter((id) => !isLocked(id))
+  /** Copying or duplicating needs at least one unlocked part and the drawer stock for all of them. */
+  const canCopy = (): boolean => {
+    const ids = unlocked()
+    return ids.length > 0 && inStock(level, sol, sol.placements.filter((p) => ids.includes(p.id)))
+  }
   const allLocked = (): boolean => selection.length > 0 && selection.every(isLocked)
 
   /** All selected parts locked: unlock them, else lock them all. */
@@ -441,13 +446,32 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** The action row of the selection. */
   function actionRow(one: Placement | undefined): HTMLElement {
     const row = el('div', 'row actions')
+    copyButtons.length = 0
     if (!one) row.append(el('span', 'count', String(selection.length)))
-    row.append(iconButton('duplicate', 'duplicate', duplicateSelection), iconButton('copy', 'copy', copySelection))
+    row.append(copyButton('duplicate', duplicateSelection), copyButton('copy', copySelection))
     if (one ? partDef(one.kind).rotStep > 0 : unlocked().length > 1) row.append(iconButton('rotate', 'rotate', () => rotateSelection(1)))
     if (one && partDef(one.kind).flippable) row.append(iconButton('flip', 'flip', () => edit(flipped)))
     if (author) row.append(lockButton())
     row.append(iconButton('delete', 'delete', removeSelected))
     return row
+  }
+
+  /** Duplicate and copy buttons of the current action row, greyed by `refreshCopyButtons` when the drawer is short. */
+  const copyButtons: HTMLButtonElement[] = []
+  function copyButton(action: 'duplicate' | 'copy', run: () => void): HTMLButtonElement {
+    const b = iconButton(action, action, run)
+    b.dataset.action = action
+    copyButtons.push(b)
+    return b
+  }
+
+  function refreshCopyButtons(): void {
+    const ok = canCopy()
+    for (const b of copyButtons) {
+      const name = t(`action.${b.dataset.action}`)
+      b.disabled = !ok
+      b.title = ok ? name : t('action.noStock', { action: name })
+    }
   }
 
   const lockButton = (): HTMLButtonElement => iconButton(allLocked() ? 'unlock' : 'lock', allLocked() ? 'unlock' : 'lock', toggleLock)
@@ -744,13 +768,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** Pastes a clip as one undo step and selects the copies; the toast says why when it does not fit. */
   function pasteInto(clip: Clip, centre: Vec, prefer: 'at' | 'right'): void {
     if (sim) return
-    const left = remaining(level, sol)
-    const need = new Map<PartKind, number>()
-    for (const p of clip.placements) need.set(p.kind, (need.get(p.kind) ?? 0) + 1)
-    const short = [...need].some(([kind, n]) => (left.get(kind) ?? 0) < n)
     const r = pasteClip(level, sol, clip, centre, prefer)
     if (!r) {
-      showToast(t(short ? 'toast.notEnoughParts' : 'toast.noRoom'))
+      showToast(t(inStock(level, sol, clip.placements) ? 'toast.noRoom' : 'toast.notEnoughParts'))
       return
     }
     sound.click()
@@ -790,8 +810,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       refreshUi()
       const one = single()
       items = [
-        { label: t('menu.copy'), shortcut: `${modKey}C`, run: copySelection, enabled: unlocked().length > 0 },
-        { label: t('menu.duplicate'), shortcut: `${modKey}D`, run: duplicateSelection, enabled: unlocked().length > 0 },
+        { label: t('menu.copy'), shortcut: `${modKey}C`, run: copySelection, enabled: canCopy() },
+        { label: t('menu.duplicate'), shortcut: `${modKey}D`, run: duplicateSelection, enabled: canCopy() },
         { label: t('menu.rotate'), shortcut: 'R', run: () => rotateSelection(1), enabled: one ? !isLocked(one.id) && partDef(one.kind).rotStep > 0 : !!spinParts() },
         { label: t('menu.flip'), shortcut: 'F', run: () => edit(flipped), enabled: !!one && !isLocked(one.id) && partDef(one.kind).flippable },
         ...(author ? [{ label: t(allLocked() ? 'action.unlock' : 'action.lock'), shortcut: 'L', run: toggleLock, enabled: true }] : []),
@@ -893,6 +913,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     redoBtn.disabled = !future.length || !!sim
     refreshDrawer()
     refreshSelPanel()
+    refreshCopyButtons()
     canvas.classList.toggle('dragging', !!drag?.started || !!group?.started)
     for (const [lt, b] of toolButtons) b.classList.toggle('on', lt === tool)
     canvas.classList.toggle('linking', !!tool)

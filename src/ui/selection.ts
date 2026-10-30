@@ -124,6 +124,14 @@ export function copyGroup(sol: Solution, ids: readonly string[]): Clip {
   }
 }
 
+/** The drawer still holds one more of each listed part: what a copy of them needs. */
+export function inStock(level: Level, sol: Solution, ps: readonly Placement[]): boolean {
+  const left = remaining(level, sol)
+  const need = new Map<PartKind, number>()
+  for (const p of ps) need.set(p.kind, (need.get(p.kind) ?? 0) + 1)
+  return [...need].every(([kind, n]) => (left.get(kind) ?? 0) >= n)
+}
+
 /** Gap (units) between a pasted copy and the original when pasting to the right. */
 const PASTE_GAP = 20
 
@@ -142,11 +150,7 @@ function* ring(r: number): Generator<Vec> {
  * new ids and their links are re-pointed to them; `ids` are the new placements.
  */
 export function pasteClip(level: Level, sol: Solution, clip: Clip, centre: Vec, prefer: 'at' | 'right'): { sol: Solution; ids: string[] } | null {
-  if (clip.placements.length === 0) return null
-  const left = remaining(level, sol)
-  const need = new Map<PartKind, number>()
-  for (const p of clip.placements) need.set(p.kind, (need.get(p.kind) ?? 0) + 1)
-  for (const [kind, n] of need) if ((left.get(kind) ?? 0) < n) return null
+  if (clip.placements.length === 0 || !inStock(level, sol, clip.placements)) return null
   if (all(level, sol).length + clip.placements.length > LIMITS.fixed) return null
   if (level.fixedLinks.length + sol.links.length + clip.links.length > LIMITS.fixedLinks) return null
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { FIELD, snap } from '../../src/level/placement'
 import type { Goal, Level, Placement, Solution } from '../../src/level/types'
 import { nextId } from '../../src/ui/edit'
-import { copyGroup, groupBox, groupNotches, groupRotHandle, groupRotStep, guidesFor, rotationBlockers, turnedParts, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, selectInRect, zoneAt, zoneCorner } from '../../src/ui/selection'
+import { copyGroup, groupBox, groupNotches, groupRotHandle, groupRotStep, guidesFor, inStock, rotationBlockers, turnedParts, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, selectInRect, zoneAt, zoneCorner } from '../../src/ui/selection'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number, extra: Partial<Placement> = {}): Placement =>
   ({ id, kind, x, y, rot: 0, flip: false, settings: {}, ...extra })
@@ -186,6 +186,14 @@ describe('pasteClip', () => {
     const lvl: Level = { ...level, inventory: [{ kind: 'ball-tennis', count: 1 }] }
     const one = sol([P('p1', 'ball-tennis', 100, 100)])
     expect(pasteClip(lvl, one, copyGroup(one, ['p1']), { x: 600, y: 300 }, 'right')).toBeNull()
+  })
+
+  it('inStock needs one more of each part in the drawer', () => {
+    const lvl: Level = { ...level, inventory: [{ kind: 'ball-tennis', count: 3 }, { kind: 'gear-small', count: 1 }] }
+    const two = sol([P('p1', 'ball-tennis', 100, 100), P('p2', 'ball-tennis', 300, 100), P('p3', 'gear-small', 500, 100)])
+    expect(inStock(lvl, two, [two.placements[0]])).toBe(true)
+    expect(inStock(lvl, two, two.placements.slice(0, 2))).toBe(false)
+    expect(inStock(lvl, two, [two.placements[2]])).toBe(false)
   })
 
   it('keeps pasted gears off the fixed gears (discs overlap)', () => {
