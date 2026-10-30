@@ -356,45 +356,6 @@ button { font: inherit; color: inherit; }
 .levels-foot { max-width: 960px; margin: 40px auto 0; text-align: center; font-size: 12px; }
 .levels-foot a { color: var(--note); text-decoration: none; }
 .levels-foot a:hover, .levels-foot a:focus-visible { color: var(--cyan); }
-.level-grid {
-  list-style: none;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
-}
-.level-card {
-  position: relative;
-  width: 100%;
-  min-height: 120px;
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  padding: 14px;
-  text-align: left;
-  background: rgba(14, 42, 74, 0.92);
-  border: 1px solid var(--note);
-  border-radius: 3px;
-  cursor: pointer;
-}
-.level-card:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(127, 255, 212, 0.35); }
-.level-card .fig { font-size: 11px; color: var(--note); letter-spacing: 0.1em; }
-.level-card .title { font-size: 16px; font-weight: 600; }
-.level-card .badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 11px;
-  color: var(--yellow);
-  border: 1px solid var(--yellow);
-  border-radius: 2px;
-  padding: 1px 6px;
-}
-.level-card .badge.draft { color: var(--cyan); border-color: var(--cyan); }
-.level-card.solved { border-color: var(--yellow); }
-
 /* ---------- error banner ---------- */
 
 .banner.error {
@@ -434,15 +395,6 @@ button { font: inherit; color: inherit; }
 .tab.active { color: var(--line); border-color: var(--grid); background: var(--bg); margin-bottom: -1px; }
 .level-tools { display: grid; align-content: center; gap: 10px; }
 .level-tools .btn { text-align: center; }
-/* Grid so the card fills the row height and the actions stay inside it. */
-.level-grid li.mine, .level-grid li.shipped { position: relative; display: grid; }
-.level-grid li.shipped > .level-card { padding-bottom: 40px; }
-.level-grid li.mine > .actions, .level-grid li.shipped > .actions { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
-.level-grid li.mine > .actions .btn, .level-grid li.shipped > .actions .btn { background: var(--bg); }
-.level-grid li.shipped > .actions { right: 8px; bottom: 8px; }
-.level-grid li.shipped > .actions .btn.copy { width: 26px; height: 26px; padding: 0; border-color: var(--grid); color: var(--note); }
-.level-grid li.shipped > .actions .btn.copy:hover { border-color: var(--cyan); color: var(--cyan); }
-.level-card .badge.todo { color: var(--note); border-color: var(--note); }
 
 /* ---------- editor ---------- */
 
@@ -718,6 +670,23 @@ canvas.mini { display: block; width: 100%; height: auto; }
 @media (hover: none) {
   .level-atlas li.shipped > .btn.copy { opacity: 1; }
 }
+.level-atlas li.mine { display: grid; align-content: start; gap: 6px; }
+.level-fig .thumb .badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 10px;
+  color: var(--yellow);
+  border: 1px solid var(--yellow);
+  border-radius: 2px;
+  padding: 0 5px;
+  background: var(--bg);
+}
+.level-fig .thumb .badge.todo { color: var(--note); border-color: var(--note); }
+.level-atlas li.mine > .actions { display: flex; justify-content: center; gap: 6px; }
+.level-atlas li.mine > .actions .btn { width: 26px; height: 26px; padding: 0; background: var(--bg); border-color: var(--grid); color: var(--note); }
+.level-atlas li.mine > .actions .btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.level-atlas li.mine > .actions .btn.danger:hover { border-color: var(--red); color: var(--red); }
 @media (max-width: 640px) {
   .level-next { grid-template-columns: 1fr; }
   .level-atlas { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
@@ -768,6 +737,7 @@ canvas.mini { display: block; width: 100%; height: auto; }
 @media (pointer: coarse) {
   .btn.icon { padding: 9px 11px; }
   .btn.icon svg { width: 16px; height: 16px; }
+  .level-atlas li.mine > .actions .btn { width: 38px; height: 34px; }
   .selpanel .row { gap: 8px; }
   .selpanel .btn.small { padding: 6px 12px; font-size: 13px; }
   .hist { width: 44px; height: 36px; font-size: 20px; }

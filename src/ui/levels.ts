@@ -36,17 +36,6 @@ export interface LevelListOpts {
   onTab(tab: LevelTab): void
 }
 
-function levelCard(level: Level, n: number, progress: Progress, onClick: () => void): HTMLButtonElement {
-  const card = el('button', 'level-card')
-  const solved = progress.solved.includes(level.id)
-  card.classList.toggle('solved', solved)
-  card.append(el('span', 'fig', `FIG. ${n}`), el('span', 'title', levelTitle(level) || t('list.untitled')))
-  if (solved) card.append(el('span', 'badge', t('list.solved')))
-  else if (progress.drafts[level.id]?.placements?.length) card.append(el('span', 'badge draft', t('list.draft')))
-  card.addEventListener('click', onClick)
-  return card
-}
-
 /** Miniature of a level board as the player left it (their machine when they have one), drawn once. */
 function miniature(level: Level, progress: Progress, px: number): HTMLCanvasElement {
   const c = el('canvas', 'mini')
@@ -72,6 +61,40 @@ function levelFigure(level: Level, n: number, progress: Progress, onClick: () =>
   fig.append(thumb, caption)
   fig.addEventListener('click', onClick)
   return fig
+}
+
+/** Level made with the editor: the drawing opens the editor, the bar under the caption plays, duplicates or deletes. */
+function myLevelFigure(level: Level, n: number, custom: LevelListOpts['custom'], onPlay: () => void): HTMLLIElement {
+  const li = el('li', 'mine')
+  const fig = el('button', 'level-fig')
+  fig.addEventListener('click', () => custom.onEdit(level))
+  const thumb = el('span', 'thumb')
+  // Solved/draft states would mix the author's tests with play: show the verification state only.
+  thumb.append(
+    miniature(level, { solved: [], drafts: {} }, 320),
+    level.verified ? el('span', 'badge', t('level.verified')) : el('span', 'badge todo', t('level.untested')),
+  )
+  const caption = el('span', 'caption')
+  caption.append(el('span', 'fig', `FIG. ${n}`), el('span', 'title', levelTitle(level) || t('list.untitled')))
+  fig.append(thumb, caption)
+  const action = (name: 'play' | 'duplicate' | 'delete', label: string, run: () => void): HTMLButtonElement => {
+    const b = el('button', name === 'delete' ? 'btn icon danger' : 'btn icon')
+    b.title = label
+    b.setAttribute('aria-label', label)
+    b.append(icon(name))
+    b.addEventListener('click', run)
+    return b
+  }
+  const bar = el('div', 'actions')
+  bar.append(
+    action('play', t('list.play'), onPlay),
+    action('duplicate', t('list.duplicate'), () => custom.onDuplicate(level)),
+    action('delete', t('list.delete'), () => {
+      if (confirm(t('list.confirmDelete', { title: level.title }))) custom.onDelete(level)
+    }),
+  )
+  li.append(fig, bar)
+  return li
 }
 
 /** The next unsolved level, large, with the player's machine so far and Continue (or Play). */
@@ -101,7 +124,7 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
     tabs.append(b)
   }
   head.append(tabs)
-  const grid = el('ol', opts.tab === 'shipped' ? 'level-atlas' : 'level-grid')
+  const grid = el('ol', 'level-atlas')
   let next: HTMLElement | undefined
   if (opts.tab === 'shipped') {
     const nextIndex = levels.findIndex((l) => !progress.solved.includes(l.id))
@@ -121,7 +144,7 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
     })
     if (levels.length === 0) grid.append(el('li', 'note', t('list.empty')))
   } else {
-    const { levels: mine, onEdit, onNew, onImport, onDelete, onDuplicate } = opts.custom
+    const { levels: mine, onNew, onImport } = opts.custom
     const tools = el('li', 'level-tools')
     const create = el('button', 'btn primary', t('list.new'))
     create.addEventListener('click', onNew)
@@ -138,24 +161,7 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
     importLabel.append(file)
     tools.append(create, importLabel)
     grid.append(tools)
-    mine.forEach((level, i) => {
-      const li = el('li', 'mine')
-      // Solved/draft badges would mix the author's tests with play: show the verification state only.
-      const card = levelCard(level, i + 1, { solved: [], drafts: {} }, () => onEdit(level))
-      card.append(level.verified ? el('span', 'badge', t('level.verified')) : el('span', 'badge todo', t('level.untested')))
-      const playBtn = el('button', 'btn small', t('list.play'))
-      playBtn.addEventListener('click', () => opts.onPlay(level, mine))
-      const dupBtn = el('button', 'btn small', t('list.duplicate'))
-      dupBtn.addEventListener('click', () => onDuplicate(level))
-      const delBtn = el('button', 'btn small danger', t('list.delete'))
-      delBtn.addEventListener('click', () => {
-        if (confirm(t('list.confirmDelete', { title: level.title }))) onDelete(level)
-      })
-      const actions = el('div', 'actions')
-      actions.append(playBtn, dupBtn, delBtn)
-      li.append(card, actions)
-      grid.append(li)
-    })
+    mine.forEach((level, i) => grid.append(myLevelFigure(level, i + 1, opts.custom, () => opts.onPlay(level, mine))))
   }
   const foot = el('footer', 'levels-foot')
   const source = el('a', '', t('list.source'))

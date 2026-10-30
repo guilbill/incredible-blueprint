@@ -73,7 +73,7 @@ describe('level list copy and duplicate buttons', () => {
     })
     return { root, calls }
   }
-  const button = (root: FakeEl, text: string) => root.all().find((e) => e.tag === 'button' && e.textContent === text)
+  const button = (root: FakeEl, title: string) => root.all().find((e) => e.tag === 'button' && e.title === title)
 
   it('shipped cards copy without playing', () => {
     const { root, calls } = mount('shipped')
