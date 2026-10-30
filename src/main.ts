@@ -6,10 +6,11 @@ import type { Level } from './level/types'
 import { asShared, decodeLevel, levelFromFile } from './level/codec'
 import { copyLocks, forgetLocks } from './editor/locks'
 import { deleteCustomLevel, duplicateLevel, insertCustomLevelAfter, loadCustomLevels, saveCustomLevel } from './level/custom'
-import { loadProgress } from './storage'
+import { isFirstVisit, loadProgress, markWelcomed } from './storage'
 import { LANG_EVENT } from './ui/langSwitch'
 import { type LevelTab, loadLevels, mountLevelList } from './ui/levels'
 import { mountPlay } from './ui/play'
+import { mountWelcome } from './ui/welcome'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 const levels = loadLevels()
@@ -97,6 +98,24 @@ function showBanner(message: string): void {
   app.append(banner)
 }
 
+/** First visit: the machine with one plank to place. Solving it slides to the first level. */
+function showWelcome(): void {
+  unmount()
+  banner?.remove()
+  remount = () => showWelcome()
+  unmount = mountWelcome(app, {
+    onDone: () => {
+      markWelcomed()
+      play(levels[0], levels)
+      app.firstElementChild?.classList.add('enter-from-right')
+    },
+    onLevels: () => {
+      markWelcomed()
+      showList()
+    },
+  })
+}
+
 function play(level: Level, list: Level[] = []): void {
   unmount()
   banner?.remove()
@@ -115,7 +134,7 @@ function play(level: Level, list: Level[] = []): void {
 /** Opens a shared `#l=` link: play it, or explain what is wrong over the level list. Clears the hash. */
 async function openSharedLink(): Promise<void> {
   const m = /^#l=(.*)$/.exec(location.hash)
-  if (!m) return showList()
+  if (!m) return isFirstVisit() && levels.length > 0 ? showWelcome() : showList()
   history.replaceState(null, '', location.pathname + location.search)
   const r = await decodeLevel(m[1])
   if (r.ok) play(asShared(r.level))
