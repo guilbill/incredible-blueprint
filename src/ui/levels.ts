@@ -1,7 +1,10 @@
 import { levelGoal, levelTitle, t } from '../i18n'
+import { FIELD } from '../level/placement'
 import type { Level } from '../level/types'
+import { render } from '../render/renderer'
 import type { Progress } from '../storage'
 import { el } from './dom'
+import { sanitizeDraft } from './edit'
 import { icon } from './icons'
 import { langSwitch } from './langSwitch'
 
@@ -44,6 +47,49 @@ function levelCard(level: Level, n: number, progress: Progress, onClick: () => v
   return card
 }
 
+/** Miniature of a level board as the player left it (their machine when they have one), drawn once. */
+function miniature(level: Level, progress: Progress, px: number): HTMLCanvasElement {
+  const c = el('canvas', 'mini')
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
+  c.width = Math.round(px * dpr)
+  c.height = Math.round((px * dpr * FIELD.h) / FIELD.w)
+  const ctx = typeof c.getContext === 'function' ? c.getContext('2d') : null
+  if (ctx) render(ctx, { level, sol: sanitizeDraft(level, progress.drafts[level.id]), zoom: c.width / FIELD.w, won: progress.solved.includes(level.id) })
+  return c
+}
+
+type LevelState = 'solved' | 'draft' | 'todo'
+const stateOf = (level: Level, progress: Progress): LevelState =>
+  progress.solved.includes(level.id) ? 'solved' : progress.drafts[level.id]?.placements?.length ? 'draft' : 'todo'
+
+/** Shipped level in the atlas: the drawing, the goal over it on hover, the caption under it. */
+function levelFigure(level: Level, n: number, progress: Progress, onClick: () => void): HTMLButtonElement {
+  const fig = el('button', `level-fig ${stateOf(level, progress)}`)
+  const thumb = el('span', 'thumb')
+  thumb.append(miniature(level, progress, 320), el('span', 'goal', levelGoal(level)))
+  const caption = el('span', 'caption')
+  caption.append(el('span', 'fig', `FIG. ${n}`), el('span', 'title', levelTitle(level) || t('list.untitled')))
+  fig.append(thumb, caption)
+  fig.addEventListener('click', onClick)
+  return fig
+}
+
+/** The next unsolved level, large, with the player's machine so far and Continue (or Play). */
+function nextCard(level: Level, n: number, progress: Progress, onPlay: () => void): HTMLElement {
+  const box = el('section', 'level-next')
+  const started = stateOf(level, progress) === 'draft'
+  const thumb = el('button', 'thumb')
+  thumb.setAttribute('aria-label', levelTitle(level))
+  thumb.append(miniature(level, progress, 640))
+  thumb.addEventListener('click', onPlay)
+  const side = el('div', 'next-info')
+  const go = el('button', 'btn primary', started ? t('list.continue') : t('list.play'))
+  go.addEventListener('click', onPlay)
+  side.append(el('span', 'fig', `FIG. ${n} · ${started ? t('list.draft') : t('list.next')}`), el('h2', 'title', levelTitle(level)), el('p', 'goal', levelGoal(level)), go)
+  box.append(thumb, side)
+  return box
+}
+
 export function mountLevelList(root: HTMLElement, levels: Level[], progress: Progress, opts: LevelListOpts): () => void {
   const screen = el('div', 'levels')
   const head = el('header', 'levels-head')
@@ -55,11 +101,13 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
     tabs.append(b)
   }
   head.append(tabs)
-  const grid = el('ol', 'level-grid')
+  const grid = el('ol', opts.tab === 'shipped' ? 'level-atlas' : 'level-grid')
+  let next: HTMLElement | undefined
   if (opts.tab === 'shipped') {
+    const nextIndex = levels.findIndex((l) => !progress.solved.includes(l.id))
+    if (nextIndex >= 0) next = nextCard(levels[nextIndex], nextIndex + 1, progress, () => opts.onPlay(levels[nextIndex], levels))
     levels.forEach((level, i) => {
       const li = el('li', 'shipped')
-      // Icon only: a text label would cover the goal text of the card.
       const copyBtn = el('button', 'btn icon copy')
       copyBtn.title = t('list.copyToMine')
       copyBtn.setAttribute('aria-label', copyBtn.title)
@@ -68,9 +116,7 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
         e.stopPropagation()
         opts.onCopyShipped(level)
       })
-      const actions = el('div', 'actions')
-      actions.append(copyBtn)
-      li.append(levelCard(level, i + 1, progress, () => opts.onPlay(level, levels)), actions)
+      li.append(levelFigure(level, i + 1, progress, () => opts.onPlay(level, levels)), copyBtn)
       grid.append(li)
     })
     if (levels.length === 0) grid.append(el('li', 'note', t('list.empty')))
@@ -117,7 +163,7 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
   source.target = '_blank'
   source.rel = 'noopener'
   foot.append(source)
-  screen.append(head, grid, foot)
+  screen.append(head, ...(next ? [next] : []), grid, foot)
   root.replaceChildren(screen)
   return () => root.replaceChildren()
 }

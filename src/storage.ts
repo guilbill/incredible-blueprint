@@ -27,6 +27,9 @@ export const PROGRESS_KEY = 'tim.progress'
 /** Custom levels from the editor (Task 12). */
 export const LEVELS_KEY = 'tim.levels'
 
+/** Set once the player has left the welcome machine (by solving it or by going to the levels). */
+export const WELCOMED_KEY = 'tim.welcomed'
+
 export interface Progress { solved: string[]; drafts: Record<string, Solution> }
 
 export function loadProgress(): Progress {
@@ -54,4 +57,15 @@ export function saveDraft(levelId: string, sol: Solution): boolean {
   const p = loadProgress()
   p.drafts[levelId] = sol
   return storage.set(PROGRESS_KEY, p)
+}
+
+/** First visit: never left the welcome machine and nothing played yet. */
+export function isFirstVisit(): boolean {
+  if (storage.get(WELCOMED_KEY, false)) return false
+  const p = loadProgress()
+  return p.solved.length === 0 && Object.keys(p.drafts).length === 0
+}
+
+export function markWelcomed(): boolean {
+  return storage.set(WELCOMED_KEY, true)
 }

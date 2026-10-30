@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { deleteCustomLevel, loadCustomLevels, saveCustomLevel } from '../src/level/custom'
 import type { Level } from '../src/level/types'
-import { LEVELS_KEY, forgetLevel, loadProgress, markSolved, saveDraft, storage } from '../src/storage'
+import { LEVELS_KEY, forgetLevel, isFirstVisit, loadProgress, markSolved, markWelcomed, saveDraft, storage } from '../src/storage'
 
 function memoryStorage(): Storage {
   const m = new Map<string, string>()
@@ -109,5 +109,20 @@ describe('custom levels', () => {
   it('deleteCustomLevel reports failure when storage is unavailable', () => {
     vi.stubGlobal('localStorage', undefined)
     expect(deleteCustomLevel('x')).toBe(false)
+  })
+})
+
+describe('first visit', () => {
+  it('is true on an empty storage, false once welcomed or once anything was played', () => {
+    vi.stubGlobal('localStorage', memoryStorage())
+    expect(isFirstVisit()).toBe(true)
+    markWelcomed()
+    expect(isFirstVisit()).toBe(false)
+    vi.stubGlobal('localStorage', memoryStorage())
+    saveDraft('01-premier-plan', { placements: [], links: [] })
+    expect(isFirstVisit()).toBe(false)
+    vi.stubGlobal('localStorage', memoryStorage())
+    markSolved('01-premier-plan')
+    expect(isFirstVisit()).toBe(false)
   })
 })
