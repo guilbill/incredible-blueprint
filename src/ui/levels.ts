@@ -22,7 +22,7 @@ export function loadLevels(): Level[] {
     .map((k) => mods[k])
 }
 
-const REPO_URL = 'https://github.com/guilbill/incredible-machine-tribute'
+const REPO_URL = 'https://github.com/guilbill/incredible-blueprint'
 
 export type LevelTab = 'shipped' | 'mine'
 

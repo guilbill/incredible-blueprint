@@ -15,7 +15,7 @@ const fr = {
   'common.close': 'Fermer',
   'lang.label': 'Langue',
 
-  'list.title': 'Machine Incroyable Tribute',
+  'list.title': 'The Incredible Blueprint',
   'list.subtitle': 'Plans de machines · choisissez un niveau',
   'list.tabShipped': 'Niveaux',
   'list.tabMine': 'Mes niveaux',
@@ -231,7 +231,7 @@ const en: Record<Key, string> = {
   'common.close': 'Close',
   'lang.label': 'Language',
 
-  'list.title': 'Machine Incroyable Tribute',
+  'list.title': 'The Incredible Blueprint',
   'list.subtitle': 'Machine blueprints · pick a level',
   'list.tabShipped': 'Levels',
   'list.tabMine': 'My levels',

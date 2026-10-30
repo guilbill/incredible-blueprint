@@ -1,6 +1,6 @@
 ---
 name: propose-options
-description: Show the user 2 to 5 variants side by side in the design lab before coding anything they will see, hear or handle in MIT (part drawings, icons, colours, sounds, layouts, panels, gestures like drag/rotate/select). Use it unprompted whenever a visual, sound or interaction choice is open, and whenever the user says "propose", "fais des propositions", "montre-moi", "dans un onglet", "plus discret", "je ne sais pas".
+description: Show the user 2 to 5 variants side by side in the design lab before coding anything they will see, hear or handle in TIB (part drawings, icons, colours, sounds, layouts, panels, gestures like drag/rotate/select). Use it unprompted whenever a visual, sound or interaction choice is open, and whenever the user says "propose", "fais des propositions", "montre-moi", "dans un onglet", "plus discret", "je ne sais pas".
 ---
 
 # Propose options in the lab

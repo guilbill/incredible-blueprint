@@ -746,7 +746,7 @@ canvas.mini { display: block; width: 100%; height: auto; }
   outline: 1px solid var(--grid);
   outline-offset: 6px;
 }
-.title-block .mit {
+.title-block .mono {
   font-size: min(22vw, 26vh);
   line-height: 1;
   letter-spacing: 0.18em;

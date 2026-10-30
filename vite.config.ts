@@ -3,15 +3,15 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  // Relative URLs, so the game also works from a sub-path (e.g. GitHub Pages /incredible-machine-tribute/).
+  // Relative URLs, so the game also works from a sub-path (e.g. GitHub Pages /incredible-blueprint/).
   base: './',
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Machine Incroyable Tribute',
-        short_name: 'MIT',
+        name: 'The Incredible Blueprint',
+        short_name: 'TIB',
         description: 'Un jeu de casse-tête physique, hommage à The Incredible Machine.',
         lang: 'fr',
         theme_color: '#0e2a4a',

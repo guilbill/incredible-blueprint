@@ -1,12 +1,12 @@
 # AGENTS.md
 
-Guide for any coding agent working on Machine Incroyable Tribute (MIT), a browser tribute to The Incredible Machine 2. Read it before the first change. The user is Guillaume; he writes in French, the code, commits and README are in English.
+Guide for any coding agent working on The Incredible Blueprint (TIB), a browser tribute to The Incredible Machine 2. Read it before the first change. The user is Guillaume; he writes in French, the code, commits and README are in English.
 
 ## The project in one screen
 
 - TypeScript strict, Vite, Planck.js physics, canvas rendering, Vitest, Playwright e2e (Chromium, Firefox, WebKit). Client side only: no server, no account.
 - `src/engine` physics adapter and deterministic math, `src/parts` every part (drawing, bodies, behaviour), `src/game` simulation and goals, `src/level` level format, codec, placement, custom level storage, `src/render` canvas renderer, `src/ui` screens (play board, level list, sound, selection), `src/editor` level editor, `src/lab` design bench (dev only), `levels/` shipped levels and their proven solutions.
-- Live site: https://guilbill.github.io/incredible-machine-tribute/ (GitHub Pages from `main`).
+- Live site: https://guilbill.github.io/incredible-blueprint/ (GitHub Pages from `main`).
 
 ## Invariants (never break them)
 

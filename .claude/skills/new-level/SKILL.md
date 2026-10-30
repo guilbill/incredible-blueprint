@@ -1,6 +1,6 @@
 ---
 name: new-level
-description: Design, prove and hand over a new shipped MIT level (levels/NN-slug.json + .solution.json), or rework one. Use for "nouveau niveau", "crée des niveaux", "ce niveau est trop dur", "je ne trouve pas la solution".
+description: Design, prove and hand over a new shipped TIB level (levels/NN-slug.json + .solution.json), or rework one. Use for "nouveau niveau", "crée des niveaux", "ce niveau est trop dur", "je ne trouve pas la solution".
 ---
 
 # New level

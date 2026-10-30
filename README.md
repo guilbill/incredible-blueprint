@@ -1,10 +1,10 @@
-# Machine Incroyable Tribute (MIT)
+# The Incredible Blueprint (TIB)
 
 A tribute to **The Incredible Machine**, the Sierra game (1993, then TIM 2 in 1994) I played as a kid. You build Rube Goldberg machines: a ball drops on a seesaw, which wakes a cat, which chases a mouse, which spins a wheel... and if you thought it all through, the goal lights up.
 
-This project brings that feeling back in the browser, with an engineering blueprint look and a more modern interface. Its name, Machine Incroyable Tribute, shortens to MIT: TIM read backwards.
+This project brings that feeling back in the browser, with an engineering blueprint look and a more modern interface. Its name, The Incredible Blueprint, says both: the machine it pays tribute to, and the blueprint it is drawn on.
 
-**Play it: https://guilbill.github.io/incredible-machine-tribute/**
+**Play it: https://guilbill.github.io/incredible-blueprint/**
 
 ![The Big Machine level, ready to be solved: fixed parts on the blueprint board, the parts drawer on the right](docs/screenshot.png)
 
