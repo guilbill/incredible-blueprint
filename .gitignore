@@ -3,7 +3,11 @@ dist
 .superpowers/
 test-results
 playwright-report
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
+!.claude/launch.json
 # Superpowers design notes and plans stay local
 docs/superpowers/
 docs/specs/

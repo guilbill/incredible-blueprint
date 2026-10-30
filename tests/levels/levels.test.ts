@@ -9,6 +9,8 @@ import { loadLevels } from '../../src/ui/levels'
 
 interface Reference { solution: Solution; step: number; hash: string }
 
+/** Long runs (many full simulations): the 5 s default trips on a busy machine, e.g. during a commit hook. */
+const SLOW = 30_000
 const refs = import.meta.glob<Reference>('../../levels/*.solution.json', { eager: true, import: 'default' })
 const refOf = (l: Level): Reference | undefined => refs[`../../levels/${l.id}.solution.json`]
 
@@ -83,10 +85,10 @@ describe('the shipped levels', () => {
         if (wins < Math.min(2, tried)) fragile.push(`${p.id} (${p.kind}): ${wins}/${tried}`)
       })
       expect(fragile).toEqual([])
-    })
+    }, SLOW)
 
     it('is not solved within 60 s without the player’s parts', () => {
       expect(runUntilGoal(level, { placements: [], links: [] }, MINUTE).met).toBe(false)
-    })
+    }, SLOW)
   })
 })
