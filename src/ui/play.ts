@@ -1,11 +1,11 @@
 import { data, velocity } from '../engine/bodies'
 import { bodyPose } from '../engine/world'
 import { Simulation } from '../game/simulation'
-import { v, type Vec } from '../engine/vec'
+import { len, sub, v, type Vec } from '../engine/vec'
 import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
 import { FIELD, footprint, gearMagnet, snap } from '../level/placement'
 import type { Anchor, Goal, Guide, Level, PartKind, Placement, Rect, Solution } from '../level/types'
-import { angleOf, setting } from '../parts/common'
+import { ROT_ANGLE, angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
@@ -22,7 +22,7 @@ import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
 import { allShortcuts, hintsFor, type Hint } from './shortcuts'
 import { sound } from './sound'
-import { copyGroup, groupBox, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, selectInRect, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
+import { copyGroup, groupBox, groupNotches, groupRotHandle, groupRotStep, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, rotationBlockers, selectInRect, turnedParts, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
 import { anyMoving, createStallWatch, type StallReason } from './stall'
 
@@ -186,6 +186,20 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let stall = createStallWatch()
   /** Handle of the selected part being pressed: a click steps it, a drag sets it from the pointer. */
   let grip: { kind: HandleKind; start: { x: number; y: number }; moved: boolean; free?: number; recorded?: boolean } | undefined
+  /**
+   * Rotate handle of a multi-selection being pressed: the group is shown turned by `notches` from its pose at
+   * the press (`base`) around a fixed pivot, and lands on the last pose that fitted (`valid`) when released.
+   */
+  let spin: {
+    ids: string[]; base: Solution; pivot: Vec; radius: number; step: number; start: { x: number; y: number }; moved: boolean; free?: number
+    notches: number
+    /** The group's parts turned by `notches`, fitting or not. */
+    turned: Placement[]
+    /** The turned solution, or null when the group does not fit there; then `blockers` are the parts in the way. */
+    next: Solution | null
+    blockers: string[]
+    valid: Solution
+  } | undefined
   /** Part whose chevrons last nudged, and since when (they nudge again each time a part is selected). */
   let nudgeFor: string | undefined
   let selectedSince = 0
@@ -413,7 +427,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const row = el('div', 'row actions')
     if (!one) row.append(el('span', 'count', String(selection.length)))
     row.append(iconButton('duplicate', 'duplicate', duplicateSelection), iconButton('copy', 'copy', copySelection))
-    if (one && partDef(one.kind).rotStep > 0) row.append(iconButton('rotate', 'rotate', () => edit((q) => rotated(q, 1))))
+    if (one ? partDef(one.kind).rotStep > 0 : unlocked().length > 1) row.append(iconButton('rotate', 'rotate', () => rotateSelection(1)))
     if (one && partDef(one.kind).flippable) row.append(iconButton('flip', 'flip', () => edit(flipped)))
     if (author) row.append(lockButton())
     row.append(iconButton('delete', 'delete', removeSelected))
@@ -506,7 +520,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     const p = single()
     if (!p && selection.length > 1) {
-      if (sim || drag?.started || group?.started) {
+      if (sim || drag?.started || group?.started || spin?.moved) {
         selPanel.hidden = true
         return
       }
@@ -535,7 +549,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const box = groupBox(sol.placements.filter((p) => selection.includes(p.id)))
     const r = canvas.getBoundingClientRect()
     const stageRect = stage.getBoundingClientRect()
-    const top = unitsToClient({ x: box.x - 8, y: box.y - 8 }, r)
+    // above the rotate handle too, so the panel never covers it
+    const handle = groupHandle()
+    const top = unitsToClient({ x: box.x - 8, y: handle ? Math.min(box.y - 8, handle.y - HANDLE_HIT) : box.y - 8 }, r)
     const bottom = unitsToClient({ x: box.x - 8, y: box.y + box.h + 8 }, r)
     const h = selPanel.offsetHeight
     const room = top.y - stageRect.top - h - 6 >= 8
@@ -657,6 +673,43 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (dropped > 0) showToast(t('toast.beltDropped'))
   }
 
+  /** Parts that turn with the group's rotate handle: the unlocked ones, when there are several. */
+  function spinParts(): Placement[] | undefined {
+    const ids = unlocked()
+    if (sim || tool || selection.length < 2 || ids.length < 2) return undefined
+    return sol.placements.filter((p) => ids.includes(p.id))
+  }
+
+  /** The group's rotate handle, when the selection can turn. */
+  function groupHandle(): Vec | undefined {
+    const ps = spinParts()
+    return ps && groupRotHandle(groupBox(ps))
+  }
+
+  /** Centre of the group's box on the grid, so quarter turns keep the parts on it. */
+  const spinPivot = (ps: Placement[]): Vec => {
+    const box = groupBox(ps)
+    return v(snap(box.x + box.w / 2), snap(box.y + box.h / 2))
+  }
+
+  /** One notch of the selection (dir 1 = clockwise): the part's own step, or the group's around its centre. */
+  function rotateSelection(dir: 1 | -1): void {
+    const ps = spinParts()
+    if (!ps) {
+      edit((p) => rotated(p, dir))
+      return
+    }
+    const next = rotateGroup(level, sol, ps.map((p) => p.id), dir * groupRotStep(ps), spinPivot(ps))
+    if (!next) {
+      showToast(t('toast.noRoom'))
+      return
+    }
+    sound.click()
+    const dropped = sol.links.length - next.links.length
+    commit(next)
+    if (dropped > 0) showToast(t('toast.beltDropped'))
+  }
+
   function selectAll(): void {
     selection = sol.placements.filter((p) => !isLocked(p.id)).map((p) => p.id)
     selectedLink = undefined
@@ -723,7 +776,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       items = [
         { label: t('menu.copy'), shortcut: `${modKey}C`, run: copySelection, enabled: unlocked().length > 0 },
         { label: t('menu.duplicate'), shortcut: `${modKey}D`, run: duplicateSelection, enabled: unlocked().length > 0 },
-        { label: t('menu.rotate'), shortcut: 'R', run: () => edit((p) => rotated(p, 1)), enabled: !!one && !isLocked(one.id) && partDef(one.kind).rotStep > 0 },
+        { label: t('menu.rotate'), shortcut: 'R', run: () => rotateSelection(1), enabled: one ? !isLocked(one.id) && partDef(one.kind).rotStep > 0 : !!spinParts() },
         { label: t('menu.flip'), shortcut: 'F', run: () => edit(flipped), enabled: !!one && !isLocked(one.id) && partDef(one.kind).flippable },
         ...(author ? [{ label: t(allLocked() ? 'action.unlock' : 'action.lock'), shortcut: 'L', run: toggleLock, enabled: true }] : []),
         { label: t('menu.delete'), shortcut: 'Del', run: removeSelected, enabled: unlocked().length > 0 },
@@ -893,6 +946,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       refreshUi()
       return
     }
+    const gh = groupHandle()
+    if (gh && len(sub(gh, pt)) <= HANDLE_HIT) {
+      e.preventDefault()
+      const ps = spinParts()!
+      const pivot = spinPivot(ps)
+      spin = { ids: ps.map((p) => p.id), base: sol, pivot, radius: Math.max(40, len(sub(gh, pivot))), step: groupRotStep(ps), start: { x: e.clientX, y: e.clientY }, moved: false, notches: 0, turned: ps, next: sol, blockers: [], valid: sol }
+      refreshUi()
+      return
+    }
     const sp = single()
     const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt)
     if (handle) {
@@ -1027,6 +1089,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     if (e.target === canvas) pointer = unitsAt(e)
+    if (spin) {
+      moveSpin(spin, e)
+      return
+    }
     if (grip) {
       moveGrip(grip, e)
       return
@@ -1046,9 +1112,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt)
       const end = handle === 'start' || handle === 'end' ? handle : undefined
       if (end !== hoverEnd?.end) hoverEnd = end ? { end, since: performance.now() } : undefined
-      canvas.classList.toggle('over-rot', handle === 'rot')
+      const gh = !tool ? groupHandle() : undefined
+      const overSpin = !!gh && len(sub(gh, pt)) <= HANDLE_HIT
+      canvas.classList.toggle('over-rot', handle === 'rot' || overSpin)
       canvas.classList.toggle('over-end', !!end)
-      const clickable = tool ? !!over : !!(handle || hitPart(sol, pt) || hitLink(level, sol, pt))
+      const clickable = tool ? !!over : !!(handle || overSpin || hitPart(sol, pt) || hitLink(level, sol, pt))
       canvas.classList.toggle('over-part', !author?.tracing() && clickable)
     }
   }
@@ -1075,6 +1143,33 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     dirty = true
   }
 
+  /** Ghost of the group turned toward the pointer, once past the drag threshold; the last pose that fits is kept for the release. */
+  function moveSpin(g: NonNullable<typeof spin>, e: PointerEvent): void {
+    const dx = e.clientX - g.start.x
+    const dy = e.clientY - g.start.y
+    if (!g.moved) {
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return
+      g.moved = true
+      // the panel hides while the group turns
+      refreshUi()
+    }
+    hover = undefined
+    const pt = unitsAt(e)
+    g.free = Math.atan2(pt.y - g.pivot.y, pt.x - g.pivot.x) + Math.PI / 2
+    const n = groupNotches(g.pivot, pt, g.step)
+    if (n !== g.notches) {
+      g.notches = n
+      g.turned = turnedParts(g.base, g.ids, n, g.pivot)
+      g.next = rotateGroup(level, g.base, g.ids, n, g.pivot)
+      g.blockers = g.next ? [] : rotationBlockers(level, g.base, g.turned)
+      if (g.next) {
+        sound.click()
+        g.valid = g.next
+      }
+    }
+    dirty = true
+  }
+
   function onPointerLeave(): void {
     hoverEnd = undefined
     hover = undefined
@@ -1094,6 +1189,22 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     if (zoneDrag) {
       updateZone(zoneDrag, e)
       zoneDrag = undefined
+      refreshUi()
+      return
+    }
+    if (spin) {
+      const g = spin
+      spin = undefined
+      // a click turns one notch clockwise; a drag released where the group does not fit lands on the last pose that did
+      if (!g.moved) rotateSelection(1)
+      else {
+        if (!g.next) showToast(t('toast.noRoom'))
+        if (g.valid !== g.base) {
+          // one undo step per drag, however many notches it went through
+          commit(g.valid)
+          if (g.valid.links.length < g.base.links.length) showToast(t('toast.beltDropped'))
+        }
+      }
       refreshUi()
       return
     }
@@ -1273,7 +1384,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     // Leave browser and system shortcuts (Ctrl+R, Cmd+F, Alt+Backspace…) alone.
     if (e.ctrlKey || e.metaKey || e.altKey) return
     if (author && (e.key === 'l' || e.key === 'L')) toggleLock()
-    else if (e.key === 'r' || e.key === 'R') edit((p) => rotated(p, e.shiftKey ? -1 : 1))
+    else if (e.key === 'r' || e.key === 'R') rotateSelection(e.shiftKey ? -1 : 1)
     else if (e.key === 'f' || e.key === 'F') edit(flipped)
     else if (author && selectedGoal && !selection.length && (e.key in ARROWS || e.key === 'Delete' || e.key === 'Backspace')) {
       e.preventDefault()
@@ -1299,9 +1410,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       e.preventDefault()
       removeSelected()
     } else if (e.key === 'Escape') {
-      // a drag in progress is cancelled: the zone goes back where it was, the group never moved
+      // a drag in progress is cancelled: the zone goes back where it was, the group never moved or turned
       if (zoneDrag && author) author.setZone(zoneDrag.i, zoneDrag.orig)
       group = undefined
+      spin = undefined
       trace = undefined
       marquee = undefined
       zoneDrag = undefined
@@ -1383,7 +1495,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const now = performance.now()
     const one = single()?.id
     const nudging = !!one && !sim && (nudgeFor !== one || now - selectedSince < NUDGE_MS)
-    const animating = !!tool || nudging || !!hoverEnd || !!grip?.moved || (hover !== undefined && !labelDone(now - hover.since))
+    const animating = !!tool || nudging || !!hoverEnd || !!grip?.moved || !!spin?.moved || (hover !== undefined && !labelDone(now - hover.since))
     if (!sim && !dirty && !animating) return
     dirty = false
     guarded(draw, (err) => jammed(err, true))
@@ -1391,11 +1503,13 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function draw(): void {
     const g = group?.started ? group : undefined
-    const hidden = new Set(g ? g.ids : drag?.started && drag.moving ? [drag.moving.id] : [])
+    const sg = spin?.moved ? spin : undefined
+    const hidden = new Set(g ? g.ids : sg ? sg.ids : drag?.started && drag.moving ? [drag.moving.id] : [])
     const viewSol = hidden.size ? { ...sol, placements: sol.placements.filter((p) => !hidden.has(p.id)) } : sol
     const ghost: PartDrawState | undefined = drag?.started && drag.ghost ? { placement: drag.ghost, ghost: drag.ok ? 'ok' : 'bad' } : undefined
-    const moved = g ? movedParts(g) : undefined
-    const ghosts: PartDrawState[] | undefined = g && moved?.map((placement) => ({ placement, ghost: g.next ? 'ok' : 'bad' }))
+    const moved = g ? movedParts(g) : sg?.turned
+    const fits = g ? !!g.next : !!sg?.next
+    const ghosts: PartDrawState[] | undefined = moved?.map((placement) => ({ placement, ghost: fits ? 'ok' : 'bad' }))
     const boxed = moved ?? (drag?.started ? [] : sol.placements.filter((p) => selection.includes(p.id)))
     let view = level
     if (author) {
@@ -1411,6 +1525,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     const lone = single()
     const sp = !sim && !tool && !drag?.started && !g && lone && !isLocked(lone.id) ? lone : undefined
+    const gh = !drag?.started && !g && !marquee ? groupHandle() : undefined
     const from = first && anchorAt(level, sol, first)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     render(ctx, {
@@ -1419,6 +1534,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       selectedZone: sim || zoneIndex() < 0 ? undefined : zoneIndex(),
       locked: sim ? undefined : author?.locked(),
       selectionBox: !sim && boxed.length ? groupBox(boxed) : undefined,
+      selectionBad: !!sg && !sg.next,
+      blocked: sg?.blockers,
       marquee: marquee && rectBetween(marquee.a, marquee.b),
       guides: g?.guides,
       pendingAnchor: first, selectedLink: sim ? undefined : selectedLink,
@@ -1426,8 +1543,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       pendingLine: from && pointer ? { from, to: pointer } : undefined,
       hover: hover && !drag?.started ? { id: hover.id, t: now - hover.since } : undefined,
       meshMarks: drag?.started ? drag.meshMarks : undefined,
-      handles: sp ? { at: handlesOf(sp), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since } } : undefined,
-      dial: sp && grip?.kind === 'rot' && grip.moved ? dialFor(sp, grip.free ?? angleOf(sp)) : undefined,
+      handles: sp ? { at: handlesOf(sp), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since } } : gh ? { at: { rot: gh }, t: now - selectedSince } : undefined,
+      dial: sp && grip?.kind === 'rot' && grip.moved ? dialFor(sp, grip.free ?? angleOf(sp)) : spin?.moved ? spinDial(spin) : undefined,
     })
   }
 
@@ -1437,6 +1554,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const dx = at.x - p.x
     const dy = at.y - p.y
     return { center: { x: p.x, y: p.y }, radius: Math.max(40, Math.sqrt(dx * dx + dy * dy)), step: (partDef(p.kind).rotStep * Math.PI) / 12, current: angleOf(p), needle, offset: rotHandleOffset(p) }
+  }
+
+  /** Notch dial around the pivot of a turning group: ticks from straight up at the press, needle on the pointer. */
+  function spinDial(g: NonNullable<typeof spin>): NonNullable<RenderView['dial']> {
+    return { center: g.pivot, radius: g.radius, step: g.step * ROT_ANGLE, current: g.notches * ROT_ANGLE, needle: g.free ?? 0, offset: -Math.PI / 2, bad: !g.next }
   }
 
   window.addEventListener('pointermove', onPointerMove)

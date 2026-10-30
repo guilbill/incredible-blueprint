@@ -25,8 +25,8 @@ describe('hintsFor', () => {
     expect(labels({ count: 1, single: true })).toEqual(all.filter((l) => l !== 'verrouiller'))
   })
 
-  it('drops rotate and flip for several parts', () => {
-    expect(labels({ author: true, count: 3 })).toEqual(['décaler (Shift ×5)', 'dupliquer', 'copier', 'verrouiller', 'supprimer', 'désélectionner'])
+  it('keeps rotate but drops flip for several parts', () => {
+    expect(labels({ author: true, count: 3 })).toEqual(['décaler (Shift ×5)', 'dupliquer', 'copier', 'pivoter', 'verrouiller', 'supprimer', 'désélectionner'])
   })
 
   it('offers only the lock toggle and deselect when every selected part is locked', () => {

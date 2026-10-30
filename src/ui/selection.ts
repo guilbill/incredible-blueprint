@@ -1,9 +1,11 @@
-import { v, type Vec } from '../engine/vec'
+import { rotate, v, type Vec } from '../engine/vec'
 import { LIMITS } from '../level/codec'
-import { FIELD, canPlace, footprint, overlaps, snap } from '../level/placement'
+import { FIELD, canPlace, collides, footprint, overlaps, snap } from '../level/placement'
 import type { Goal, Guide, Level, Link, PartKind, Placement, Rect, Solution } from '../level/types'
+import { ROT_ANGLE } from '../parts/common'
 import { canLink } from '../parts/mech/links'
-import { nextId, nextLinkId, remaining } from './edit'
+import { partDef } from '../parts/registry'
+import { ROT_GAP, nextId, nextLinkId, remaining } from './edit'
 
 /** Pure group operations on a player's solution (multi-selection, copy and paste). Each returns null when refused. */
 
@@ -50,6 +52,56 @@ export function moveGroup(level: Level, sol: Solution, ids: readonly string[], d
   const placements = sol.placements.map((p) => (set.has(p.id) ? { ...p, x: p.x + sx, y: p.y + sy } : p))
   const parts = [...level.fixed, ...placements]
   // canPlace ignores a part's own id, so each moved part is checked against the others in their new places
+  if (!placements.every((p) => !set.has(p.id) || canPlace(p, parts))) return null
+  return { placements, links: sol.links.filter((l) => canLink(l.a, l.b, parts)) }
+}
+
+/** Rotation step of a group: the coarsest step of its parts that rotate, a quarter turn when none does. */
+export function groupRotStep(ps: Placement[]): number {
+  const steps = ps.map((p) => partDef(p.kind).rotStep).filter((s) => s > 0)
+  return steps.length ? Math.max(...steps) : 6
+}
+
+/** Where the group's rotate handle sits: centred above its selection box (8 units of padding included). */
+export function groupRotHandle(box: Rect): Vec {
+  return v(box.x + box.w / 2, box.y - 8 - ROT_GAP)
+}
+
+/** Notches (15° each, clockwise) from straight above the pivot to the point, rounded to a multiple of `step`. */
+export function groupNotches(pivot: Vec, pt: Vec, step: number): number {
+  const a = Math.atan2(pt.y - pivot.y, pt.x - pivot.x) + Math.PI / 2
+  const n = Math.round(a / (step * ROT_ANGLE)) * step
+  // atan2 + π/2 runs from -π/2 to 3π/2: bring it back to -12..12
+  return n > 12 ? n - 24 : n
+}
+
+/**
+ * The listed player placements turned by `notches` around the pivot, wherever they land: positions orbit it
+ * (kept to the hundredth), and each part that rotates turns with them.
+ */
+export function turnedParts(sol: Solution, ids: readonly string[], notches: number, pivot: Vec): Placement[] {
+  const set = new Set(ids)
+  const r2 = (x: number) => Math.round(x * 100) / 100 + 0
+  return sol.placements.filter((p) => set.has(p.id)).map((p) => {
+    const d = rotate(v(p.x - pivot.x, p.y - pivot.y), notches * ROT_ANGLE)
+    const rot = partDef(p.kind).rotStep ? (((p.rot + notches) % 24) + 24) % 24 : p.rot
+    return { ...p, x: r2(pivot.x + d.x), y: r2(pivot.y + d.y), rot }
+  })
+}
+
+/** Ids of the other parts (fixed or not) that the moved parts run into. */
+export function rotationBlockers(level: Level, sol: Solution, moved: Placement[]): string[] {
+  const ids = new Set(moved.map((p) => p.id))
+  return all(level, sol).filter((o) => !ids.has(o.id) && moved.some((p) => collides(p, o))).map((o) => o.id)
+}
+
+/** The group turned by `notches` around the pivot (see `turnedParts`). All or nothing, like `moveGroup`. */
+export function rotateGroup(level: Level, sol: Solution, ids: readonly string[], notches: number, pivot: Vec): Solution | null {
+  const set = new Set(ids)
+  if (set.size === 0 || ![...set].every((id) => sol.placements.some((p) => p.id === id))) return null
+  const turned = new Map(turnedParts(sol, ids, notches, pivot).map((p) => [p.id, p]))
+  const placements = sol.placements.map((p) => turned.get(p.id) ?? p)
+  const parts = [...level.fixed, ...placements]
   if (!placements.every((p) => !set.has(p.id) || canPlace(p, parts))) return null
   return { placements, links: sol.links.filter((l) => canLink(l.a, l.b, parts)) }
 }

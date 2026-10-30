@@ -104,6 +104,9 @@ function collide(p: Placement, fp: Vec[], o: Placement): boolean {
   return overlaps(fp, footprint(o))
 }
 
+/** Whether two placements overlap (see `canPlace`). */
+export const collides = (p: Placement, o: Placement): boolean => collide(p, footprint(p), o)
+
 /** Allowed rotation, inside the field, and no overlap with any other placement (same id ignored). */
 export function canPlace(p: Placement, others: Placement[]): boolean {
   if (!rotAllowed(p)) return false

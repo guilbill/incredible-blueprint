@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { FIELD, snap } from '../../src/level/placement'
 import type { Goal, Level, Placement, Solution } from '../../src/level/types'
 import { nextId } from '../../src/ui/edit'
-import { copyGroup, groupBox, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, selectInRect, zoneAt, zoneCorner } from '../../src/ui/selection'
+import { copyGroup, groupBox, groupNotches, groupRotHandle, groupRotStep, guidesFor, rotationBlockers, turnedParts, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, selectInRect, zoneAt, zoneCorner } from '../../src/ui/selection'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number, extra: Partial<Placement> = {}): Placement =>
   ({ id, kind, x, y, rot: 0, flip: false, settings: {}, ...extra })
@@ -59,6 +59,73 @@ describe('moveGroup', () => {
     const g = sol([P('g1', 'gear-small', 300, 200), P('g2', 'gear-small', 600, 200)], [belt])
     expect(moveGroup(level, g, ['g1'], -100, 0)!.links).toEqual([belt])
     expect(moveGroup(level, g, ['g1'], 260, 0)!.links).toEqual([])
+  })
+})
+
+describe('groupRotStep', () => {
+  it('is the coarsest step of the parts that rotate', () => {
+    expect(groupRotStep([P('a', 'ramp', 0, 0), P('b', 'ramp', 0, 0)])).toBe(1)
+    expect(groupRotStep([P('a', 'ramp', 0, 0), P('b', 'fan', 0, 0)])).toBe(3)
+    expect(groupRotStep([P('a', 'ramp', 0, 0), P('b', 'wall-brick', 0, 0), P('c', 'ball-tennis', 0, 0)])).toBe(6)
+  })
+  it('turns a group of parts that never rotate by quarter turns', () => {
+    expect(groupRotStep([P('a', 'ball-tennis', 0, 0), P('b', 'ball-tennis', 0, 0)])).toBe(6)
+  })
+})
+
+describe('groupNotches', () => {
+  const c = { x: 100, y: 100 }
+  it('counts notches clockwise from straight up, rounded to the step', () => {
+    expect(groupNotches(c, { x: 100, y: 0 }, 1)).toBe(0)
+    expect(groupNotches(c, { x: 200, y: 100 }, 1)).toBe(6)
+    expect(groupNotches(c, { x: 200, y: 90 }, 6)).toBe(6)
+    expect(groupNotches(c, { x: 0, y: 100 }, 6)).toBe(-6)
+    expect(groupNotches(c, { x: 200, y: 0 }, 1)).toBe(3)
+  })
+})
+
+describe('groupRotHandle', () => {
+  it('sits centred above the box', () => {
+    expect(groupRotHandle({ x: 100, y: 200, w: 60, h: 40 })).toEqual({ x: 130, y: 200 - 30 })
+  })
+})
+
+describe('rotateGroup', () => {
+  const pivot = { x: 300, y: 300 }
+  it('turns positions around the pivot and the parts that rotate with them', () => {
+    const s = sol([P('a', 'ramp', 300, 200), P('b', 'ball-tennis', 400, 300)])
+    const r = rotateGroup(level, s, ['a', 'b'], 6, pivot)!
+    expect(r.placements.map((p) => [p.x, p.y, p.rot])).toEqual([[400, 300, 6], [300, 400, 0]])
+  })
+  it('wraps the rotation and keeps off-grid positions to the hundredth', () => {
+    const s = sol([P('a', 'ramp', 300, 200, { rot: 23 })])
+    const r = rotateGroup(level, s, ['a'], 2, pivot)!
+    expect(r.placements[0]).toMatchObject({ x: 350, y: 213.4, rot: 1 })
+  })
+  it('is all or nothing', () => {
+    const s = sol([P('a', 'ball-tennis', 300, 200), P('b', 'ball-tennis', 500, 300)])
+    expect(rotateGroup(level, s, ['a'], 6, pivot)).not.toBeNull()
+    expect(rotateGroup(level, s, ['a'], 6, { x: 350, y: 350 })).toBeNull() // a lands on b
+    expect(rotateGroup(level, s, ['a'], 12, { x: 300, y: 0 })).toBeNull() // off the top
+    expect(rotateGroup(level, s, ['zz'], 6, pivot)).toBeNull()
+  })
+  it('turns the parts even where they do not fit', () => {
+    const s = sol([P('a', 'ball-tennis', 300, 200)])
+    expect(turnedParts(s, ['a'], 12, { x: 300, y: 0 })).toMatchObject([{ id: 'a', x: 300, y: -200 }])
+  })
+  it('names the parts a turned group runs into', () => {
+    const s = sol([P('a', 'ball-tennis', 300, 200), P('b', 'ball-tennis', 500, 300), P('c', 'ball-tennis', 100, 100)])
+    const moved = turnedParts(s, ['a'], 6, { x: 350, y: 350 })
+    expect(rotationBlockers(level, s, moved)).toEqual(['b'])
+    expect(rotationBlockers(level, s, turnedParts(s, ['a'], 6, { x: 300, y: 300 }))).toEqual([])
+    // the fixed wall counts too
+    expect(rotationBlockers(level, s, [{ ...s.placements[0], x: 400, y: 700 }])).toEqual(['w'])
+  })
+  it('turns a quarter four times back home', () => {
+    const s = sol([P('a', 'ramp', 300, 200, { rot: 2 }), P('b', 'wall-brick', 380, 300)])
+    let r = s
+    for (let i = 0; i < 4; i++) r = rotateGroup(level, r, ['a', 'b'], 6, pivot)!
+    expect(r.placements).toEqual(s.placements)
   })
 })
 

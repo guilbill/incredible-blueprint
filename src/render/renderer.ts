@@ -24,6 +24,10 @@ export interface RenderView {
   locked?: ReadonlySet<string>
   /** Box around the selection (drawn padded, dashed yellow). */
   selectionBox?: Rect
+  /** The selection does not fit where it is shown: its box turns red. */
+  selectionBad?: boolean
+  /** Ids of the parts a turning group runs into (solid red outline). */
+  blocked?: string[]
   /** Selection rectangle being dragged on empty space. */
   marquee?: Rect
   /** Index in `level.goals` of the goal zone selected on the author's board (thick outline, corner squares). */
@@ -49,7 +53,7 @@ export interface RenderView {
   /** Handles of the selected part (positions from `handlesOf`); `t` = ms since selection, `hover` = end under the pointer and ms since. */
   handles?: { at: Partial<Record<'rot' | 'start' | 'end', Vec>>; t: number; hover?: { end: 'start' | 'end'; t: number } }
   /** Rotation in progress: notch dial around `center`; angles in radians, `offset` turns a part angle into the handle direction. */
-  dial?: { center: Vec; radius: number; step: number; current: number; needle: number; offset: number }
+  dial?: { center: Vec; radius: number; step: number; current: number; needle: number; offset: number; bad?: boolean }
   zoom: number
 }
 
@@ -285,20 +289,20 @@ function drawDial(pen: Pen, d: NonNullable<RenderView['dial']>): void {
   for (let i = 0; i < n; i++) {
     const a = i * d.step
     const on = Math.abs(((a - d.current) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)) < 1e-6
-    pen.reset(on ? COLORS.yellow : COLORS.cyan, on ? 2.5 : 1.5)
+    pen.reset(on ? (d.bad ? BAD : COLORS.yellow) : COLORS.cyan, on ? 2.5 : 1.5)
     pen.line(at(a, d.radius - (on ? 10 : 6)), at(a, d.radius + (on ? 4 : 2)))
     const deg = Math.round((a * 180) / Math.PI) % 360
     if (d.step >= Math.PI / 4 - 1e-9 || deg % 45 === 0) {
       const p = at(a, d.radius + 14)
       c.save()
-      c.fillStyle = on ? COLORS.yellow : COLORS.note
+      c.fillStyle = on ? (d.bad ? BAD : COLORS.yellow) : COLORS.note
       c.font = '9px monospace'
       c.textAlign = 'center'
       c.fillText(`${deg}°`, p.x, p.y + 3)
       c.restore()
     }
   }
-  pen.reset(COLORS.cyan, 1)
+  pen.reset(d.bad ? BAD : COLORS.cyan, 1)
   c.setLineDash([3, 3])
   const tip = at(d.needle, d.radius)
   pen.line(d.center, tip)
@@ -381,7 +385,7 @@ function drawPart(pen: Pen, s: PartDrawState): void {
   ctx.restore()
   pen.reset()
   if (s.ghost) {
-    pen.reset(s.ghost === 'ok' ? COLORS.cyan : '#ff6b6b', 1)
+    pen.reset(s.ghost === 'ok' ? COLORS.cyan : BAD, 1)
     pen.dashed(true)
     pen.poly(footprint(s.placement))
     pen.dashed(false)
@@ -396,9 +400,18 @@ function drawPart(pen: Pen, s: PartDrawState): void {
 
 /** Padding (units) between the selected parts and their dashed box. */
 const SELECTION_PAD = 8
+/** Red of what does not fit: bad ghosts and what they run into. */
+const BAD = '#ff6b6b'
 
-function drawSelectionBox(pen: Pen, r: Rect): void {
-  pen.reset(COLORS.yellow, 1)
+/** A part in the way: solid red outline on its footprint. */
+function drawBlocked(pen: Pen, p: Placement): void {
+  pen.reset(BAD, 2)
+  pen.poly(footprint(p))
+  pen.reset()
+}
+
+function drawSelectionBox(pen: Pen, r: Rect, bad: boolean): void {
+  pen.reset(bad ? BAD : COLORS.yellow, 1)
   pen.ctx.setLineDash([6, 4])
   pen.ctx.strokeRect(r.x - SELECTION_PAD, r.y - SELECTION_PAD, r.w + 2 * SELECTION_PAD, r.h + 2 * SELECTION_PAD)
   pen.ctx.setLineDash([])
@@ -518,7 +531,11 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
       pen.reset()
     }
     if (view.meshMarks) drawMeshMarks(pen, view.meshMarks)
-    if (view.selectionBox) drawSelectionBox(pen, view.selectionBox)
+    if (view.selectionBox) drawSelectionBox(pen, view.selectionBox, !!view.selectionBad)
+    if (view.blocked) for (const id of view.blocked) {
+      const q = placements.find((o) => o.id === id)
+      if (q) drawBlocked(pen, q)
+    }
     if (view.selectedZone !== undefined) drawSelectedZone(pen, level.goals[view.selectedZone])
     if (view.marquee) drawMarquee(pen, view.marquee)
     if (view.guides) drawGuides(pen, view.guides)

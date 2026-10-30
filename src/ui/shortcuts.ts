@@ -39,7 +39,8 @@ export function hintsFor(s: HintState): Hint[] {
     out.push(h(['L'], 'hint.lock'))
   } else {
     out.push(h([ARROWS], 'hint.move'), h([mod, 'D'], 'hint.duplicate'), h([mod, 'C'], 'hint.copy'))
-    if (s.single) out.push(h(['R'], 'hint.rotate'), h(['F'], 'hint.flip'))
+    out.push(h(['R'], 'hint.rotate'))
+    if (s.single) out.push(h(['F'], 'hint.flip'))
     if (s.author) out.push(h(['L'], 'hint.lock'))
     out.push(h([t('hint.del')], 'hint.delete'))
   }
