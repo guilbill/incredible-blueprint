@@ -33,6 +33,8 @@ export interface PlayOpts {
   onSolved?(sol: Solution): void
   backLabel?: string
   nextLabel?: string
+  /** Editor test run: a banner over the run button says so, with an Edit button that calls onBack, even mid-run. */
+  testing?: boolean
   /** Level editor: the same board edits the level's fixed parts instead of a player solution. */
   author?: AuthorOpts
 }
@@ -304,6 +306,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   const launch = el('button', 'launch', t('play.run'))
   launch.title = t('play.runTitle')
+  const testBanner = el('div', 'test-banner')
+  const editBtn = el('button', 'btn small edit')
+  editBtn.append(icon('edit'), t('editor.edit'))
+  editBtn.addEventListener('click', () => opts.onBack())
+  testBanner.append(el('span', '', t('editor.testMode')), editBtn)
 
   const winPanel = el('div', 'win')
   winPanel.hidden = true
@@ -317,7 +324,13 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     screen.classList.add('author')
     author.side.classList.add('side')
     screen.append(toolbar, author.side, stage, drawer)
-  } else screen.append(toolbar, stage, drawer, launch, winPanel)
+  } else {
+    screen.append(toolbar, stage, drawer, launch, winPanel)
+    if (opts.testing) {
+      screen.classList.add('testing')
+      screen.insertBefore(testBanner, launch)
+    }
+  }
   root.replaceChildren(screen)
 
   // ---- inventory drawer ----

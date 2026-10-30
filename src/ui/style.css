@@ -11,6 +11,7 @@
   --toolbar-h: 56px;
   --launch-h: 64px;
   --launch-gap: 16px;
+  --test-banner-h: 32px;
   --mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -177,6 +178,34 @@ button { font: inherit; color: inherit; }
   z-index: 3;
 }
 .launch:hover { box-shadow: 0 0 22px rgba(127, 255, 212, 0.7); }
+
+/* Editor test run: a banner sits on top of the run button, and stays usable while the machine runs. */
+.test-banner {
+  position: fixed;
+  right: var(--launch-gap);
+  bottom: calc(var(--launch-gap) + var(--launch-h));
+  width: calc(var(--drawer-w) - 2 * var(--launch-gap));
+  height: var(--test-banner-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 6px 0 10px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  background: var(--bg-deep);
+  border: 1px dashed var(--yellow);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  z-index: 3;
+}
+.test-banner .btn.edit { display: inline-flex; align-items: center; gap: 6px; border-color: var(--yellow); color: var(--yellow); background: var(--bg); text-transform: uppercase; font-size: 11px; }
+.test-banner .btn.edit:hover { box-shadow: 0 0 8px rgba(255, 207, 90, 0.4); }
+.test-banner .btn.edit svg { width: 12px; height: 12px; }
+.play.testing .launch { border-radius: 0 0 4px 4px; }
+.play.testing .drawer { padding-bottom: calc(var(--launch-h) + var(--test-banner-h) + 3 * var(--launch-gap)); }
 
 /* While the machine runs, only the canvas matters. */
 .play.running .toolbar,

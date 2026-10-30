@@ -121,6 +121,8 @@ const fr = {
   'editor.copied': 'Lien copié !',
   'editor.copyThis': 'Copiez ce lien :',
   'editor.back': '← Éditeur',
+  'editor.testMode': 'Mode test',
+  'editor.edit': 'Éditer',
   'editor.backToEditor': 'Retour à l’éditeur',
   'editor.newLevel': 'Nouveau niveau',
 
@@ -298,6 +300,8 @@ const en: Record<Key, string> = {
   'editor.copied': 'Link copied!',
   'editor.copyThis': 'Copy this link:',
   'editor.back': '← Editor',
+  'editor.testMode': 'Test mode',
+  'editor.edit': 'Edit',
   'editor.backToEditor': 'Back to the editor',
   'editor.newLevel': 'New level',
 

@@ -244,6 +244,7 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
     unmountView = mountPlay(root, structuredClone(model.level), {
       backLabel: t('editor.back'),
       nextLabel: t('editor.backToEditor'),
+      testing: true,
       onBack: showAuthor,
       onWin: showAuthor,
       onSolved: (sol) => {
