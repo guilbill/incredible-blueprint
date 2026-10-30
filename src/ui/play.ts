@@ -2,13 +2,14 @@ import { data, velocity } from '../engine/bodies'
 import { bodyPose } from '../engine/world'
 import { Simulation } from '../game/simulation'
 import { len, sub, v, type Vec } from '../engine/vec'
-import { levelGoal, levelTitle, partLabel, settingLabel, t } from '../i18n'
+import { levelTitle, partLabel, settingLabel, t } from '../i18n'
 import { FIELD, footprint, gearMagnet, snap } from '../level/placement'
 import type { Anchor, Goal, Guide, Level, PartKind, Placement, Rect, Solution } from '../level/types'
 import { ROT_ANGLE, angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import { Pen, type PartDrawState } from '../render/pen'
+import { objectiveText } from '../objectives'
 import { levelNumber } from '../render/brief'
 import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
@@ -347,7 +348,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const winBox = el('div', 'win-box')
   const next = el('button', 'btn primary', opts.nextLabel ?? t('win.next'))
   const replay = el('button', 'btn', t('win.replay'))
-  winBox.append(el('h2', '', t('win.title')), el('p', '', levelGoal(level)), next, replay)
+  winBox.append(el('h2', '', t('win.title')), el('p', '', objectiveText(level)), next, replay)
   winPanel.append(winBox)
 
   if (author) {
@@ -1621,7 +1622,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       hover: hover && !drag?.started ? { id: hover.id, t: now - hover.since } : undefined,
       meshMarks: drag?.started ? drag.meshMarks : undefined,
       handles: sp ? { at: handlesOf(sp), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since } } : gh ? { at: { rot: gh }, t: now - selectedSince } : undefined,
-      brief: author ? undefined : { number: levelNumber(level.id), title: levelTitle(level), heading: t('brief.goal'), goal: levelGoal(level) },
+      brief: author ? undefined : { number: levelNumber(level.id), title: levelTitle(level), heading: t('brief.goal'), goal: objectiveText(level) },
       dial: sp && grip?.kind === 'rot' && grip.moved ? dialFor(sp, grip.free ?? angleOf(sp)) : spin?.moved ? spinDial(spin) : undefined,
     })
   }

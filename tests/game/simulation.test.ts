@@ -8,7 +8,7 @@ const P = (id: string, kind: PartKind, x: number, y: number, o: Partial<Placemen
 })
 
 const level: Level = {
-  v: 1, id: 't', title: 't', goalText: 't',
+  v: 1, id: 't', title: 't',
   fixed: [P('floor', 'wall-brick', 300, 720, { rot: 6, settings: { length: 16 } }), P('ball', 'ball-base', 200, 100)],
   fixedLinks: [],
   inventory: [{ kind: 'ramp', count: 1 }],

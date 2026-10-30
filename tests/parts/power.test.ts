@@ -16,7 +16,7 @@ const L = (id: string, kind: Link['kind'], a: [string, string], b: [string, stri
 })
 
 const level = (fixed: Placement[], fixedLinks: Link[] = []): Level => ({
-  v: 1, id: 't', title: 't', goalText: 't', fixed, fixedLinks, inventory: [], goals: [],
+  v: 1, id: 't', title: 't', fixed, fixedLinks, inventory: [], goals: [],
 })
 const empty: Solution = { placements: [], links: [] }
 

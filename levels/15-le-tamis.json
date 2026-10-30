@@ -2,7 +2,6 @@
   "v": 1,
   "id": "15-le-tamis",
   "title": "Le tamis",
-  "goalText": "Mettez le ballon de basket dans le seau de droite et la balle de tennis dans celui de gauche.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

@@ -69,6 +69,5 @@ describe('duplicateLevel', () => {
     const shipped = loadLevels()[0]
     const copy = duplicateLevel(shipped, 'x')
     expect(copy.title).toBe(`${shipped.title} (copie)`)
-    expect(copy.goalText).toBe(shipped.goalText)
   })
 })

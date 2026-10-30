@@ -2,7 +2,6 @@
   "v": 1,
   "id": "10-la-grande-machine",
   "title": "La grande machine",
-  "goalText": "Mettez toute la machine en route pour que la bille d’acier finisse dans le seau.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 240, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 560, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

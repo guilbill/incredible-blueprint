@@ -9,7 +9,7 @@ import { PART_DEFS } from '../parts/registry'
 export const ALL_KINDS = Object.keys(PART_DEFS) as PartKind[]
 
 export function blankLevel(id: string): Level {
-  return { v: 1, id, title: t('editor.newLevel'), goalText: '', fixed: [], fixedLinks: [], inventory: [], goals: [], verified: false }
+  return { v: 1, id, title: t('editor.newLevel'), fixed: [], fixedLinks: [], inventory: [], goals: [], verified: false }
 }
 
 /**
@@ -133,11 +133,6 @@ export class EditorModel {
 
   setTitle(t: string): void {
     this.level.title = t
-    this.markDirty()
-  }
-
-  setGoalText(t: string): void {
-    this.level.goalText = t
     this.markDirty()
   }
 }

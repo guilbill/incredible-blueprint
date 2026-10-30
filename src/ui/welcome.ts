@@ -2,6 +2,7 @@ import { data } from '../engine/bodies'
 import type { Vec } from '../engine/vec'
 import { Simulation } from '../game/simulation'
 import { t } from '../i18n'
+import { objectiveText } from '../objectives'
 import { footprint } from '../level/placement'
 import type { Level, PartKind, Placement, Solution } from '../level/types'
 import { ROT_ANGLE } from '../parts/common'
@@ -41,7 +42,7 @@ const HALF_LEN = 100
 export function welcomeLevel(plank: Placement = SLOT, ball?: Placement): Level {
   const parts = ball ? WELCOME_PARTS.map((q) => (q.id === 'ball' ? ball : q)) : WELCOME_PARTS
   return {
-    v: 1, id: 'welcome', title: '', goalText: '', fixed: [...parts, plank], fixedLinks: [], inventory: [],
+    v: 1, id: 'welcome', title: '', fixed: [...parts, plank], fixedLinks: [], inventory: [],
     goals: [{ type: 'inZone', part: 'ball', zone: { x: 860, y: 720, w: 40, h: 40 } }],
   }
 }
@@ -223,7 +224,7 @@ export function mountWelcome(root: HTMLElement, opts: WelcomeOpts): () => void {
       if (won && !dirty) return
       dirty = false
       ctx.setTransform(1, 0, 0, 1, 0, 0)
-      render(ctx, { level: welcomeLevel(plank, ball), sol: EMPTY, sim, zoom, won, selected: grab ? [plank.id] : undefined })
+      render(ctx, { level: welcomeLevel(plank, ball), sol: EMPTY, sim, zoom, won, selected: grab ? [plank.id] : undefined, brief: { title: t('welcome.briefTitle'), heading: t('brief.goal'), goal: objectiveText(welcomeLevel()) } })
       if (!sim && plank !== SLOT) {
         ctx.setTransform(zoom, 0, 0, zoom, 0, 0)
         drawSlot(new Pen(ctx), ms)

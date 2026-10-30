@@ -2,7 +2,6 @@
   "v": 1,
   "id": "01-premier-plan",
   "title": "Premier plan",
-  "goalText": "Faites tomber la balle dans le seau.",
   "fixed": [
     { "id": "ball", "kind": "ball-base", "x": 360, "y": 140, "rot": 0, "flip": false, "settings": {} },
     { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

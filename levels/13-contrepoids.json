@@ -2,7 +2,6 @@
   "v": 1,
   "id": "13-contrepoids",
   "title": "Contrepoids",
-  "goalText": "Alourdissez le seau suspendu de droite pour faire basculer la balle vers le seau du bas.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

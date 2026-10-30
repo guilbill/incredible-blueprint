@@ -7,7 +7,7 @@ import { copyGroup, groupBox, groupNotches, groupRotHandle, groupRotStep, guides
 const P = (id: string, kind: Placement['kind'], x: number, y: number, extra: Partial<Placement> = {}): Placement =>
   ({ id, kind, x, y, rot: 0, flip: false, settings: {}, ...extra })
 const level: Level = {
-  v: 1, id: 't', title: 't', goalText: '', fixedLinks: [], goals: [],
+  v: 1, id: 't', title: 't', fixedLinks: [], goals: [],
   fixed: [P('w', 'wall-brick', 400, 700)],
   inventory: [{ kind: 'ramp', count: 5 }, { kind: 'ball-tennis', count: 6 }, { kind: 'gear-small', count: 3 }],
 }

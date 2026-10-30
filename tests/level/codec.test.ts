@@ -11,7 +11,6 @@ const base = (): Level => ({
   v: 1,
   id: 'custom-1',
   title: 'Mon niveau',
-  goalText: 'Faites quelque chose.',
   fixed: [
     P({ id: 'ball', kind: 'ball-base', x: 200, y: 80 }),
     P({ id: 'bucket', kind: 'bucket', x: 720, y: 760 }),
@@ -112,7 +111,6 @@ describe('validateLevel', () => {
   bad('a negative inventory count', (l) => (l.inventory[0].count = -1))
   bad('a missing title', (l) => ((l as { title: unknown }).title = 3))
   bad('a title over 60 chars', (l) => (l.title = 'x'.repeat(61)))
-  bad('a goal text over 300 chars', (l) => (l.goalText = 'x'.repeat(301)))
   bad('more than 100 fixed links', (l) => {
     for (let i = 0; i < 101; i++) l.fixedLinks.push({ id: `k${i}`, kind: 'belt', a: { part: 'g1', anchor: 'belt' }, b: { part: 'g2', anchor: 'belt' } })
   })

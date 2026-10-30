@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { LANG_KEY, LEVELS_EN, MESSAGES, PART_NAMES_EN, SETTING_NAMES_EN, levelGoal, levelTitle, partLabel, setLang, t } from '../src/i18n'
+import { LANG_KEY, LEVELS_EN, MESSAGES, PART_NAMES_EN, SETTING_NAMES_EN, levelTitle, partLabel, setLang, t } from '../src/i18n'
 import { PART_DEFS } from '../src/parts/registry'
 import { loadLevels } from '../src/ui/levels'
 
@@ -39,12 +39,11 @@ describe('dictionaries', () => {
     }
   })
 
-  it('translate the title and goal of every shipped level', () => {
+  it('translate the title of every shipped level', () => {
     const levels = loadLevels()
     expect(levels).toHaveLength(30)
     for (const l of levels) {
       expect(LEVELS_EN[l.id]?.title, l.id).toBeTruthy()
-      expect(LEVELS_EN[l.id]?.goalText, l.id).toBeTruthy()
     }
     expect(LEVELS_EN['10-la-grande-machine'].title).toBe('The Big Machine')
   })
@@ -63,7 +62,7 @@ describe('t', () => {
     setLang('en')
     expect(partLabel('ramp')).toBe('Ramp')
     expect(levelTitle({ id: '10-la-grande-machine', title: 'La grande machine' })).toBe('The Big Machine')
-    expect(levelGoal({ id: 'niveau-x', goalText: 'Mon objectif' })).toBe('Mon objectif')
+    expect(levelTitle({ id: 'niveau-x', title: 'Mon niveau' })).toBe('Mon niveau')
     setLang('fr')
     expect(partLabel('ramp')).toBe('Planche inclinée')
     expect(levelTitle({ id: '10-la-grande-machine', title: 'La grande machine' })).toBe('La grande machine')

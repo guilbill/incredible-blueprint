@@ -12,7 +12,7 @@ const P = (id: string, kind: PartKind, x: number, y: number, o: Partial<Placemen
 })
 
 const level = (fixed: Placement[]): Level => ({
-  v: 1, id: 't', title: 't', goalText: 't', fixed, fixedLinks: [], inventory: [], goals: [],
+  v: 1, id: 't', title: 't', fixed, fixedLinks: [], inventory: [], goals: [],
 })
 const empty: Solution = { placements: [], links: [] }
 

@@ -12,7 +12,7 @@ import { fakeCtx } from './fakeCtx'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number): Placement => ({ id, kind, x, y, rot: 0, flip: false, settings: {} })
 const level = (fixed: Placement[] = []): Level => ({
-  v: 1, id: 't', title: 't', goalText: '', fixed, fixedLinks: [], inventory: [],
+  v: 1, id: 't', title: 't', fixed, fixedLinks: [], inventory: [],
   goals: [{ type: 'inZone', part: 'b', zone: { x: 100, y: 100, w: 60, h: 60 } }],
 })
 
@@ -213,7 +213,7 @@ describe('render', () => {
 })
 
 describe('part handles', () => {
-  const lvl: Level = { v: 1, id: 't', title: 't', goalText: '', fixed: [], fixedLinks: [], inventory: [], goals: [] }
+  const lvl: Level = { v: 1, id: 't', title: 't', fixed: [], fixedLinks: [], inventory: [], goals: [] }
   const sol = { placements: [{ id: 'r', kind: 'ramp' as const, x: 400, y: 300, rot: 0, flip: false, settings: { length: 4 } }], links: [] }
   const at = { rot: v(400, 268), start: v(352, 300), end: v(448, 300) }
 

@@ -2,7 +2,6 @@
   "v": 1,
   "id": "08-chat-et-souris",
   "title": "Chat et souris",
-  "goalText": "Menez la souris jusqu’au fromage sans réveiller le chat.",
   "fixed": [
     { "id": "shelf", "kind": "wall-brick", "x": 360, "y": 400, "rot": 6, "flip": false, "settings": { "length": 12 } },
     { "id": "mouse", "kind": "mouse", "x": 300, "y": 380, "rot": 0, "flip": true, "settings": {} },

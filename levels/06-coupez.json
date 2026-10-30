@@ -2,7 +2,6 @@
   "v": 1,
   "id": "06-coupez",
   "title": "Coupez !",
-  "goalText": "Coupez la corde pour faire tomber le seau sur la marque.",
   "fixed": [
     { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

@@ -2,7 +2,6 @@
   "v": 1,
   "id": "14-deux-tapis",
   "title": "Deux tapis",
-  "goalText": "Faites tourner les deux tapis avec une seule souris pour amener la balle dans le seau.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

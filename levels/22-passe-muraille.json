@@ -2,7 +2,6 @@
   "v": 1,
   "id": "22-passe-muraille",
   "title": "Passe-muraille",
-  "goalText": "Faites passer la bille d’acier de l’autre côté du mur, dans le bac.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

@@ -10,7 +10,7 @@ const P = (id: string, kind: Placement['kind'], x: number, y: number, extra: Par
   ({ id, kind, x, y, rot: 0, flip: false, settings: {}, ...extra })
 const empty: Solution = { placements: [], links: [] }
 const level: Level = {
-  v: 1, id: 't', title: 't', goalText: '', fixedLinks: [], goals: [],
+  v: 1, id: 't', title: 't', fixedLinks: [], goals: [],
   fixed: [P('w', 'wall-brick', 400, 400)],
   inventory: [{ kind: 'ramp', count: 2 }, { kind: 'ball-tennis', count: 1 }],
 }

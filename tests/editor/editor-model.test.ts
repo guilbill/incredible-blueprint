@@ -44,7 +44,6 @@ describe('EditorModel', () => {
     ['addGoal', (m) => m.addGoal({ type: 'event', event: 'rope-cut' })],
     ['removeGoal', (m) => m.removeGoal(0)],
     ['setTitle', (m) => m.setTitle('Nouveau titre')],
-    ['setGoalText', (m) => m.setGoalText('Faites ceci')],
     ['markDirty', (m) => m.markDirty()],
   ])('%s after a win makes it unshareable again', (_, edit) => {
     const m = ready()

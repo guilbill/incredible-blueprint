@@ -28,7 +28,6 @@ export interface Level {
   v: 1
   id: string
   title: string
-  goalText: string
   fixed: Placement[]
   fixedLinks: Link[]
   inventory: { kind: PartKind; count: number }[]

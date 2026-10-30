@@ -2,7 +2,6 @@
   "v": 1,
   "id": "04-petit-moteur",
   "title": "Petit moteur",
-  "goalText": "Mettez le tapis en marche pour amener la balle dans le seau.",
   "fixed": [
     { "id": "floor-left", "kind": "wall-brick", "x": 320, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-right", "kind": "wall-brick", "x": 640, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

@@ -377,7 +377,6 @@ button { font: inherit; color: inherit; }
 .level-card:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(127, 255, 212, 0.35); }
 .level-card .fig { font-size: 11px; color: var(--note); letter-spacing: 0.1em; }
 .level-card .title { font-size: 16px; font-weight: 600; }
-.level-card .goal { font-size: 12px; color: var(--note); }
 .level-card .badge {
   position: absolute;
   top: 10px;
@@ -671,7 +670,6 @@ button { font: inherit; color: inherit; }
 .level-next .next-info { display: grid; gap: 10px; justify-items: start; }
 .level-next .fig { font-size: 11px; color: var(--note); letter-spacing: 0.12em; text-transform: uppercase; }
 .level-next .title { margin: 0; font-size: 22px; font-weight: 600; }
-.level-next .goal { margin: 0; font-size: 13px; color: var(--note); }
 .level-next .btn.primary { padding: 8px 22px; letter-spacing: 0.14em; text-transform: uppercase; }
 canvas.mini { display: block; width: 100%; height: auto; }
 
@@ -692,19 +690,6 @@ canvas.mini { display: block; width: 100%; height: auto; }
 .level-fig.draft .thumb { border-color: var(--cyan); }
 .level-fig:hover .thumb, .level-fig:focus-visible .thumb { border-color: var(--cyan); box-shadow: 0 0 12px rgba(127, 255, 212, 0.35); }
 .level-fig:focus-visible { outline: none; }
-.level-fig .goal {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  padding: 10px;
-  font-size: 11px;
-  color: var(--line);
-  background: rgba(10, 31, 56, 0.9);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.level-fig:hover .goal, .level-fig:focus-visible .goal { opacity: 1; }
 .level-fig .caption { font-size: 11px; }
 .level-fig .caption .fig { color: var(--note); }
 .level-fig .caption .fig::after { content: ' · '; }
@@ -724,7 +709,6 @@ canvas.mini { display: block; width: 100%; height: auto; }
 .level-atlas li.shipped:hover > .btn.copy, .level-atlas li.shipped:focus-within > .btn.copy { opacity: 1; }
 .level-atlas li.shipped > .btn.copy:hover { border-color: var(--cyan); color: var(--cyan); }
 @media (hover: none) {
-  .level-fig .goal { display: none; }
   .level-atlas li.shipped > .btn.copy { opacity: 1; }
 }
 @media (max-width: 640px) {

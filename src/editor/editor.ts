@@ -96,21 +96,10 @@ export function mountEditor(root: HTMLElement, model: EditorModel, opts: EditorO
       model.setTitle(titleIn.value)
       changed()
     })
-    const goalIn = el('textarea')
-    goalIn.value = model.level.goalText
-    goalIn.rows = 3
-    goalIn.maxLength = 300
-    goalIn.placeholder = t('editor.goalPlaceholder')
-    goalIn.addEventListener('input', () => {
-      model.setGoalText(goalIn.value)
-      changed()
-    })
     const levelBox = el('section')
     const titleLabel = el('label', '', t('editor.titleLabel'))
     titleLabel.append(titleIn)
-    const goalLabel = el('label', '', t('editor.goalLabel'))
-    goalLabel.append(goalIn)
-    levelBox.append(el('h2', '', t('editor.level')), titleLabel, goalLabel)
+    levelBox.append(el('h2', '', t('editor.level')), titleLabel)
 
     const goals = goalsPanel(model, {
       changed,

@@ -2,7 +2,6 @@
   "v": 1,
   "id": "00-sandbox",
   "title": "Bac à sable",
-  "goalText": "Faites tomber la bille d’acier dans le seau.",
   "fixed": [
     { "id": "ball", "kind": "ball-base", "x": 200, "y": 80, "rot": 0, "flip": false, "settings": {} },
     { "id": "floor", "kind": "wall-brick", "x": 720, "y": 790, "rot": 6, "flip": false, "settings": { "length": 16 } },

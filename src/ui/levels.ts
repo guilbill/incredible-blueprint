@@ -1,4 +1,4 @@
-import { levelGoal, levelTitle, t } from '../i18n'
+import { levelTitle, t } from '../i18n'
 import { FIELD } from '../level/placement'
 import type { Level } from '../level/types'
 import { render } from '../render/renderer'
@@ -40,7 +40,7 @@ function levelCard(level: Level, n: number, progress: Progress, onClick: () => v
   const card = el('button', 'level-card')
   const solved = progress.solved.includes(level.id)
   card.classList.toggle('solved', solved)
-  card.append(el('span', 'fig', `FIG. ${n}`), el('span', 'title', levelTitle(level) || t('list.untitled')), el('span', 'goal', levelGoal(level)))
+  card.append(el('span', 'fig', `FIG. ${n}`), el('span', 'title', levelTitle(level) || t('list.untitled')))
   if (solved) card.append(el('span', 'badge', t('list.solved')))
   else if (progress.drafts[level.id]?.placements?.length) card.append(el('span', 'badge draft', t('list.draft')))
   card.addEventListener('click', onClick)
@@ -62,11 +62,11 @@ type LevelState = 'solved' | 'draft' | 'todo'
 const stateOf = (level: Level, progress: Progress): LevelState =>
   progress.solved.includes(level.id) ? 'solved' : progress.drafts[level.id]?.placements?.length ? 'draft' : 'todo'
 
-/** Shipped level in the atlas: the drawing, the goal over it on hover, the caption under it. */
+/** Shipped level in the atlas: the drawing and the caption under it. */
 function levelFigure(level: Level, n: number, progress: Progress, onClick: () => void): HTMLButtonElement {
   const fig = el('button', `level-fig ${stateOf(level, progress)}`)
   const thumb = el('span', 'thumb')
-  thumb.append(miniature(level, progress, 320), el('span', 'goal', levelGoal(level)))
+  thumb.append(miniature(level, progress, 320))
   const caption = el('span', 'caption')
   caption.append(el('span', 'fig', `FIG. ${n}`), el('span', 'title', levelTitle(level) || t('list.untitled')))
   fig.append(thumb, caption)
@@ -85,7 +85,7 @@ function nextCard(level: Level, n: number, progress: Progress, onPlay: () => voi
   const side = el('div', 'next-info')
   const go = el('button', 'btn primary', started ? t('list.continue') : t('list.play'))
   go.addEventListener('click', onPlay)
-  side.append(el('span', 'fig', `FIG. ${n} · ${started ? t('list.draft') : t('list.next')}`), el('h2', 'title', levelTitle(level)), el('p', 'goal', levelGoal(level)), go)
+  side.append(el('span', 'fig', `FIG. ${n} · ${started ? t('list.draft') : t('list.next')}`), el('h2', 'title', levelTitle(level)), go)
   box.append(thumb, side)
   return box
 }

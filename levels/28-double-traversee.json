@@ -2,7 +2,6 @@
   "v": 1,
   "id": "28-double-traversee",
   "title": "Double traversée",
-  "goalText": "Faites passer la balle à travers les deux murs, jusqu’au cadre.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

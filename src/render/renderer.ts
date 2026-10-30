@@ -514,7 +514,8 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   const cached = blitGrid(ctx, view.zoom)
   ctx.scale(view.zoom, view.zoom)
   if (!cached) drawGrid(ctx)
-  if (view.brief) drawBrief(pen, view.brief, obstacles(level), !!sim)
+  // a part being carried (the welcome plank) does not push the block to another corner
+  if (view.brief) drawBrief(pen, view.brief, obstacles({ ...level, fixed: level.fixed.filter((p) => !view.selected?.includes(p.id)) }), !!sim)
   drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
   const roped = drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)

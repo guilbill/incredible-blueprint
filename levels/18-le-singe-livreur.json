@@ -2,7 +2,6 @@
   "v": 1,
   "id": "18-le-singe-livreur",
   "title": "Le singe livreur",
-  "goalText": "Faites livrer le fromage à la souris par le tapis roulant.",
   "fixed": [
     {"id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
     {"id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},

@@ -2,7 +2,6 @@
   "v": 1,
   "id": "24-coup-de-vent",
   "title": "Coup de vent",
-  "goalText": "Faites monter la montgolfière jusqu’en haut, malgré les plafonds.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

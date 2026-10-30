@@ -2,7 +2,6 @@
   "v": 1,
   "id": "05-engrenages",
   "title": "Engrenages",
-  "goalText": "Reliez les deux engrenages pour que le tapis emporte la balle vers le seau.",
   "fixed": [
     { "id": "floor-left", "kind": "wall-brick", "x": 320, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-right", "kind": "wall-brick", "x": 640, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

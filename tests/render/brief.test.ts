@@ -1,9 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { LEVELS_EN } from '../../src/i18n'
+import { setLang } from '../../src/i18n'
 import { FIELD } from '../../src/level/placement'
 import type { Level } from '../../src/level/types'
 import { type Brief, briefLayout, drawBrief, levelNumber, obstacles, wrapChars } from '../../src/render/brief'
+import { objectiveText } from '../../src/objectives'
 import { Pen } from '../../src/render/pen'
 import { fakeCtx } from './fakeCtx'
 
@@ -37,11 +38,13 @@ describe('level brief', () => {
     for (const f of readdirSync('levels').filter((n) => n.endsWith('.json') && !n.endsWith('.solution.json'))) {
       const level = JSON.parse(readFileSync(`levels/${f}`, 'utf8')) as Level
       const avoid = obstacles(level)
-      for (const goal of [level.goalText, LEVELS_EN[level.id]?.goalText ?? level.goalText]) {
-        const { box } = briefLayout({ ...brief, goal }, avoid)
+      for (const lang of ['fr', 'en'] as const) {
+        setLang(lang)
+        const { box } = briefLayout({ ...brief, goal: objectiveText(level) }, avoid)
         expect(box.x >= 0 && box.y >= 0 && box.x + box.w <= FIELD.w && box.y + box.h <= FIELD.h, f).toBe(true)
       }
     }
+    setLang('fr')
   })
 
   it('draws without throwing, dimmed or not', () => {

@@ -1,4 +1,4 @@
-import { levelGoal, levelTitle, t } from '../i18n'
+import { levelTitle, t } from '../i18n'
 import { LEVELS_KEY, forgetLevel, storage } from '../storage'
 import { validateLevel } from './codec'
 import type { Level } from './types'
@@ -32,7 +32,6 @@ export function duplicateLevel(level: Level, id: string): Level {
     ...structuredClone(level),
     id,
     title: t('list.copyTitle', { title: levelTitle(level) }),
-    goalText: levelGoal(level),
     verified: false,
   }
 }

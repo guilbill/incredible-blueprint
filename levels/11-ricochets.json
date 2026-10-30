@@ -2,7 +2,6 @@
   "v": 1,
   "id": "11-ricochets",
   "title": "Ricochets",
-  "goalText": "Faites sauter la balle par-dessus les deux murs, jusque dans le seau.",
   "fixed": [
     { "id": "ball", "kind": "ball-base", "x": 120, "y": 100, "rot": 0, "flip": false, "settings": {} },
     { "id": "slide", "kind": "ramp", "x": 160, "y": 170, "rot": 1, "flip": false, "settings": { "length": 5 } },

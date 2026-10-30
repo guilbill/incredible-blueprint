@@ -10,7 +10,7 @@ const EVENTS = ['rope-cut', 'cheese-eaten', 'trap-snapped', 'balloon-ceiling', '
 /** Decompressed payloads above this are refused (a tiny link must not inflate into gigabytes). */
 const MAX_BYTES = 1_000_000
 /** Caps on what a level may hold, so a crafted link or file cannot freeze the game. */
-export const LIMITS = { fixed: 300, fixedLinks: 100, goals: 20, inventoryCount: 99, title: 60, goalText: 300, hold: 3600 }
+export const LIMITS = { fixed: 300, fixedLinks: 100, goals: 20, inventoryCount: 99, title: 60, hold: 3600 }
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
@@ -40,9 +40,8 @@ export function validateLevel(x: unknown): string | null {
     if (!isObj(x)) return t('codec.unreadable')
     if (x.v !== 1) return t('codec.version')
     if (typeof x.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(x.id)) return t('codec.badLevelId')
-    if (typeof x.title !== 'string' || typeof x.goalText !== 'string') return t('codec.noText')
+    if (typeof x.title !== 'string') return t('codec.noText')
     if (x.title.length > LIMITS.title) return t('codec.titleLong', { max: LIMITS.title })
-    if (x.goalText.length > LIMITS.goalText) return t('codec.goalLong', { max: LIMITS.goalText })
     if (!Array.isArray(x.fixed) || !Array.isArray(x.fixedLinks) || !Array.isArray(x.inventory) || !Array.isArray(x.goals)) return t('codec.incomplete')
     if (x.fixed.length > LIMITS.fixed) return t('codec.tooManyParts', { max: LIMITS.fixed })
     if (x.fixedLinks.length > LIMITS.fixedLinks) return t('codec.tooManyLinks', { max: LIMITS.fixedLinks })

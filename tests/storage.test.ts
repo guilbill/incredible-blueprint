@@ -74,7 +74,7 @@ describe('storage', () => {
 })
 
 describe('custom levels', () => {
-  const lvl = (id: string): Level => ({ v: 1, id, title: id, goalText: '', fixed: [], fixedLinks: [], inventory: [], goals: [] })
+  const lvl = (id: string): Level => ({ v: 1, id, title: id, fixed: [], fixedLinks: [], inventory: [], goals: [] })
 
   it('deleteCustomLevel removes the level and its progress, and keeps the others', () => {
     vi.stubGlobal('localStorage', memoryStorage())

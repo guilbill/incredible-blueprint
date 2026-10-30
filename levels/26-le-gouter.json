@@ -2,7 +2,6 @@
   "v": 1,
   "id": "26-le-gouter",
   "title": "Le goûter",
-  "goalText": "Mettez le tapis en marche dans le bon sens pour que la souris mange le fromage.",
   "fixed": [
     { "id": "floor-1", "kind": "wall-brick", "x": 160, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-2", "kind": "wall-brick", "x": 480, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },

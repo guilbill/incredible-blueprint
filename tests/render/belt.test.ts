@@ -43,7 +43,7 @@ describe('belt geometry', () => {
 })
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number): Placement => ({ id, kind, x, y, rot: 0, flip: false, settings: {} })
-const lv = (fixed: Placement[], fixedLinks: Link[]): Level => ({ v: 1, id: 't', title: 't', goalText: 't', fixed, fixedLinks, inventory: [], goals: [] })
+const lv = (fixed: Placement[], fixedLinks: Link[]): Level => ({ v: 1, id: 't', title: 't', fixed, fixedLinks, inventory: [], goals: [] })
 const sol: Solution = { placements: [], links: [] }
 const belt: Link = { id: 'b', kind: 'belt', a: { part: 'a', anchor: 'belt' }, b: { part: 'b', anchor: 'belt' } }
 
