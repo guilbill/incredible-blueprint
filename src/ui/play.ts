@@ -611,8 +611,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   function positionSelPanel(p: Placement): void {
     // right of the part and of its handles, so the panel never covers a handle
     const pts = [...footprint(p), ...Object.values(handlesOf(p))]
-    const anchor = unitsToClient({ x: Math.max(...pts.map((q) => q.x)) + 12, y: Math.min(...pts.map((q) => q.y)) }, canvas.getBoundingClientRect())
-    const at = panelPosition(anchor, stage.getBoundingClientRect(), { w: selPanel.offsetWidth, h: selPanel.offsetHeight })
+    const r = canvas.getBoundingClientRect()
+    const anchor = unitsToClient({ x: Math.max(...pts.map((q) => q.x)) + 12, y: Math.min(...pts.map((q) => q.y)) }, r)
+    const left = unitsToClient({ x: Math.min(...pts.map((q) => q.x)) - 12, y: 0 }, r).x
+    const at = panelPosition({ ...anchor, left }, stage.getBoundingClientRect(), { w: selPanel.offsetWidth, h: selPanel.offsetHeight })
     selPanel.style.left = `${at.x}px`
     selPanel.style.top = `${at.y}px`
   }

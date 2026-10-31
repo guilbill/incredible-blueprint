@@ -42,6 +42,14 @@ describe('panelPosition', () => {
     expect(panelPosition({ x: 890, y: 540 }, stage, { w: 170, h: 120 })).toEqual({ x: 622, y: 372 })
     expect(panelPosition({ x: 0, y: 0 }, stage, { w: 170, h: 120 })).toEqual({ x: 8, y: 8 })
   })
+  it('goes left of the part when it does not fit on its right', () => {
+    // part from 700 to 800 (client): no room on the right, the panel ends 10 px before the part
+    expect(panelPosition({ x: 800, y: 200, left: 700 }, stage, { w: 170, h: 120 })).toEqual({ x: 420, y: 150 })
+    // room on the right: the left edge is ignored
+    expect(panelPosition({ x: 300, y: 200, left: 200 }, stage, { w: 170, h: 120 })).toEqual({ x: 210, y: 150 })
+    // no room on either side: clamped as before
+    expect(panelPosition({ x: 890, y: 200, left: 250 }, stage, { w: 170, h: 120 })).toEqual({ x: 622, y: 150 })
+  })
 })
 
 describe('loop', () => {
