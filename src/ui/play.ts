@@ -8,7 +8,7 @@ import type { Anchor, Goal, Guide, Level, PartKind, Placement, Rect, Solution } 
 import { ROT_ANGLE, angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
-import { Pen, type PartDrawState } from '../render/pen'
+import type { PartDrawState } from '../render/pen'
 import { objectiveText } from '../objectives'
 import { levelNumber } from '../render/brief'
 import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
@@ -17,6 +17,7 @@ import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, fr
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
+import { partIcon } from './partIcon'
 import { icon, type IconName } from './icons'
 import { getClip, setClip } from './clipboard'
 import { isMac, isTypingTarget } from './keys'
@@ -86,6 +87,10 @@ interface Drag {
   ok: boolean
   /** Contact points with the gears the ghost meshes with, while it is valid. */
   meshMarks?: Vec[]
+  /** Picked in the drawer with a click: the ghost follows the pointer, a click on the board places it. */
+  armed?: boolean
+  /** A press on the board while armed: its release places the part. */
+  aiming?: boolean
 }
 
 /** Press on a part of a multi-selection: past the drag threshold the whole group moves. */
@@ -146,29 +151,6 @@ const TOOL_ICONS: Record<LinkTool, string> = {
     <circle cx="143" cy="31" r="1.6" fill="currentColor"/><circle cx="189" cy="25" r="1.4" fill="currentColor"/>
     <path d="M141.4,18.1 L188.1,16.0 A9,9 0 0 1 190.0,33.9 L144.6,43.9 A13,13 0 1 1 141.4,18.1 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
   </svg>`,
-}
-
-/** Small line-art icon of a part for the drawer. */
-function partIcon(kind: PartKind): HTMLCanvasElement {
-  const size = 44
-  const dpr = window.devicePixelRatio || 1
-  const c = el('canvas', 'icon')
-  c.width = size * dpr
-  c.height = size * dpr
-  c.style.width = c.style.height = `${size}px`
-  const ctx = c.getContext('2d')
-  const def = partDef(kind)
-  if (!ctx || !def.draw) return c
-  const p: Placement = { id: 'icon', kind, x: 0, y: 0, rot: 0, flip: false, settings: {} }
-  const fp = footprint(p)
-  const w = Math.max(...fp.map((q) => q.x)) - Math.min(...fp.map((q) => q.x))
-  const h = Math.max(...fp.map((q) => q.y)) - Math.min(...fp.map((q) => q.y))
-  const s = Math.min(1.2, (size - 8) / Math.max(w, h))
-  ctx.scale(dpr, dpr)
-  ctx.translate(size / 2, size / 2)
-  ctx.scale(s, s)
-  def.draw(new Pen(ctx), { placement: p })
-  return c
 }
 
 export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () => void {
@@ -378,14 +360,17 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const li = el('li', 'item')
     const count = el('span', 'count')
     li.append(partIcon(kind), el('span', 'name', partLabel(kind)), count)
+    // a click picks the part up (or puts it back), the next click on the board places it
     li.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || sim || (remaining(level, sol).get(kind) ?? 0) <= 0) return
+      if (e.button !== 0 || sim) return
       e.preventDefault()
-      selection = []
-      tool = undefined
-      first = undefined
-      drag = { kind, id: nextId(level, sol), offset: { x: 0, y: 0 }, start: { x: e.clientX, y: e.clientY }, started: true, ok: false }
-      updateDrag(e)
+      if (drag?.armed && drag.kind === kind) drag = undefined
+      else if ((remaining(level, sol).get(kind) ?? 0) > 0) {
+        selection = []
+        tool = undefined
+        first = undefined
+        drag = { kind, id: nextId(level, sol), offset: { x: 0, y: 0 }, start: { x: e.clientX, y: e.clientY }, started: true, ok: false, armed: true }
+      }
       refreshUi()
     })
     list.append(li)
@@ -398,6 +383,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       const n = left.get(kind) ?? 0
       count.textContent = author ? '∞' : `×${n}`
       li.classList.toggle('empty', n <= 0)
+      li.classList.toggle('armed', !!drag?.armed && drag.kind === kind)
     }
   }
 
@@ -822,6 +808,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     e.preventDefault()
     // a finger opens the menu with its own long press (Android would also send this one)
     if (lastPointer === 'touch') return
+    if (drag?.armed) {
+      drag = undefined
+      refreshUi()
+      return
+    }
     openBoardMenu(e)
   })
 
@@ -985,7 +976,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     refreshDrawer()
     refreshSelPanel()
     refreshCopyButtons()
-    canvas.classList.toggle('dragging', !!drag?.started || !!group?.started)
+    canvas.classList.toggle('dragging', (!!drag?.started && !drag.armed) || !!group?.started)
+    canvas.classList.toggle('placing', !!drag?.armed)
     for (const [lt, b] of toolButtons) b.classList.toggle('on', lt === tool)
     canvas.classList.toggle('linking', !!tool)
   }
@@ -1067,6 +1059,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const pt = unitsAt(e)
     hitTol = handleTolerance(e.pointerType, canvas.getBoundingClientRect().width)
     const finger = e.pointerType === 'touch'
+    if (drag?.armed) {
+      // a finger has no hover: the ghost shows from the press and follows it until the release
+      e.preventDefault()
+      drag.aiming = true
+      drag.id = nextId(level, sol)
+      updateDrag(e)
+      refreshUi()
+      return
+    }
     if (author?.tracing()) {
       e.preventDefault()
       trace = { a: pt, b: pt }
@@ -1239,7 +1240,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     if (drag) {
       updateDrag(e)
-      canvas.classList.toggle('dragging', drag.started)
+      canvas.classList.toggle('dragging', drag.started && !drag.armed)
       if (drag.started) hover = undefined
       return
     }
@@ -1388,6 +1389,19 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     const d = drag
     if (!d) return
+    if (d.armed) {
+      if (!d.aiming) return
+      d.aiming = false
+      updateDrag(e)
+      if (d.ghost && d.ok) {
+        sound.click()
+        commit(addPart(level, sol, d.ghost)!)
+        selection = [d.id]
+        drag = undefined
+      } else if (d.ghost) showToast(t('toast.noRoom'))
+      refreshUi()
+      return
+    }
     drag = undefined
     if (d.started) {
       updateDrag(e)
@@ -1571,6 +1585,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     } else if (e.key === 'Escape') {
       // a drag in progress is cancelled: the zone goes back where it was, the group never moved or turned
       if (zoneDrag && author) author.setZone(zoneDrag.i, zoneDrag.orig)
+      if (drag?.armed) drag = undefined
       group = undefined
       spin = undefined
       trace = undefined

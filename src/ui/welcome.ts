@@ -1,7 +1,7 @@
 import { data } from '../engine/bodies'
 import type { Vec } from '../engine/vec'
 import { Simulation } from '../game/simulation'
-import { t } from '../i18n'
+import { partLabel, t } from '../i18n'
 import { objectiveText } from '../objectives'
 import { footprint } from '../level/placement'
 import type { Level, PartKind, Placement, Solution } from '../level/types'
@@ -9,6 +9,7 @@ import { ROT_ANGLE } from '../parts/common'
 import { COLORS, Pen } from '../render/pen'
 import { render } from '../render/renderer'
 import { el } from './dom'
+import { partIcon } from './partIcon'
 import { clientToUnits, fitCanvas } from './geometry'
 import { langSwitch } from './langSwitch'
 import { guarded, stepsDue } from './loop'
@@ -20,7 +21,8 @@ const p = (id: string, kind: PartKind, x: number, y: number, rot = 0, settings: 
 
 /**
  * First visit: a machine that only lacks one plank. The ball rests at the top of the first plank,
- * the slot of the second is drawn dashed, the plank lies on the floor. Placing it starts the run.
+ * the slot of the second is drawn dashed, the plank waits in the drawer. It teaches the placing
+ * gesture of the game: a click on the plank in the drawer, a click on its slot, and the run starts.
  */
 export const WELCOME_PARTS: Placement[] = [
   p('ball', 'ball-base', 218, 214),
@@ -33,33 +35,23 @@ export const WELCOME_PARTS: Placement[] = [
 ]
 /** Where the missing plank goes. */
 export const SLOT: Placement = p('plank', 'ramp', 600, 420, 1, { length: 10 })
-/** Where it lies until the player picks it up: flat on the floor. */
-export const REST: Placement = { ...SLOT, x: 470, y: 752, rot: 0 }
-/** A plank dropped this close (units, centre to centre) to the slot snaps into it. */
+/** The plank held away from its slot: flat under the pointer. */
+export const FLAT: Placement = { ...SLOT, rot: 0 }
+/** A plank held this close (units, centre to centre) to the slot snaps into it. */
 export const SNAP_DIST = 80
-const HALF_LEN = 100
 
-export function welcomeLevel(plank: Placement = SLOT, ball?: Placement): Level {
+/** The machine, with the plank in its slot by default; `null` while it is still in the drawer. */
+export function welcomeLevel(plank: Placement | null = SLOT, ball?: Placement): Level {
   const parts = ball ? WELCOME_PARTS.map((q) => (q.id === 'ball' ? ball : q)) : WELCOME_PARTS
   return {
-    v: 1, id: 'welcome', title: '', fixed: [...parts, plank], fixedLinks: [], inventory: [],
+    v: 1, id: 'welcome', title: '', fixed: plank ? [...parts, plank] : parts, fixedLinks: [], inventory: [],
     goals: [{ type: 'inZone', part: 'ball', zone: { x: 860, y: 720, w: 40, h: 40 } }],
   }
 }
 
-/** Whether a point (units) is on the plank, with a margin so a finger can grab it. */
-export function onPlank(plank: Placement, at: Vec): boolean {
-  const a = plank.rot * ROT_ANGLE
-  const dx = at.x - plank.x
-  const dy = at.y - plank.y
-  const along = dx * Math.cos(a) + dy * Math.sin(a)
-  const across = -dx * Math.sin(a) + dy * Math.cos(a)
-  return Math.abs(along) < HALF_LEN + 12 && Math.abs(across) < 22
-}
-
 /** The plank held at `at`: in the slot when close enough, else flat where the pointer is. */
 export function heldPlank(at: Vec): Placement {
-  return Math.hypot(at.x - SLOT.x, at.y - SLOT.y) < SNAP_DIST ? SLOT : { ...REST, x: at.x, y: at.y }
+  return Math.hypot(at.x - SLOT.x, at.y - SLOT.y) < SNAP_DIST ? SLOT : { ...FLAT, x: at.x, y: at.y }
 }
 
 /** The ball's twitch down the slope while it waits: a short nudge every 1.6 s, in units. */
@@ -94,7 +86,14 @@ export function mountWelcome(root: HTMLElement, opts: WelcomeOpts): () => void {
   canvas.setAttribute('role', 'img')
   canvas.setAttribute('aria-label', t('welcome.board'))
   stage.append(canvas)
-  screen.append(head, stage)
+  const drawer = el('aside', 'drawer')
+  const list = el('ul', 'inventory')
+  const item = el('li', 'item')
+  const count = el('span', 'count', '×1')
+  item.append(partIcon('ramp'), el('span', 'name', partLabel('ramp')), count)
+  list.append(item)
+  drawer.append(el('h2', '', t('play.parts')), list)
+  screen.append(head, stage, drawer)
   root.replaceChildren(screen)
   sound.arm()
 
@@ -116,8 +115,10 @@ export function mountWelcome(root: HTMLElement, opts: WelcomeOpts): () => void {
   const ro = new ResizeObserver(resize)
   ro.observe(stage)
 
-  let plank = REST
-  let grab: Vec | null = null
+  /** The plank picked in the drawer, its pose under the pointer once over the board, and a press on the board. */
+  let armed = false
+  let held: Placement | undefined
+  let aiming = false
   let sim: Simulation | undefined
   let won = false
   let acc = 0
@@ -128,43 +129,57 @@ export function mountWelcome(root: HTMLElement, opts: WelcomeOpts): () => void {
   const impacts = createImpactTracker<{ key: string; impulse: number; kinds: (PartKind | undefined)[] }>()
 
   const units = (e: PointerEvent): Vec => clientToUnits(e.clientX, e.clientY, canvas.getBoundingClientRect())
+  const arm = (on: boolean): void => {
+    armed = on
+    held = undefined
+    aiming = false
+    item.classList.toggle('armed', on)
+    canvas.classList.toggle('placing', on)
+  }
   const start = (): void => {
-    plank = SLOT
+    arm(false)
     sim = new Simulation(welcomeLevel(), EMPTY)
-    canvas.style.cursor = ''
+    count.textContent = '×0'
+    item.classList.add('empty')
     dirty = true
   }
-  canvas.addEventListener('pointerdown', (e) => {
-    if (sim) return
-    const at = units(e)
-    if (!onPlank(plank, at)) return
-    canvas.setPointerCapture(e.pointerId)
-    grab = { x: plank.x - at.x, y: plank.y - at.y }
-    canvas.style.cursor = 'grabbing'
+  const hold = (e: PointerEvent): void => {
+    const next = heldPlank(units(e))
+    if (next === SLOT && held !== SLOT) sound.click()
+    held = next
+  }
+  item.addEventListener('pointerdown', (e) => {
+    if (sim || e.button !== 0) return
+    e.preventDefault()
     sound.click()
+    arm(!armed)
+  })
+  canvas.addEventListener('pointerdown', (e) => {
+    if (sim || !armed || e.button !== 0) return
+    // a finger has no hover: the plank shows from the press and follows it until the release
+    canvas.setPointerCapture(e.pointerId)
+    aiming = true
+    hold(e)
   })
   canvas.addEventListener('pointermove', (e) => {
-    if (sim) return
-    const at = units(e)
-    if (!grab) {
-      canvas.style.cursor = onPlank(plank, at) ? 'grab' : ''
-      return
-    }
-    const next = heldPlank({ x: at.x + grab.x, y: at.y + grab.y })
-    if (next === SLOT && plank !== SLOT) sound.click()
-    plank = next
+    if (!sim && armed && (aiming || e.pointerType !== 'touch')) hold(e)
   })
-  const drop = (): void => {
-    if (!grab) return
-    grab = null
-    if (plank === SLOT) start()
-    else {
-      plank = REST
-      canvas.style.cursor = ''
-    }
+  canvas.addEventListener('pointerleave', () => {
+    if (!aiming) held = undefined
+  })
+  canvas.addEventListener('pointerup', () => {
+    if (!aiming) return
+    aiming = false
+    if (held === SLOT) start()
+  })
+  canvas.addEventListener('pointercancel', () => {
+    aiming = false
+    held = undefined
+  })
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape' && armed) arm(false)
   }
-  canvas.addEventListener('pointerup', drop)
-  canvas.addEventListener('pointercancel', drop)
+  window.addEventListener('keydown', onKey)
   // Keyboard: the board is focusable, Enter or Space puts the plank in place.
   canvas.addEventListener('keydown', (e) => {
     if (sim || (e.key !== 'Enter' && e.key !== ' ')) return
@@ -224,8 +239,9 @@ export function mountWelcome(root: HTMLElement, opts: WelcomeOpts): () => void {
       if (won && !dirty) return
       dirty = false
       ctx.setTransform(1, 0, 0, 1, 0, 0)
-      render(ctx, { level: welcomeLevel(plank, ball), sol: EMPTY, sim, zoom, won, selected: grab ? [plank.id] : undefined, brief: { title: t('welcome.briefTitle'), heading: t('brief.goal'), goal: objectiveText(welcomeLevel()) } })
-      if (!sim && plank !== SLOT) {
+      const ghost = held && !sim ? { placement: held, ghost: held === SLOT ? 'ok' as const : 'bad' as const } : undefined
+      render(ctx, { level: welcomeLevel(sim ? SLOT : null, ball), sol: EMPTY, sim, zoom, won, ghost, brief: { title: t('welcome.briefTitle'), heading: t('brief.goal'), goal: objectiveText(welcomeLevel()) } })
+      if (!sim && held !== SLOT) {
         ctx.setTransform(zoom, 0, 0, zoom, 0, 0)
         drawSlot(new Pen(ctx), ms)
       }
@@ -235,6 +251,7 @@ export function mountWelcome(root: HTMLElement, opts: WelcomeOpts): () => void {
 
   return () => {
     cancelAnimationFrame(raf)
+    window.removeEventListener('keydown', onKey)
     timers.forEach(clearTimeout)
     timers = []
     ro.disconnect()

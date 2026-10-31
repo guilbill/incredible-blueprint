@@ -129,7 +129,7 @@ button { font: inherit; color: inherit; }
   padding: 4px 8px 4px 4px;
   border: 1px solid var(--grid);
   border-radius: 3px;
-  cursor: grab;
+  cursor: pointer;
   touch-action: none;
 }
 .item:hover { border-color: var(--cyan); box-shadow: 0 0 8px rgba(127, 255, 212, 0.25); }
@@ -137,6 +137,8 @@ button { font: inherit; color: inherit; }
 .item .count { color: var(--cyan); font-size: 13px; }
 .item.empty { opacity: 0.35; cursor: not-allowed; }
 .item.empty:hover { border-color: var(--grid); box-shadow: none; }
+.item.armed, .item.armed:hover { border-color: var(--yellow); box-shadow: 0 0 0 1px var(--yellow) inset; }
+.item.armed .name { color: var(--yellow); }
 
 .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }
 .tool {
@@ -491,6 +493,8 @@ button { font: inherit; color: inherit; }
 .side .notice[hidden] { display: none; }
 .stage canvas.over-part.over-rot { cursor: grab; }
 .stage canvas.over-part.over-end { cursor: ew-resize; }
+/* a part picked in the drawer: the board only takes the click that places it */
+.stage canvas.placing, .stage canvas.placing.over-part { cursor: crosshair; }
 
 /* "Try again?" prompt: bottom of the board, the machine keeps running behind it */
 .retry {
@@ -594,7 +598,8 @@ button { font: inherit; color: inherit; }
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--drawer-w);
+  grid-template-areas: 'head head' 'stage drawer';
   overflow: hidden;
   background: var(--bg-deep);
   transition: transform 0.9s cubic-bezier(0.6, 0, 0.3, 1);
@@ -604,9 +609,12 @@ button { font: inherit; color: inherit; }
 .welcome-head h1 { margin: 0; font-size: clamp(14px, 2.6vw, 26px); font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; }
 .welcome-links { display: flex; align-items: center; gap: 12px; }
 .welcome-links > .btn { letter-spacing: 0.15em; text-transform: uppercase; font-size: 12px; }
-.welcome-stage { min-height: 0; overflow: hidden; display: grid; place-items: center; padding: 8px 16px 24px; }
+.welcome-head { grid-area: head; }
+.welcome .drawer { padding-bottom: 12px; }
+.welcome-stage { grid-area: stage; min-height: 0; overflow: hidden; display: grid; place-items: center; padding: 8px 16px 24px; }
 .welcome-stage canvas { display: block; border: 1px solid var(--grid); touch-action: none; }
 .welcome-stage canvas:focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; }
+.welcome-stage canvas.placing { cursor: crosshair; }
 @keyframes enter-from-right { from { transform: translateX(100%); } to { transform: none; } }
 .enter-from-right { animation: enter-from-right 0.9s cubic-bezier(0.6, 0, 0.3, 1); }
 
@@ -778,4 +786,6 @@ canvas.mini { display: block; width: 100%; height: auto; }
     grid-template-areas: 'toolbar toolbar' 'side stage' 'drawer drawer';
   }
   .play.author .drawer { padding-right: 12px; }
+  .welcome { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: 'head' 'stage' 'drawer'; }
+  .welcome .drawer { padding-right: 12px; }
 }

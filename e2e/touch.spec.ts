@@ -43,11 +43,14 @@ test('a finger places, moves and selects parts, and a long press opens the menu'
   const at = (fx: number, fy: number): Pt => ({ x: board.x + board.width * fx, y: board.y + board.height * fy })
   const t = await touch(page)
 
-  // drawer to board
+  // a tap picks the part in the drawer, a tap on the board places it
   const count = page.locator('.inventory .item .count').first()
   const before = await count.textContent()
-  await t.drag(await center(page, '.inventory .item'), at(0.3, 0.3))
+  await t.tap(await center(page, '.inventory .item'))
+  await expect(page.locator('.inventory .item.armed')).toBeVisible()
+  await t.tap(at(0.3, 0.3))
   await expect(count).not.toHaveText(before!)
+  await expect(page.locator('.inventory .item.armed')).toHaveCount(0)
 
   // board to board: the page must not scroll the drag away
   await t.drag(at(0.3, 0.3), at(0.6, 0.4))
@@ -63,4 +66,19 @@ test('a finger places, moves and selects parts, and a long press opens the menu'
   await t.hold(at(0.05, 0.05), 700)
   await expect(page.locator('.ctxmenu')).toBeVisible()
   await expect(page.locator('.ctxmenu .item')).toHaveCount(2)
+})
+
+test('on the welcome machine, a tap on the ramp in the drawer then on its slot sends the ball', async ({ page }) => {
+  await page.goto('/')
+  const canvas = page.locator('.welcome-stage canvas')
+  await expect(canvas).toBeVisible()
+  await expect(page.locator('.title-card')).toHaveCount(0)
+  const board = (await canvas.boundingBox())!
+  const t = await touch(page)
+  await t.tap(await center(page, '.welcome .inventory .item'))
+  await expect(page.locator('.welcome .item.armed')).toBeVisible()
+  // the slot is at (600, 420) on the 1280 × 800 field
+  await t.tap({ x: board.x + (board.width * 600) / 1280, y: board.y + (board.height * 420) / 800 })
+  await expect(page.locator('.welcome .item .count')).toHaveText('×0')
+  await expect(page.locator('.stage canvas')).toBeVisible({ timeout: 10_000 })
 })
