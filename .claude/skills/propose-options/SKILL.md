@@ -15,7 +15,8 @@ The user decides fastest when they react to something concrete. In the first bui
    - drawings use the real parts (`drawPart(pen, kind, x, y)`) and the real `Pen`, so the look matches the game;
    - sounds call the real synth (`sound` in `src/ui/sound.ts`) or a candidate written next to it; every sound variant gets `play`;
    - for an interaction (drag, rotate, select, resize, a panel), use `mount(el)` to build a live prototype the user can click. A picture is not enough for a gesture.
-3. **Open it** in the browser pane: `http://localhost:5173/lab.html?topic=<topic>` (start the `dev` preview from `.claude/launch.json` if needed). Take one screenshot to check it renders.
+3. **Open it** in the browser pane at `http://localhost:<port>/lab.html?topic=<topic>`, where `<port>` is this checkout's own port (`node scripts/dev-port.mjs`; 5173 only in the main checkout). In the main checkout, start the `dev` preview from `.claude/launch.json`. In a worktree, start `nohup npm run dev > /tmp/tib-dev-<port>.log 2>&1 &` so the server outlives the turn, then open the URL with `preview_start`. Take one screenshot to check it renders, and give the user that exact URL.
+   - Before ending the turn, check the URL still answers (`curl -sf -o /dev/null http://localhost:<port>/lab.html`); restart the server if not. A page the user cannot open costs more than the options save.
 4. **Ask one question**: which variant, and what to change. Keep the reply short; the page carries the detail.
 5. **Read the pick** if the user clicked "choisir": `localStorage.getItem('lab.choice.<topic>')` in the page.
 6. **Iterate** with a new file (`<topic>-v2.ts`) when the user wants variations around one option; keep the old one for comparison.

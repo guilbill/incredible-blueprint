@@ -1,10 +1,13 @@
 import { resolve } from 'node:path'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
+import { devPort } from './scripts/dev-port.mjs'
 
 export default defineConfig({
   // Relative URLs, so the game also works from a sub-path (e.g. GitHub Pages /incredible-blueprint/).
   base: './',
+  // One port per checkout, and never a silent fallback to the next one (scripts/dev-port.mjs).
+  server: { port: devPort(import.meta.dirname), strictPort: true },
   plugins: [
     VitePWA({
       // The game asks the player before switching to a new version (src/ui/update.ts), never mid-game.

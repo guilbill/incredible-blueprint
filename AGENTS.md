@@ -19,7 +19,7 @@ Guide for any coding agent working on The Incredible Blueprint (TIB), a browser 
 
 ## Commands
 
-- `npm run dev`: dev server on http://localhost:5173 (the lab is at `/lab.html`).
+- `npm run dev`: dev server, the lab is at `/lab.html`. Port 5173 in the main checkout; each worktree has its own fixed port (`node scripts/dev-port.mjs`).
 - `npm run check`: typecheck plus every unit test without the module cache. Run it before every commit (a hook blocks commits when it fails).
 - `npm run levels`: table of shipped levels (idea, difficulty, parts, duration).
 - `npm run build`, `npm run test:e2e`: before merging.
@@ -32,11 +32,12 @@ These come from the retrospective of the first build. Apply them without being a
 1. **Show options before coding anything the user will see, hear or handle.** Icons, drawings, colours, sounds, layouts, gestures: build 3 or 4 variants in the lab with the `propose-options` skill and open them in the browser pane. For an interaction (drag, rotate, select), make it a prototype the user can click, not a picture. Code the chosen one only.
 2. **Name the place.** Say "in the drawer", "on the board", "under the board", "on the level card". When the user's words leave the place unclear, ask which one before building.
 3. **Ask for the case, not the number.** When a delay, size or threshold is discussed, list the situations it must handle and propose the rule; do not tune it one deploy at a time.
-4. **Batch, test locally, deploy once.** Group small adjustments, let the user try them on `localhost:5173`, then ship them together with the `ship` skill.
+4. **Batch, test locally, deploy once.** Group small adjustments, let the user try them on the checkout's dev server, then ship them together with the `ship` skill.
 5. **Levels are played before they ship.** Use the `new-level` skill: one-sentence idea, difficulty 1 to 5, proven solution, then the user plays it before the merge.
 6. **Look and listen before saying "done".** Check the real rendering in the browser at desktop and phone widths, and play the sounds you changed. Say plainly what you could not check.
 7. **Report on long tasks.** Give a one-line status about every 10 minutes while subagents or long runs are working.
 8. **Push, deploy, merge only when asked.** Outward actions wait for an explicit "pousse", "déploie" or "fusionne".
+9. **Parallel sessions start from an up-to-date main.** Each session works in its own worktree and cannot see work that is not merged yet. At the start, the SessionStart hook says how far this checkout is behind `origin/main` and lists unmerged local branches. Update first, and before showing anything, tell the user when the work they expect lives on another branch; ask before merging it. When a session's work is done, merge it (on the user's go) before opening the next one on related screens.
 
 ## Git
 

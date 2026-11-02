@@ -22,7 +22,7 @@ if (CUES.some((re) => re.test(prompt))) {
   process.stdout.write(
     'Project rule (AGENTS.md, How we work 1): this request touches something the user will see, hear or handle. ' +
       'Unless the user already picked an option, use the propose-options skill: build 3 or 4 variants in src/lab/topics/, ' +
-      'open http://localhost:5173/lab.html?topic=<topic> in the browser pane, and code only the chosen one. ' +
+      'open /lab.html?topic=<topic> on this checkout\'s own port (`node scripts/dev-port.mjs`) in the browser pane, and code only the chosen one. ' +
       'Name the place on screen; ask if it is unclear.\n',
   )
 }
