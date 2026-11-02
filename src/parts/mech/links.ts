@@ -24,17 +24,32 @@ function meshedGears(pa: Placement, pb: Placement): boolean {
 
 /**
  * Both anchors exist on two different parts and share a role (so belts only join belt anchors),
- * and a belt never joins two gears that already mesh.
+ * a belt never joins two gears that already mesh, and a wire joins a button to a part that is not one.
  */
 export function canLink(a: Anchor, b: Anchor, parts: Placement[]): boolean {
   if (a.part === b.part) return false
   const da = anchorDef(a, parts)
   const db = anchorDef(b, parts)
   if (!da || !db || da.role !== db.role) return false
-  if (da.role !== 'belt') return true
   const pa = parts.find((q) => q.id === a.part)!
   const pb = parts.find((q) => q.id === b.part)!
+  if (da.role === 'wire') return (pa.kind === 'button') !== (pb.kind === 'button')
+  if (da.role !== 'belt') return true
   return !meshedGears(pa, pb)
+}
+
+/**
+ * Wires the link's button to the part at its other end (adds the button id to that part's `wires`).
+ * Returns false, wiring nothing, when the link is not a wire between a button and another part.
+ */
+export function buildWire(link: Link, sim: SimCtx): boolean {
+  const ia = sim.part(link.a.part)
+  const ib = sim.part(link.b.part)
+  if (link.kind !== 'wire' || !ia || !ib || ia === ib || !ia.anchors[link.a.anchor] || !ib.anchors[link.b.anchor]) return false
+  if ((ia.kind === 'button') === (ib.kind === 'button')) return false
+  const [btn, target] = ia.kind === 'button' ? [ia, ib] : [ib, ia]
+  target.wires = [...(target.wires ?? []), btn.id]
+  return true
 }
 
 const worldPoint = (anc: PartInstance['anchors'][string]): Vec => {

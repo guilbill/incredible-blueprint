@@ -5,7 +5,7 @@ import type { Rope } from '../engine/joints'
 import { World, type ContactEvent } from '../engine/world'
 import type { Goal, Level, Link, Placement, SimEventName, Solution } from '../level/types'
 import { meshGears } from '../parts/mech/gear'
-import { buildLink } from '../parts/mech/links'
+import { buildLink, buildWire } from '../parts/mech/links'
 import { partDef } from '../parts/registry'
 import type { PartInstance, SimCtx } from '../parts/types'
 import { evaluateGoals } from './goals'
@@ -83,10 +83,14 @@ export class Simulation {
     this.buildLinks([...canonicalLinks(level.fixedLinks, rank), ...canonicalLinks(sol.links, rank)])
   }
 
-  /** After all parts exist: meshes touching gears, then builds ropes and belts in link order (invalid links are skipped). */
+  /** After all parts exist: meshes touching gears, then builds ropes, belts and wires in link order (invalid links are skipped). */
   protected buildLinks(links: Level['fixedLinks']): void {
     meshGears(this.ctx)
     for (const l of links) {
+      if (l.kind === 'wire') {
+        buildWire(l, this.ctx)
+        continue
+      }
       if (!buildLink(l, this.ctx) || l.kind !== 'rope') continue
       this.ropeOf.set(l.id, this.ropes[this.ropes.length - 1])
     }

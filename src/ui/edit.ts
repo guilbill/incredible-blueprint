@@ -301,7 +301,25 @@ export function anchorAt(level: Level, sol: Solution, a: Anchor): Vec | undefine
   return p && d ? anchorPoint(p, d) : undefined
 }
 
-export type LinkTool = 'rope' | 'belt'
+export type LinkTool = 'rope' | 'belt' | 'wire'
+
+export const LINK_TOOLS: readonly LinkTool[] = ['rope', 'belt', 'wire']
+
+/**
+ * Link tools a player can use in this level, from the parts it holds (fixed ones plus the drawer,
+ * counting each copy): a rope or a belt needs two parts that take it, a wire needs a button and a
+ * part a button can switch.
+ */
+export function usefulLinkTools(level: Level): LinkTool[] {
+  const kinds = [...level.fixed.map((p) => ({ kind: p.kind, count: 1 })), ...level.inventory]
+  const takes = (role: LinkTool, k: { kind: Placement['kind'] }): boolean => partDef(k.kind).anchors.some((d) => d.role === role)
+  const count = (pick: (k: { kind: Placement['kind'] }) => boolean): number => kinds.filter(pick).reduce((n, k) => n + k.count, 0)
+  return LINK_TOOLS.filter((lt) =>
+    lt === 'wire'
+      ? count((k) => k.kind === 'button') > 0 && count((k) => k.kind !== 'button' && takes('wire', k)) > 0
+      : count((k) => takes(lt, k)) >= 2,
+  )
+}
 
 /** Topmost part under the point: player placements first, then fixed parts. */
 export function hitAnyPart(level: Level, sol: Solution, pt: Vec): Placement | undefined {

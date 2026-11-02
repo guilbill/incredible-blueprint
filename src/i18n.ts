@@ -72,6 +72,7 @@ const fr = {
   'drawer.undo': 'Annuler (Ctrl+Z)',
   'drawer.redo': 'Rétablir (Ctrl+Maj+Z)',
   'tool.belt': 'Courroie',
+  'tool.wire': 'Fil',
   'win.title': 'Réussi !',
   'win.next': 'Suivant',
   'win.replay': 'Rejouer',
@@ -142,6 +143,7 @@ const fr = {
   'toast.cannotLink': 'Liaison impossible',
   'toast.noRope': 'Cette pièce ne prend pas de corde.',
   'toast.noBelt': 'Cette pièce ne prend pas de courroie.',
+  'toast.noWire': 'Cette pièce ne prend pas de fil.',
   'toast.zoneTooSmall': 'Zone trop petite',
   'toast.beltDropped': 'Courroie retirée : les engrenages s\'entraînent déjà.',
   'toast.jammed': 'La machine s’est enrayée… Modifiez-la puis relancez.',
@@ -292,6 +294,7 @@ const en: Record<Key, string> = {
   'drawer.undo': 'Undo (Ctrl+Z)',
   'drawer.redo': 'Redo (Ctrl+Shift+Z)',
   'tool.belt': 'Belt',
+  'tool.wire': 'Wire',
   'win.title': 'Solved!',
   'win.next': 'Next',
   'win.replay': 'Replay',
@@ -362,6 +365,7 @@ const en: Record<Key, string> = {
   'toast.cannotLink': 'Can’t link that',
   'toast.noRope': 'This part takes no rope.',
   'toast.noBelt': 'This part takes no belt.',
+  'toast.noWire': 'This part takes no wire.',
   'toast.zoneTooSmall': 'Zone too small',
   'toast.beltDropped': 'Belt removed: those gears already drive each other.',
   'toast.jammed': 'The machine jammed… Change it and run it again.',
@@ -481,6 +485,7 @@ export const PART_NAMES_EN: Record<PartKind, string> = {
   portal: 'Portal',
   spring: 'Spring',
   fan: 'Fan',
+  button: 'Button',
 }
 
 /** English setting labels by setting key (a key means the same thing on every part). */

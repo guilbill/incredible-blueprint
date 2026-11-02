@@ -20,6 +20,8 @@ export interface PartDrawState {
   fixed?: boolean
   /** A drawn rope is tied to this part (the cheese shows its string only then). */
   roped?: boolean
+  /** A wire is plugged into this part (the button hides its loose cord then). */
+  wired?: boolean
   /** Gears: drawing angle offset so meshing teeth interlock. */
   phase?: number
 }

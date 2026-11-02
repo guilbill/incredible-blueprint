@@ -14,7 +14,7 @@ import { objectiveText } from '../objectives'
 import { levelNumber } from '../render/brief'
 import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
-import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, HANDLE_HIT, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, nearPart, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, withSetting, type HandleGaps, type HandleKind, type LinkTool } from './edit'
+import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, HANDLE_HIT, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, LINK_TOOLS, nearPart, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, usefulLinkTools, withSetting, type HandleGaps, type HandleKind, type LinkTool } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
@@ -154,6 +154,17 @@ const TOOL_ICONS: Record<LinkTool, string> = {
     <circle cx="143" cy="31" r="1.6" fill="currentColor"/><circle cx="189" cy="25" r="1.4" fill="currentColor"/>
     <path d="M141.4,18.1 L188.1,16.0 A9,9 0 0 1 190.0,33.9 L144.6,43.9 A13,13 0 1 1 141.4,18.1 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
   </svg>`,
+  wire: `<svg viewBox="0 0 56 30" width="56" height="30" aria-hidden="true">
+    <path d="M8 23 q2.5 -5 5 -2 t5 -2 t5 -2 t5 -2 t5 -2 t5 -2 t5 -2 t5 -2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <circle cx="7" cy="24" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="49" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+  </svg>`,
+}
+
+/** Drawer name and "this part takes none" toast of each link tool. */
+const TOOL_TEXT: Record<LinkTool, { name: 'tool.rope' | 'tool.belt' | 'tool.wire'; none: 'toast.noRope' | 'toast.noBelt' | 'toast.noWire' }> = {
+  rope: { name: 'tool.rope', none: 'toast.noRope' },
+  belt: { name: 'tool.belt', none: 'toast.noBelt' },
+  wire: { name: 'tool.wire', none: 'toast.noWire' },
 }
 
 export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () => void {
@@ -308,11 +319,12 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   history.append(undoBtn, redoBtn)
   const tools = el('div', 'tools')
   const toolButtons = new Map<LinkTool, HTMLButtonElement>()
-  for (const lt of ['rope', 'belt'] as const) {
+  // The author gets every tool; a player only those the level's parts can use.
+  for (const lt of author ? LINK_TOOLS : usefulLinkTools(level)) {
     const b = el('button', 'tool')
     b.dataset.tool = lt
     b.innerHTML = TOOL_ICONS[lt]
-    b.append(el('span', 'name', lt === 'rope' ? t('tool.rope') : t('tool.belt')))
+    b.append(el('span', 'name', t(TOOL_TEXT[lt].name)))
     b.addEventListener('click', () => {
       if (sim) return
       tool = tool === lt ? undefined : lt
@@ -525,14 +537,14 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   const selectedLinkObj = () => sol.links.find((l) => l.id === selectedLink)
 
-  function buildLinkPanel(kind: 'rope' | 'belt'): void {
+  function buildLinkPanel(kind: LinkTool): void {
     panelValues.clear()
     selPanel.classList.remove('bar')
     const del = el('button', 'btn small danger', t('panel.remove'))
     del.addEventListener('click', removeSelected)
     const actions = el('div', 'row')
     actions.append(del)
-    selPanel.replaceChildren(el('div', 'title', kind === 'rope' ? t('tool.rope') : t('tool.belt')), actions)
+    selPanel.replaceChildren(el('div', 'title', t(TOOL_TEXT[kind].name)), actions)
   }
 
   /** Link panel, next to the link's midpoint. */
@@ -1049,7 +1061,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const a = pickAnchor(targets() ?? [], part, level, sol, pt)
     if (!a) {
       const takes = partDef(part.kind).anchors.some((d) => d.role === lt)
-      showToast(takes ? t('toast.cannotLink') : t(lt === 'rope' ? 'toast.noRope' : 'toast.noBelt'))
+      showToast(takes ? t('toast.cannotLink') : t(TOOL_TEXT[lt].none))
       return
     }
     if (!first) {

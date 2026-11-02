@@ -4,7 +4,7 @@ import { validateLevel } from '../../src/level/codec'
 import { canPlace, snap } from '../../src/level/placement'
 import type { Level, PartKind, Solution } from '../../src/level/types'
 import { canLink } from '../../src/parts/mech/links'
-import { remaining } from '../../src/ui/edit'
+import { remaining, usefulLinkTools } from '../../src/ui/edit'
 import { loadLevels } from '../../src/ui/levels'
 
 interface Reference { solution: Solution; step: number; hash: string }
@@ -49,6 +49,8 @@ describe('the shipped levels', () => {
       }
       expect(new Set(all.map((p) => p.id)).size).toBe(all.length)
       for (const l of links) expect(canLink(l.a, l.b, all), l.id).toBe(true)
+      // The drawer only shows the link tools the level's parts can use: the solution's must be there.
+      for (const l of links) expect(usefulLinkTools(level), l.id).toContain(l.kind)
     })
 
     it('is solved by its reference solution at the stored step, with the stored hash', () => {

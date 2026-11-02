@@ -59,7 +59,7 @@ export function validateLevel(x: unknown): string | null {
     }
     const parts = x.fixed as Placement[]
     for (const l of x.fixedLinks) {
-      if (!isObj(l) || typeof l.id !== 'string' || (l.kind !== 'rope' && l.kind !== 'belt') || !isObj(l.a) || !isObj(l.b)) return t('codec.badLink')
+      if (!isObj(l) || typeof l.id !== 'string' || (l.kind !== 'rope' && l.kind !== 'belt' && l.kind !== 'wire') || !isObj(l.a) || !isObj(l.b)) return t('codec.badLink')
       if (ids.has(l.id)) return t('codec.duplicateId', { id: l.id })
       ids.add(l.id)
       for (const end of [l.a, l.b]) {

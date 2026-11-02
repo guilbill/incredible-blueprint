@@ -32,6 +32,7 @@ const PART_NOUNS_FR: Record<PartKind, string> = {
   portal: 'le portail',
   spring: 'le ressort',
   fan: 'le ventilateur',
+  button: 'le bouton',
 }
 
 /** Parts a goal zone can sit in and be named after ("dans le seau"). */

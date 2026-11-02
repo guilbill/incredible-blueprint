@@ -32,7 +32,8 @@
     { "kind": "magnet", "count": 1 },
     { "kind": "portal", "count": 2 },
     { "kind": "spring", "count": 2 },
-    { "kind": "fan", "count": 1 }
+    { "kind": "fan", "count": 1 },
+    { "kind": "button", "count": 1 }
   ],
   "goals": [
     { "type": "inZone", "part": "ball", "zone": { "x": 695, "y": 730, "w": 50, "h": 50 } }

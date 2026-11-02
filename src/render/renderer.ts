@@ -7,6 +7,7 @@ import { FIELD, anchorPoint, footprint, sizeOf } from '../level/placement'
 import type { Anchor, Guide, Level, Link, Placement, Rect, Solution } from '../level/types'
 import { CELL } from '../parts/common'
 import { gearPhases } from '../parts/mech/gear'
+import { coilPts } from '../parts/modern/button'
 import { partDef } from '../parts/registry'
 import { BELT_GAP, beltLoop, traceBelt } from './belt'
 import { type Brief, drawBrief, obstacles } from './brief'
@@ -175,8 +176,9 @@ function wheelOf(a: Anchor, placements: Placement[], sim?: Simulation): { radius
 }
 
 /** Draws ropes and belts; returns the ids of the parts a drawn rope is tied to. */
-function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation, selected?: string): Set<string> {
+function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simulation, selected?: string): { roped: Set<string>; wired: Set<string> } {
   const roped = new Set<string>()
+  const wired = new Set<string>()
   for (const l of links) {
     // A cut rope disappears, and so does one tied to a part taken out of play (an eaten cheese, a
     // caught mouse): Planck no longer simulates it. A link the simulation could not build is not drawn while it runs.
@@ -191,8 +193,21 @@ function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simul
       roped.add(l.a.part)
       roped.add(l.b.part)
     }
+    if (l.kind === 'wire') {
+      wired.add(l.a.part)
+      wired.add(l.b.part)
+    }
     if (l.id === selected) pen.reset(COLORS.yellow, 2)
     else pen.reset(COLORS.line, 1)
+    if (l.kind === 'wire') {
+      // Twisted cord; it glows while its button is pressed.
+      const btn = sim?.parts.find((p) => (p.id === l.a.part || p.id === l.b.part) && p.kind === 'button')
+      if (l.id !== selected && btn?.state.pressed) pen.glow(1, 'cyan')
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      pen.path(coilPts(a, b, Math.max(2, Math.round(Math.sqrt(dx * dx + dy * dy) / 9))))
+      continue
+    }
     const wa = l.kind === 'belt' ? wheelOf(l.a, placements, sim) : undefined
     const wb = l.kind === 'belt' ? wheelOf(l.b, placements, sim) : undefined
     const loop = wa && wb ? beltLoop(a, wa.radius + BELT_GAP, b, wb.radius + BELT_GAP) : null
@@ -209,7 +224,7 @@ function drawLinks(pen: Pen, links: Link[], placements: Placement[], sim?: Simul
     pen.line(a, b)
   }
   pen.reset()
-  return roped
+  return { roped, wired }
 }
 
 /** First anchor of a link being made: yellow ring, no glow. */
@@ -559,13 +574,13 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   if (view.brief) drawBrief(pen, view.brief, obstacles({ ...level, fixed: level.fixed.filter((p) => !view.selected?.includes(p.id)) }), !!sim)
   drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
-  const roped = drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
+  const { roped, wired } = drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
   const fixedIds = new Set(level.fixed.map((p) => p.id))
   const phases = gearPhases(placements)
   const selectedIds = new Set(view.selected)
   for (const placement of placements) {
     const inst = sim?.parts.find((p) => p.id === placement.id)
-    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: selectedIds.has(placement.id), phase: phases.get(placement.id), roped: roped.has(placement.id) })
+    drawPart(pen, { placement, inst, fixed: fixedIds.has(placement.id), selected: selectedIds.has(placement.id), phase: phases.get(placement.id), roped: roped.has(placement.id), wired: wired.has(placement.id) })
     if (view.locked?.has(placement.id)) drawPadlock(pen, placement)
   }
   if (sim) drawTrails(pen, sim)
@@ -573,7 +588,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   if (ghosts.length) {
     const moved = new Set(ghosts.map((g) => g.placement.id))
     const ghostPhases = gearPhases([...placements.filter((q) => !moved.has(q.id)), ...ghosts.map((g) => g.placement)])
-    for (const g of ghosts) drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id), roped: roped.has(g.placement.id) })
+    for (const g of ghosts) drawPart(pen, { ...g, phase: ghostPhases.get(g.placement.id), roped: roped.has(g.placement.id), wired: wired.has(g.placement.id) })
   }
   if (!sim) {
     if (view.pendingAnchor) {

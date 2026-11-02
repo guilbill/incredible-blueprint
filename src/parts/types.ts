@@ -6,8 +6,11 @@ import type { PartKind, Placement, SimEventName } from '../level/types'
 import type { PartDrawState, Pen } from '../render/pen'
 
 export interface SettingDef { key: string; label: string; min: number; max: number; step: number; def: number }
-/** `radius` (units) is set on belt anchors: the wheel the belt wraps, as the built instance anchor reports it. */
-export interface AnchorDef { key: string; local: Vec; role: 'rope' | 'belt'; radius?: number }
+/**
+ * `radius` (units) is set on belt anchors: the wheel the belt wraps, as the built instance anchor reports it.
+ * A wire joins a button to a part it switches; it carries no force.
+ */
+export interface AnchorDef { key: string; local: Vec; role: 'rope' | 'belt' | 'wire'; radius?: number }
 
 export interface PartDef {
   kind: PartKind
@@ -36,6 +39,8 @@ export interface PartInstance {
   anchors: Record<string, { body: Body; local: Vec; radius: number; pin?: RevoluteJoint }>
   state: Record<string, number>
   glow: number
+  /** Ids of the buttons wired to this part (set when wires are built). */
+  wires?: string[]
   onStep?(sim: SimCtx): void
   onContact?(ev: ContactEvent, self: Body, other: Body, sim: SimCtx): void
 }

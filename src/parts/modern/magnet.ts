@@ -3,6 +3,7 @@ import { type Vec, len, scale, sub, v } from '../../engine/vec'
 import { CELL, angleOf, instance, pos, setting } from '../common'
 import { applyGlow, arcPts, poseOf, toWorld } from '../drawing'
 import type { PartDef, SettingDef } from '../types'
+import { isPressed } from './button'
 
 const POWER: SettingDef = { key: 'power', label: 'Puissance', min: 1, max: 5, step: 1, def: 3 }
 /** Reach in units (6 cells). */
@@ -24,6 +25,7 @@ const horseshoe = (inner: number): Vec[] => [
  * Static horseshoe magnet (2 × 1). Each step, every active dynamic body tagged `metal` whose centre
  * is within 6 cells of the magnet's centre gets a force toward it of
  * `power × 4000 × mass × (1 − d / 120)` (`state.pulls` counts the steps it pulled something).
+ * Wired to buttons, it pulls only while one of them is pressed; unwired, it always pulls.
  */
 export const magnet: PartDef = {
   kind: 'magnet',
@@ -32,7 +34,7 @@ export const magnet: PartDef = {
   rotStep: 6,
   flippable: false,
   settings: [POWER],
-  anchors: [],
+  anchors: [{ key: 'wire', local: v(-20, 0), role: 'wire' }],
   draw(pen, s) {
     pen.reset()
     applyGlow(pen, s)
@@ -66,11 +68,12 @@ export const magnet: PartDef = {
       friction: 0.6,
       data: { part: p.id, tags: ['magnet'] },
     })
-    const inst = instance(p, [b])
+    const inst = instance(p, [b], { wire: { body: b, local: v(-20, 0), radius: 0 } })
     const power = setting(p, POWER)
     const at = pos(p)
     inst.state.pulls = 0
     inst.onStep = (sim) => {
+      if (inst.wires?.length && !inst.wires.some((id) => isPressed(sim.part(id)))) return
       let pulled = false
       for (const o of sim.world.bodies()) {
         if (!o.isDynamic() || !o.isActive() || !data(o).tags.includes('metal')) continue
