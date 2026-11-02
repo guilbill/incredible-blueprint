@@ -358,6 +358,22 @@ button { font: inherit; color: inherit; }
 .levels-foot { max-width: 960px; margin: 40px auto 0; text-align: center; font-size: 12px; }
 .levels-foot a { color: var(--note); text-decoration: none; }
 .levels-foot a:hover, .levels-foot a:focus-visible { color: var(--cyan); }
+/* ---------- update banner (level list) ---------- */
+
+.update-banner {
+  max-width: 960px;
+  margin: -16px auto 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--cyan);
+  background: var(--bg);
+  color: var(--cyan);
+}
+.update-banner .text { flex: 1; }
+.update-banner .btn { white-space: nowrap; }
+
 /* ---------- error banner ---------- */
 
 .banner.error {

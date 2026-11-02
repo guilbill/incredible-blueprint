@@ -11,6 +11,8 @@ import { LANG_EVENT } from './ui/langSwitch'
 import { type LevelTab, loadLevels, mountLevelList } from './ui/levels'
 import { mountPlay } from './ui/play'
 import { showTitleCard } from './ui/titleCard'
+import { updateBanner, watchForUpdates } from './ui/update'
+import { UpdateNotice } from './ui/updateNotice'
 import { mountWelcome } from './ui/welcome'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -24,11 +26,30 @@ document.documentElement.lang = lang()
 
 let banner: HTMLElement | null = null
 
+const update = new UpdateNotice()
+let onList = false
+const reloadToUpdate = watchForUpdates(() => {
+  update.markReady()
+  if (onList) placeUpdateBanner()
+})
+
+/** Shows the "new version" banner under the level list title when it is due (never over a game). */
+function placeUpdateBanner(): void {
+  app.querySelector('.update-banner')?.remove()
+  if (!update.shouldShow(Date.now())) return
+  const later = (): void => {
+    update.snooze(Date.now())
+    notice.remove()
+  }
+  const notice = updateBanner(reloadToUpdate, later)
+  app.querySelector('.levels-head')?.after(notice)
+}
+
 function showList(error?: string): void {
   unmount()
   banner?.remove()
   remount = () => showList()
-  unmount = mountLevelList(app, levels, loadProgress(), {
+  const unmountList = mountLevelList(app, levels, loadProgress(), {
     onPlay: play,
     onCopyShipped: (l) => {
       const copy = duplicateLevel(l, newLevelId())
@@ -56,6 +77,12 @@ function showList(error?: string): void {
       },
     },
   })
+  onList = true
+  unmount = () => {
+    onList = false
+    unmountList()
+  }
+  placeUpdateBanner()
   if (error) showBanner(error)
 }
 

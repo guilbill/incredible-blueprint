@@ -15,6 +15,10 @@ const fr = {
   'common.close': 'Fermer',
   'lang.label': 'Langue',
 
+  'update.ready': 'Nouvelle version disponible.',
+  'update.reload': 'Recharger',
+  'update.later': 'Plus tard',
+
   'list.title': 'The Incredible Blueprint',
   'list.subtitle': 'Plans de machines · choisissez un niveau',
   'list.tabShipped': 'Niveaux',
@@ -230,6 +234,10 @@ type Key = keyof typeof fr
 const en: Record<Key, string> = {
   'common.close': 'Close',
   'lang.label': 'Language',
+
+  'update.ready': 'A new version is available.',
+  'update.reload': 'Reload',
+  'update.later': 'Later',
 
   'list.title': 'The Incredible Blueprint',
   'list.subtitle': 'Machine blueprints · pick a level',

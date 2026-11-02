@@ -7,8 +7,9 @@ export default defineConfig({
   base: './',
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // The game asks the player before switching to a new version (src/ui/update.ts), never mid-game.
+      registerType: 'prompt',
+      injectRegister: false,
       manifest: {
         name: 'The Incredible Blueprint',
         short_name: 'TIB',
