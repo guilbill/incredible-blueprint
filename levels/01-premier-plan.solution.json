@@ -4,8 +4,8 @@
       {
         "id": "p1",
         "kind": "ramp",
-        "x": 400,
-        "y": 550,
+        "x": 640,
+        "y": 610,
         "rot": 1,
         "flip": false,
         "settings": {
@@ -15,6 +15,6 @@
     ],
     "links": []
   },
-  "step": 369,
-  "hash": "d683ee79"
+  "step": 221,
+  "hash": "470b4e73"
 }

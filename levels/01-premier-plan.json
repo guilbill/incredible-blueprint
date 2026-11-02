@@ -3,11 +3,10 @@
   "id": "01-premier-plan",
   "title": "Premier plan",
   "fixed": [
-    { "id": "ball", "kind": "ball-base", "x": 360, "y": 140, "rot": 0, "flip": false, "settings": {} },
-    { "id": "floor-left", "kind": "wall-brick", "x": 400, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
-    { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
+    { "id": "ball", "kind": "ball-base", "x": 620, "y": 550, "rot": 0, "flip": false, "settings": {} },
+    { "id": "floor-right", "kind": "wall-brick", "x": 700, "y": 770, "rot": 6, "flip": false, "settings": { "length": 14 } },
     { "id": "bucket", "kind": "bucket", "x": 800, "y": 740, "rot": 0, "flip": false, "settings": {} },
-    { "id": "backstop", "kind": "wall-wood", "x": 830, "y": 640, "rot": 0, "flip": false, "settings": { "length": 10 } }
+    { "id": "backstop", "kind": "wall-wood", "x": 830, "y": 660, "rot": 0, "flip": false, "settings": { "length": 10 } }
   ],
   "fixedLinks": [],
   "inventory": [
