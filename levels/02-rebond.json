@@ -8,8 +8,8 @@
     { "id": "floor-right", "kind": "wall-brick", "x": 720, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "floor-far", "kind": "wall-brick", "x": 1040, "y": 770, "rot": 6, "flip": false, "settings": { "length": 16 } },
     { "id": "wall", "kind": "wall-brick", "x": 760, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } },
-    { "id": "funnel-left", "kind": "ramp", "x": 880, "y": 670, "rot": 1, "flip": false, "settings": { "length": 10 } },
-    { "id": "funnel-right", "kind": "ramp", "x": 1120, "y": 670, "rot": 23, "flip": false, "settings": { "length": 10 } },
+    { "id": "funnel-left", "kind": "ramp", "x": 880, "y": 680, "rot": 1, "flip": false, "settings": { "length": 10 } },
+    { "id": "funnel-right", "kind": "ramp", "x": 1120, "y": 680, "rot": 23, "flip": false, "settings": { "length": 10 } },
     { "id": "bucket", "kind": "bucket", "x": 1000, "y": 740, "rot": 0, "flip": false, "settings": {} },
     { "id": "end-wall", "kind": "wall-brick", "x": 1230, "y": 600, "rot": 0, "flip": false, "settings": { "length": 16 } }
   ],
