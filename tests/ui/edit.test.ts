@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Level, Placement, Solution } from '../../src/level/types'
 import { clientToUnits, fitCanvas, panelPosition, unitsToClient } from '../../src/ui/geometry'
-import { freeAngle, handlesOf, hitHandle, resizeFrom, resizeToward, rotateToward } from '../../src/ui/edit'
+import { freeAngle, handlesOf, hitHandle, nearPart, resizeFrom, resizeToward, rotateToward } from '../../src/ui/edit'
 import { addLink, addPart, draftPlacement, flipped, hitAnyPart, hitLink, hitPart, linkTargets, pickAnchor, nextId, remaining, removeLink, removePart, rotated, sanitizeDraft, updatePart, withSetting } from '../../src/ui/edit'
 import { LIMITS } from '../../src/level/codec'
 import { MAX_STEPS_PER_FRAME, STEP_MS, stepsDue } from '../../src/ui/loop'
@@ -49,6 +49,12 @@ describe('panelPosition', () => {
     expect(panelPosition({ x: 300, y: 200, left: 200 }, stage, { w: 170, h: 120 })).toEqual({ x: 210, y: 150 })
     // no room on either side: clamped as before
     expect(panelPosition({ x: 890, y: 200, left: 250 }, stage, { w: 170, h: 120 })).toEqual({ x: 622, y: 150 })
+  })
+  it('goes below the part when it fits on neither side', () => {
+    // part and handles from 250 to 890 (client), lowest point at 300
+    expect(panelPosition({ x: 890, y: 200, left: 250, bottom: 300 }, stage, { w: 170, h: 120 })).toEqual({ x: 150, y: 260 })
+    // no room below either: clamped as before
+    expect(panelPosition({ x: 890, y: 200, left: 250, bottom: 480 }, stage, { w: 170, h: 120 })).toEqual({ x: 622, y: 150 })
   })
 })
 
@@ -264,6 +270,24 @@ describe('link tools', () => {
   })
 })
 
+describe('nearPart', () => {
+  const sol: Solution = { placements: [P('a', 'ball-tennis', 100, 100), P('b', 'ball-tennis', 130, 100), P('r', 'ramp', 300, 100, { settings: { length: 4 } })], links: [] }
+
+  it('takes the part under the finger, else the nearest one within reach', () => {
+    expect(nearPart(sol, { x: 100, y: 100 }, 20)?.id).toBe('a')
+    // 5 units right of a's edge, 11 left of b's
+    expect(nearPart(sol, { x: 112, y: 100 }, 20)?.id).toBe('a')
+    expect(nearPart(sol, { x: 300, y: 125 }, 20)?.id).toBe('r')
+    expect(nearPart(sol, { x: 200, y: 200 }, 20)).toBeUndefined()
+  })
+
+  it('prefers a selected part within reach over a nearer one', () => {
+    expect(nearPart(sol, { x: 112, y: 100 }, 20, ['b'])?.id).toBe('b')
+    // but not over the part right under the finger
+    expect(nearPart(sol, { x: 100, y: 100 }, 20, ['b'])?.id).toBe('a')
+  })
+})
+
 describe('part handles', () => {
   const ramp = (extra: Partial<Placement> = {}) => P('r', 'ramp', 400, 300, { settings: { length: 4 }, ...extra })
   const wall = (extra: Partial<Placement> = {}) => P('w', 'wall-brick', 400, 300, { settings: { length: 4 }, ...extra })
@@ -316,6 +340,18 @@ describe('part handles', () => {
     expect(left.x).toBeCloseTo(380)
     expect(resizeFrom(ramp(), 'end', 4)).toBeNull()
     expect(resizeFrom(ramp(), 'end', 99)!.settings.length).toBe(12)
+  })
+
+  it('sets a finger\'s handles further out, and resizes from where they sit', () => {
+    const gaps = { rot: 60, end: 30 }
+    const h = handlesOf(ramp(), gaps)
+    expect(h.rot!.y).toBeCloseTo(300 - 10 - 60)
+    expect(h.end!.x).toBeCloseTo(400 + 40 + 30)
+    expect(hitHandle(ramp(), { x: 470, y: 300 }, 20, gaps)).toBe('end')
+    expect(hitHandle(ramp(), { x: 400, y: 230 }, 20, gaps)).toBe('rot')
+    // the knob held where it sits keeps the length
+    expect(resizeToward(ramp(), 'end', { x: 470, y: 300 }, 30)).toBeNull()
+    expect(resizeToward(ramp(), 'end', { x: 360 + 120 + 30, y: 300 }, 30)!.settings.length).toBe(6)
   })
 
   it('sets the length from a drag of an end handle', () => {

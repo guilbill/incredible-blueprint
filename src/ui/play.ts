@@ -4,6 +4,7 @@ import { Simulation } from '../game/simulation'
 import { len, sub, v, type Vec } from '../engine/vec'
 import { levelTitle, partLabel, settingLabel, t } from '../i18n'
 import { FIELD, footprint, gearMagnet, snap } from '../level/placement'
+import { CELL } from '../parts/common'
 import type { Anchor, Goal, Guide, Level, PartKind, Placement, Rect, Solution } from '../level/types'
 import { ROT_ANGLE, angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
@@ -13,7 +14,7 @@ import { objectiveText } from '../objectives'
 import { levelNumber } from '../render/brief'
 import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
-import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, HANDLE_HIT, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, withSetting, type HandleKind, type LinkTool } from './edit'
+import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, HANDLE_HIT, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, nearPart, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, withSetting, type HandleGaps, type HandleKind, type LinkTool } from './edit'
 import { clientToUnits, fitCanvas, insideField, panelPosition, rectFromDrag, unitsToClient } from './geometry'
 import { guarded, stepsDue } from './loop'
 import { el } from './dom'
@@ -24,7 +25,7 @@ import { isMac, isTypingTarget } from './keys'
 import { openMenu, type MenuItem } from './menu'
 import { langSwitch } from './langSwitch'
 import { allGestures, allShortcuts, hintsFor, type Hint } from './shortcuts'
-import { createLongPress, handleTolerance, touchUi } from './touch'
+import { createLongPress, fingerLift, handleGaps, handleTolerance, touchUi } from './touch'
 import { sound } from './sound'
 import { copyGroup, groupBox, inStock, groupNotches, groupRotHandle, groupRotStep, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, rotationBlockers, selectInRect, turnedParts, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
@@ -87,6 +88,8 @@ interface Drag {
   ok: boolean
   /** Contact points with the gears the ghost meshes with, while it is valid. */
   meshMarks?: Vec[]
+  /** How far (units) the part rides above a finger that drags it, so the finger does not hide it. */
+  lift?: number
   /** Picked in the drawer with a click: the ghost follows the pointer, a click on the board places it. */
   armed?: boolean
   /** A press on the board while armed: its release places the part. */
@@ -211,8 +214,10 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let adding = false
   /** Handle tolerance (units) of the current press: wider for a finger. */
   let hitTol = HANDLE_HIT
-  /** Pointer type of the last press on the board ('mouse', 'pen', 'touch'). */
-  let lastPointer = 'mouse'
+  /** Pointer type of the last press on the board ('mouse', 'pen', 'touch'); a tablet starts with a finger. */
+  let lastPointer = touchUi() ? 'touch' : 'mouse'
+  /** Handle gaps for the last pointer: set apart from the part for a finger. */
+  const gaps = (): HandleGaps => handleGaps(lastPointer === 'touch', canvas.getBoundingClientRect().width)
   let acc = 0
   let lastT: number | undefined
   let fit = fitCanvas(1, 1, 1)
@@ -610,11 +615,13 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function positionSelPanel(p: Placement): void {
     // right of the part and of its handles, so the panel never covers a handle
-    const pts = [...footprint(p), ...Object.values(handlesOf(p))]
+    const pts = [...footprint(p), ...Object.values(handlesOf(p, gaps()))]
     const r = canvas.getBoundingClientRect()
     const anchor = unitsToClient({ x: Math.max(...pts.map((q) => q.x)) + 12, y: Math.min(...pts.map((q) => q.y)) }, r)
     const left = unitsToClient({ x: Math.min(...pts.map((q) => q.x)) - 12, y: 0 }, r).x
-    const at = panelPosition({ ...anchor, left }, stage.getBoundingClientRect(), { w: selPanel.offsetWidth, h: selPanel.offsetHeight })
+    // on a phone the panel may fit on neither side: it then goes below, still off the handles
+    const bottom = unitsToClient({ x: 0, y: Math.max(...pts.map((q) => q.y)) + 12 }, r).y
+    const at = panelPosition({ ...anchor, left, bottom }, stage.getBoundingClientRect(), { w: selPanel.offsetWidth, h: selPanel.offsetHeight })
     selPanel.style.left = `${at.x}px`
     selPanel.style.top = `${at.y}px`
   }
@@ -732,7 +739,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   /** The group's rotate handle, when the selection can turn. */
   function groupHandle(): Vec | undefined {
     const ps = spinParts()
-    return ps && groupRotHandle(groupBox(ps))
+    return ps && groupRotHandle(groupBox(ps), gaps().rot)
   }
 
   /** Centre of the group's box on the grid, so quarter turns keep the parts on it. */
@@ -1002,7 +1009,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       drag.ok = false
       return
     }
-    const at = { x: pt.x + drag.offset.x, y: pt.y + drag.offset.y }
+    const y = pt.y + drag.offset.y
+    // near the top edge the lift shrinks so the part can still reach the first row
+    const at = { x: pt.x + drag.offset.x, y: y - Math.min(drag.lift ?? 0, Math.max(0, y - CELL)) }
     const base = drag.moving ?? drawerDefaults(level, sol, draftPlacement(drag.kind, at, drag.id))
     let ghost = { ...draftPlacement(drag.kind, at, drag.id), rot: base.rot, flip: base.flip, settings: base.settings }
     const r = gearRadius(drag.kind)
@@ -1065,6 +1074,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       // a finger has no hover: the ghost shows from the press and follows it until the release
       e.preventDefault()
       drag.aiming = true
+      drag.lift = fingerLift(finger, canvas.getBoundingClientRect().width)
       drag.id = nextId(level, sol)
       updateDrag(e)
       refreshUi()
@@ -1096,14 +1106,15 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       return
     }
     const sp = single()
-    const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt, hitTol)
+    const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt, hitTol, gaps())
     if (handle) {
       e.preventDefault()
       grip = { kind: handle, start: { x: e.clientX, y: e.clientY }, moved: false }
       refreshUi()
       return
     }
-    const hit = hitPart(sol, pt)
+    // a fingertip is wider than a ball: it also takes the part right beside it, unless it is on a link or a zone
+    const hit = hitPart(sol, pt) ?? (finger && !hitLink(level, sol, pt) && (!author || zoneAt(author.goals(), pt) === undefined) ? nearPart(sol, pt, hitTol, selection) : undefined)
     // no hover for a finger: the label shows on the part it touched
     if (finger) hover = hit ? { id: hit.id, since: performance.now() } : undefined
     if (hit) {
@@ -1115,11 +1126,13 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       } else {
         if (!selection.includes(hit.id)) selection = [hit.id]
         const start = { x: e.clientX, y: e.clientY }
+        // a finger would hide the part it drags: the part rides above it
+        const lift = fingerLift(finger, canvas.getBoundingClientRect().width)
         const ids = unlocked()
         // a locked part is selected by the click but does not move
         if (selection.length === 1) {
-          if (ids.length) drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, start, started: false, ok: false }
-        } else if (ids.length && !isLocked(hit.id)) group = { ids, pressed: hit.id, start, from: pt, started: false, dx: 0, dy: 0, next: sol, guides: [] }
+          if (ids.length) drag = { kind: hit.kind, moving: hit, id: hit.id, offset: { x: hit.x - pt.x, y: hit.y - pt.y }, lift, start, started: false, ok: false }
+        } else if (ids.length && !isLocked(hit.id)) group = { ids, pressed: hit.id, start, from: { x: pt.x, y: pt.y + lift }, started: false, dx: 0, dy: 0, next: sol, guides: [] }
       }
       refreshUi()
       return
@@ -1252,7 +1265,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       if (over?.id !== hover?.id) hover = over ? { id: over.id, since: performance.now() } : undefined
       canvas.classList.toggle('tracing', !!author?.tracing())
       const sp = !tool ? single() : undefined
-      const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt)
+      const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt, HANDLE_HIT, gaps())
       const end = handle === 'start' || handle === 'end' ? handle : undefined
       if (end !== hoverEnd?.end) hoverEnd = end ? { end, since: performance.now() } : undefined
       const gh = !tool ? groupHandle() : undefined
@@ -1275,7 +1288,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     hover = undefined
     const pt = unitsAt(e)
     if (g.kind === 'rot') g.free = freeAngle(p, pt)
-    const np = g.kind === 'rot' ? rotateToward(p, pt) : resizeToward(p, g.kind, pt)
+    const np = g.kind === 'rot' ? rotateToward(p, pt) : resizeToward(p, g.kind, pt, gaps().end)
     const r = np && updatePart(level, sol, np)
     if (r) {
       sound.click()
@@ -1718,6 +1731,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const sp = !sim && !tool && !drag?.started && !g && lone && !isLocked(lone.id) ? lone : undefined
     const gh = !drag?.started && !g && !marquee ? groupHandle() : undefined
     const from = first && anchorAt(level, sol, first)
+    const finger = lastPointer === 'touch' ? { unitsPerPx: FIELD.w / canvas.getBoundingClientRect().width } : undefined
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     render(ctx, {
       level: view, sol: viewSol, sim, ghost, ghosts, won, zoom: fit.zoom,
@@ -1734,7 +1748,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       pendingLine: from && pointer ? { from, to: pointer } : undefined,
       hover: hover && !drag?.started ? { id: hover.id, t: now - hover.since } : undefined,
       meshMarks: drag?.started ? drag.meshMarks : undefined,
-      handles: sp ? { at: handlesOf(sp), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since } } : gh ? { at: { rot: gh }, t: now - selectedSince } : undefined,
+      handles: sp ? { at: handlesOf(sp, gaps()), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since }, finger: finger && { ...finger, tether: handlesOf(sp, { rot: 0, end: 0 }).rot } } : gh ? { at: { rot: gh }, t: now - selectedSince, finger } : undefined,
       brief: author ? undefined : { number: levelNumber(level.id), title: levelTitle(level), heading: t('brief.goal'), goal: objectiveText(level) },
       dial: sp && grip?.kind === 'rot' && grip.moved ? dialFor(sp, grip.free ?? angleOf(sp)) : spin?.moved ? spinDial(spin) : undefined,
     })
@@ -1742,7 +1756,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   /** Notch dial around a part being rotated: one tick per rotation step, needle on the free pointer angle. */
   function dialFor(p: Placement, needle: number): NonNullable<RenderView['dial']> {
-    const at = handlesOf(p).rot ?? { x: p.x, y: p.y - 40 }
+    const at = handlesOf(p, gaps()).rot ?? { x: p.x, y: p.y - 40 }
     const dx = at.x - p.x
     const dy = at.y - p.y
     return { center: { x: p.x, y: p.y }, radius: Math.max(40, Math.sqrt(dx * dx + dy * dy)), step: (partDef(p.kind).rotStep * Math.PI) / 12, current: angleOf(p), needle, offset: rotHandleOffset(p) }

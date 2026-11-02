@@ -63,8 +63,8 @@ export function groupRotStep(ps: Placement[]): number {
 }
 
 /** Where the group's rotate handle sits: centred above its selection box (8 units of padding included). */
-export function groupRotHandle(box: Rect): Vec {
-  return v(box.x + box.w / 2, box.y - 8 - ROT_GAP)
+export function groupRotHandle(box: Rect, gap = ROT_GAP): Vec {
+  return v(box.x + box.w / 2, box.y - 8 - gap)
 }
 
 /** Notches (15° each, clockwise) from straight above the pivot to the point, rounded to a multiple of `step`. */

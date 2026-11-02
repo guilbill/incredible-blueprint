@@ -43,16 +43,19 @@ export const insideField = (p: Vec): boolean => p.x >= 0 && p.y >= 0 && p.x <= F
  * Where to put the selection panel, in stage-local pixels: just right of the part's top-right
  * corner (`anchor`, client coordinates), clamped inside the stage with a margin. With `left`, the
  * part's left edge, a panel that does not fit on the right goes left of the part instead of over it.
+ * With `bottom` too, the part's lowest point, a panel that fits on neither side goes below the part.
  */
-export function panelPosition(anchor: Vec & { left?: number }, stage: Rect, panel: { w: number; h: number }, gap = 10, margin = 8): Vec {
+export function panelPosition(anchor: Vec & { left?: number; bottom?: number }, stage: Rect, panel: { w: number; h: number }, gap = 10, margin = 8): Vec {
   const maxX = stage.width - panel.w - margin
   const maxY = stage.height - panel.h - margin
   const right = anchor.x - stage.left + gap
   const left = anchor.left === undefined ? undefined : anchor.left - stage.left - gap - panel.w
-  return {
-    x: right > maxX && left !== undefined && left >= margin ? left : Math.max(margin, Math.min(right, maxX)),
-    y: Math.max(margin, Math.min(anchor.y - stage.top, maxY)),
-  }
+  const y = Math.max(margin, Math.min(anchor.y - stage.top, maxY))
+  if (right <= maxX) return { x: Math.max(margin, right), y }
+  if (left !== undefined && left >= margin) return { x: left, y }
+  const below = anchor.bottom === undefined ? undefined : anchor.bottom - stage.top + gap
+  if (anchor.left !== undefined && below !== undefined && below <= maxY) return { x: Math.max(margin, Math.min(anchor.left - stage.left, maxX)), y: below }
+  return { x: Math.max(margin, maxX), y }
 }
 
 /**

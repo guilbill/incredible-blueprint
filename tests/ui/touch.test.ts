@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { HANDLE_HIT } from '../../src/ui/edit'
+import { HANDLE_HIT, MOUSE_GAPS } from '../../src/ui/edit'
 import { FIELD } from '../../src/level/placement'
-import { createLongPress, handleTolerance, LONG_PRESS_MS, TOUCH_HIT_PX } from '../../src/ui/touch'
+import { createLongPress, FINGER_LIFT_PX, FINGER_ROT_GAP_PX, fingerLift, handleGaps, handleTolerance, LONG_PRESS_MS, TOUCH_HIT_PX } from '../../src/ui/touch'
 import { allGestures } from '../../src/ui/shortcuts'
 
 describe('handleTolerance', () => {
@@ -14,6 +14,20 @@ describe('handleTolerance', () => {
     expect(handleTolerance('touch', FIELD.w / 2)).toBeCloseTo(TOUCH_HIT_PX * 2)
     // a huge board never shrinks it below the mouse tolerance
     expect(handleTolerance('touch', FIELD.w * 100)).toBe(HANDLE_HIT)
+  })
+})
+
+describe('finger handles and lift', () => {
+  it('keeps the mouse layout without a finger', () => {
+    expect(handleGaps(false, 600)).toEqual(MOUSE_GAPS)
+    expect(fingerLift(false, 600)).toBe(0)
+  })
+
+  it('sets the handles apart and lifts the part by fixed screen distances', () => {
+    expect(handleGaps(true, FIELD.w / 2).rot).toBeCloseTo(FINGER_ROT_GAP_PX * 2)
+    expect(fingerLift(true, FIELD.w / 2)).toBeCloseTo(FINGER_LIFT_PX * 2)
+    // a huge board never brings the handles closer than with a mouse
+    expect(handleGaps(true, FIELD.w * 100)).toEqual(MOUSE_GAPS)
   })
 })
 

@@ -52,7 +52,13 @@ export interface RenderView {
   /** Id of the selected player link (yellow). */
   selectedLink?: string
   /** Handles of the selected part (positions from `handlesOf`); `t` = ms since selection, `hover` = end under the pointer and ms since. */
-  handles?: { at: Partial<Record<'rot' | 'start' | 'end', Vec>>; t: number; hover?: { end: 'start' | 'end'; t: number } }
+  handles?: {
+    at: Partial<Record<'rot' | 'start' | 'end', Vec>>
+    t: number
+    hover?: { end: 'start' | 'end'; t: number }
+    /** Big handles for a finger: units per CSS pixel, and where the rotate handle's dotted tether leaves the part. */
+    finger?: { unitsPerPx: number; tether?: Vec }
+  }
   /** Rotation in progress: notch dial around `center`; angles in radians, `offset` turns a part angle into the handle direction. */
   dial?: { center: Vec; radius: number; step: number; current: number; needle: number; offset: number; bad?: boolean }
   /** Level title block (play mode only), drawn under the parts. */
@@ -247,19 +253,21 @@ function drawMeshMarks(pen: Pen, marks: Vec[]): void {
   pen.reset()
 }
 
-function drawRotHandle(pen: Pen, at: Vec): void {
+/** Rotate handle at `at`, `size` times its mouse size (a finger gets a bigger one). */
+function drawRotHandle(pen: Pen, at: Vec, size = 1): void {
   const c = pen.ctx
-  pen.reset(COLORS.cyan, 1)
+  const k = (x: number, y: number): Vec => v(at.x + x * size, at.y + y * size)
+  pen.reset(COLORS.cyan, size > 1 ? 1.5 : 1)
   c.fillStyle = COLORS.bg
   c.beginPath()
-  c.arc(at.x, at.y, 6, 0, Math.PI * 2)
+  c.arc(at.x, at.y, 6 * size, 0, Math.PI * 2)
   c.fill()
   c.stroke()
   // small circular arrow
   c.beginPath()
-  c.arc(at.x, at.y, 3.2, -Math.PI * 0.35, Math.PI * 1.35)
+  c.arc(at.x, at.y, 3.2 * size, -Math.PI * 0.35, Math.PI * 1.35)
   c.stroke()
-  pen.path([v(at.x + 1.2, at.y - 4.6), v(at.x + 2.4, at.y - 2.4), v(at.x + 0.2, at.y - 1.6)])
+  pen.path([k(1.2, -4.6), k(2.4, -2.4), k(0.2, -1.6)])
   pen.reset()
 }
 
@@ -271,13 +279,46 @@ function drawChevron(pen: Pen, at: Vec, u: Vec, off: number): void {
   pen.path([add(back, v(n.x * 6, n.y * 6)), tip, add(back, v(-n.x * 6, -n.y * 6))])
 }
 
+/** Length handle for a finger: a round button around the chevron, `size` times the mouse chevron. */
+function drawEndKnob(pen: Pen, at: Vec, u: Vec, size: number): void {
+  const c = pen.ctx
+  c.save()
+  c.translate(at.x, at.y)
+  c.scale(size, size)
+  pen.reset(COLORS.cyan, 1)
+  c.fillStyle = COLORS.bg
+  c.beginPath()
+  c.arc(0, 0, 9, 0, Math.PI * 2)
+  c.fill()
+  c.stroke()
+  pen.reset(COLORS.cyan, 1.4)
+  c.lineCap = 'round'
+  drawChevron(pen, v(-u.x * 1.5, -u.y * 1.5), u, 0)
+  c.restore()
+  pen.reset()
+}
+
 function drawHandles(pen: Pen, h: NonNullable<RenderView['handles']>): void {
-  if (h.at.rot) drawRotHandle(pen, h.at.rot)
+  const f = h.finger
+  if (f?.tether && h.at.rot) {
+    pen.reset(COLORS.cyan, 1)
+    pen.ctx.setLineDash([2, 3])
+    pen.line(f.tether, h.at.rot)
+    pen.reset()
+  }
+  // a finger gets a 30 px rotate handle and 26 px length buttons (sizes in CSS pixels)
+  if (h.at.rot) drawRotHandle(pen, h.at.rot, f ? Math.max(1, (15 * f.unitsPerPx) / 6) : 1)
   const { start, end } = h.at
   if (start && end) {
     const d = v(end.x - start.x, end.y - start.y)
     const l = Math.sqrt(d.x * d.x + d.y * d.y) || 1
     const u = v(d.x / l, d.y / l)
+    if (f) {
+      const size = Math.max(1, (13 * f.unitsPerPx) / 9)
+      drawEndKnob(pen, start, v(-u.x, -u.y), size)
+      drawEndKnob(pen, end, u, size)
+      return
+    }
     pen.reset(COLORS.cyan, 1.4)
     pen.ctx.lineCap = 'round'
     const off = (side: 'start' | 'end') => (h.hover?.end === side ? chevronOffset(h.hover.t, true) : chevronOffset(h.t, false))

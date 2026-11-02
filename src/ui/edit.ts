@@ -110,6 +110,13 @@ export const HANDLE_HIT = 9
 
 export type HandleKind = 'rot' | 'start' | 'end'
 
+/** Distances (units) from the part to its handles: the rotate handle off the long side, the length handles past the ends. */
+export interface HandleGaps {
+  rot: number
+  end: number
+}
+export const MOUSE_GAPS: HandleGaps = { rot: ROT_GAP, end: END_GAP }
+
 /** Local frame of a part: its long axis (the one `length` sets, if any), half-length and half-thickness. */
 function frameOf(p: Placement): { axis: Vec; half: number; thick: number } {
   const { w, h } = sizeOf(p)
@@ -129,15 +136,15 @@ function rotDir(p: Placement): Vec {
  * Handle positions in units: `rot` beside the long side when the part rotates, `start`/`end` past
  * both ends of the long axis when the part has a length.
  */
-export function handlesOf(p: Placement): Partial<Record<HandleKind, Vec>> {
+export function handlesOf(p: Placement, gaps: HandleGaps = MOUSE_GAPS): Partial<Record<HandleKind, Vec>> {
   const { axis, half, thick } = frameOf(p)
   const out: Partial<Record<HandleKind, Vec>> = {}
   if (partDef(p.kind).rotStep) {
     const d = rotDir(p)
-    out.rot = toWorldPt(p, v(d.x * (thick + ROT_GAP), d.y * (thick + ROT_GAP)))
+    out.rot = toWorldPt(p, v(d.x * (thick + gaps.rot), d.y * (thick + gaps.rot)))
   }
   if (hasLength(p)) {
-    const r = half + END_GAP
+    const r = half + gaps.end
     out.start = toWorldPt(p, v(-axis.x * r, -axis.y * r))
     out.end = toWorldPt(p, v(axis.x * r, axis.y * r))
   }
@@ -148,8 +155,8 @@ export function handlesOf(p: Placement): Partial<Record<HandleKind, Vec>> {
  * Handle of the part under the point, if any. A wider `tol` (a finger) only reaches past HANDLE_HIT
  * outside the part itself, so a press on the part still moves it.
  */
-export function hitHandle(p: Placement, pt: Vec, tol = HANDLE_HIT): HandleKind | undefined {
-  const hs = handlesOf(p)
+export function hitHandle(p: Placement, pt: Vec, tol = HANDLE_HIT, gaps: HandleGaps = MOUSE_GAPS): HandleKind | undefined {
+  const hs = handlesOf(p, gaps)
   const onPart = tol > HANDLE_HIT && inConvex(pt, footprint(p))
   for (const k of ['rot', 'start', 'end'] as const) {
     const at = hs[k]
@@ -204,12 +211,12 @@ export function rotHandleOffset(p: Placement): number {
 }
 
 /** Length from dragging the `side` handle to `pt`: the span from the fixed end to the pointer, in whole cells. */
-export function resizeToward(p: Placement, side: 'start' | 'end', pt: Vec): Placement | null {
+export function resizeToward(p: Placement, side: 'start' | 'end', pt: Vec, endGap = END_GAP): Placement | null {
   const { axis, half } = frameOf(p)
   const sign = side === 'end' ? 1 : -1
   const local = rotate(sub(pt, v(p.x, p.y)), -angleOf(p))
   const along = dot(local, axis)
-  const span = sign * along - END_GAP + half
+  const span = sign * along - endGap + half
   return resizeFrom(p, side, span / CELL)
 }
 
@@ -233,6 +240,30 @@ export function hitPart(sol: Solution, pt: Vec): Placement | undefined {
     if (inConvex(pt, footprint(sol.placements[i]))) return sol.placements[i]
   }
   return undefined
+}
+
+/** Distance (units) from a point to a convex polygon, 0 inside it. */
+function distanceToConvex(pt: Vec, poly: Vec[]): number {
+  if (inConvex(pt, poly)) return 0
+  return Math.min(...poly.map((a, i) => pointSegmentDistance(pt, a, poly[(i + 1) % poly.length])))
+}
+
+/**
+ * Player placement within `tol` units of the point, for a fingertip wider than a small part: the one
+ * under it first, then one of `prefer` (the selection), then the nearest.
+ */
+export function nearPart(sol: Solution, pt: Vec, tol: number, prefer: string[] = []): Placement | undefined {
+  const exact = hitPart(sol, pt)
+  if (exact) return exact
+  let best: { p: Placement; d: number; preferred: boolean } | undefined
+  for (let i = sol.placements.length - 1; i >= 0; i--) {
+    const p = sol.placements[i]
+    const d = distanceToConvex(pt, footprint(p))
+    if (d > tol) continue
+    const preferred = prefer.includes(p.id)
+    if (!best || (preferred && !best.preferred) || (preferred === best.preferred && d < best.d)) best = { p, d, preferred }
+  }
+  return best?.p
 }
 
 /** Click tolerance (units) along a link. */

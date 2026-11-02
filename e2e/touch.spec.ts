@@ -52,11 +52,13 @@ test('a finger places, moves and selects parts, and a long press opens the menu'
   await expect(count).not.toHaveText(before!)
   await expect(page.locator('.inventory .item.armed')).toHaveCount(0)
 
-  // board to board: the page must not scroll the drag away
-  await t.drag(at(0.3, 0.3), at(0.6, 0.4))
+  // board to board: the page must not scroll the drag away. The part rides 50 px above the finger.
+  const lift = (p: Pt): Pt => ({ x: p.x, y: p.y - 50 })
+  const placed = lift(at(0.3, 0.3))
+  await t.drag(placed, { x: at(0.6, 0.4).x, y: at(0.6, 0.4).y + 50 })
   await t.tap(at(0.05, 0.05))
   await expect(page.locator('.selpanel')).toBeHidden()
-  await t.tap(at(0.3, 0.3))
+  await t.tap(placed)
   await expect(page.locator('.selpanel')).toBeHidden()
   await t.tap(at(0.6, 0.4))
   await expect(page.locator('.selpanel')).toBeVisible()
