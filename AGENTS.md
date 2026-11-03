@@ -22,7 +22,7 @@ Guide for any coding agent working on The Incredible Blueprint (TIB), a browser 
 - `npm run dev`: dev server, the lab is at `/lab.html`. Port 5173 in the main checkout; each worktree has its own fixed port (`node scripts/dev-port.mjs`).
 - `npm run check`: typecheck plus every unit test without the module cache. Run it before every commit (a hook blocks commits when it fails).
 - `npm run levels`: table of shipped levels (idea, difficulty, parts, duration).
-- `npm run build`, `npm run test:e2e`: before merging.
+- `npm run build`, `npm run test:e2e`: before merging. CI runs both on every PR and before every deploy.
 - Vitest's module cache can hide new files: always `--no-fsModuleCache` (already in `npm run check`).
 
 ## How we work
