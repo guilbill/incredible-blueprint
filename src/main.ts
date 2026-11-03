@@ -148,8 +148,16 @@ function play(level: Level, list: Level[] = []): void {
   unmount()
   banner?.remove()
   remount = () => play(level, list)
+  // Winning this one completes every shipped level: send the player to their own levels.
+  const solved = loadProgress().solved
+  const finale = list === levels && levels.every((l) => l === level || solved.includes(l.id))
   unmount = mountPlay(app, level, {
+    ...(finale ? { winNote: t('finale.text'), nextLabel: t('finale.go') } : {}),
     onWin: () => {
+      if (finale) {
+        tab = 'mine'
+        return showList()
+      }
       const i = list.indexOf(level)
       const next = i >= 0 ? list[i + 1] : undefined
       if (next) play(next, list)

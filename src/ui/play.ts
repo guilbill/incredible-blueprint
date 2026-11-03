@@ -38,6 +38,8 @@ export interface PlayOpts {
   onSolved?(sol: Solution): void
   backLabel?: string
   nextLabel?: string
+  /** Replaces the goal reminder in the win panel (last shipped level: what to do next). */
+  winNote?: string
   /** Editor test run: a banner over the run button says so, with an Edit button that calls onBack, even mid-run. */
   testing?: boolean
   /** Level editor: the same board edits the level's fixed parts instead of a player solution. */
@@ -354,7 +356,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   const winBox = el('div', 'win-box')
   const next = el('button', 'btn primary', opts.nextLabel ?? t('win.next'))
   const replay = el('button', 'btn', t('win.replay'))
-  winBox.append(el('h2', '', t('win.title')), el('p', '', objectiveText(level)), next, replay)
+  winBox.append(el('h2', '', t('win.title')), el('p', '', opts.winNote ?? objectiveText(level)), next, replay)
   winPanel.append(winBox)
 
   if (author) {

@@ -51,9 +51,23 @@ type LevelState = 'solved' | 'draft' | 'todo'
 const stateOf = (level: Level, progress: Progress): LevelState =>
   progress.solved.includes(level.id) ? 'solved' : progress.drafts[level.id]?.placements?.length ? 'draft' : 'todo'
 
+/** Blurred levels shown past the furthest one reached; the rest hide behind "…". */
+export const PEEK = 3
+
+/**
+ * What the atlas reveals: levels solved or started and the next one are sharp, the PEEK after the
+ * furthest of them are blurred, and the others are not shown so the player discovers the count as they go.
+ */
+export function discovery(levels: Level[], progress: Progress): { shown: number; blurred: boolean[] } {
+  const next = levels.findIndex((l) => !progress.solved.includes(l.id))
+  const sharp = levels.map((l, i) => i === next || stateOf(l, progress) !== 'todo')
+  const shown = Math.min(levels.length, sharp.lastIndexOf(true) + 1 + PEEK)
+  return { shown, blurred: sharp.slice(0, shown).map((s) => !s) }
+}
+
 /** Shipped level in the atlas: the drawing and the caption under it. */
-function levelFigure(level: Level, n: number, progress: Progress, onClick: () => void): HTMLButtonElement {
-  const fig = el('button', `level-fig ${stateOf(level, progress)}`)
+function levelFigure(level: Level, n: number, progress: Progress, onClick: () => void, blurred = false): HTMLButtonElement {
+  const fig = el('button', `level-fig ${stateOf(level, progress)}${blurred ? ' unseen' : ''}`)
   const thumb = el('span', 'thumb')
   thumb.append(miniature(level, progress, 320))
   const caption = el('span', 'caption')
@@ -113,6 +127,25 @@ function nextCard(level: Level, n: number, progress: Progress, onPlay: () => voi
   return box
 }
 
+/** Every shipped level solved: point to the editor and sharing instead of a next level. */
+function finaleCard(onMine: () => void): HTMLElement {
+  const box = el('section', 'level-finale')
+  const go = el('button', 'btn primary', t('finale.go'))
+  go.addEventListener('click', onMine)
+  box.append(el('h2', 'title', t('finale.title')), el('p', '', t('finale.text')), go)
+  return box
+}
+
+/** "Le savais-tu ?" card in the atlas, after the next level: shipped levels can be copied and edited. */
+function tipCard(level: Level, onEdit: () => void): HTMLLIElement {
+  const li = el('li', 'tip-card')
+  const link = el('button', 'link')
+  link.append(icon('edit'), t('tip.editLink', { title: levelTitle(level) }))
+  link.addEventListener('click', onEdit)
+  li.append(el('span', 'tip-title', t('tip.title')), el('p', '', t('tip.edit')), link)
+  return li
+}
+
 export function mountLevelList(root: HTMLElement, levels: Level[], progress: Progress, opts: LevelListOpts): () => void {
   const screen = el('div', 'levels')
   const head = el('header', 'levels-head')
@@ -129,8 +162,17 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
   if (opts.tab === 'shipped') {
     const nextIndex = levels.findIndex((l) => !progress.solved.includes(l.id))
     if (nextIndex >= 0) next = nextCard(levels[nextIndex], nextIndex + 1, progress, () => opts.onPlay(levels[nextIndex], levels))
-    levels.forEach((level, i) => {
+    else if (levels.length > 0) next = finaleCard(() => opts.onTab('mine'))
+    const { shown, blurred } = discovery(levels, progress)
+    levels.slice(0, shown).forEach((level, i) => {
       const li = el('li', 'shipped')
+      const fig = levelFigure(level, i + 1, progress, () => opts.onPlay(level, levels), blurred[i])
+      // Copying a level not reached yet would show it in full.
+      if (blurred[i]) {
+        li.append(fig)
+        grid.append(li)
+        return
+      }
       const copyBtn = el('button', 'btn icon copy')
       copyBtn.title = t('list.copyToMine')
       copyBtn.setAttribute('aria-label', copyBtn.title)
@@ -139,9 +181,17 @@ export function mountLevelList(root: HTMLElement, levels: Level[], progress: Pro
         e.stopPropagation()
         opts.onCopyShipped(level)
       })
-      li.append(levelFigure(level, i + 1, progress, () => opts.onPlay(level, levels)), copyBtn)
+      li.append(fig, copyBtn)
       grid.append(li)
+      if (i === nextIndex) grid.append(tipCard(level, () => opts.onCopyShipped(level)))
     })
+    if (shown < levels.length) {
+      // The last level shown fades out to the right: more follow, without saying how many.
+      grid.lastElementChild?.classList.add('fading')
+      const more = el('li', 'more')
+      more.setAttribute('aria-label', t('list.more'))
+      grid.append(more)
+    }
     if (levels.length === 0) grid.append(el('li', 'note', t('list.empty')))
   } else {
     const { levels: mine, onNew, onImport } = opts.custom

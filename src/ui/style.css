@@ -711,6 +711,39 @@ canvas.mini { display: block; width: 100%; height: auto; }
 .level-atlas li.mine > .actions .btn { width: 26px; height: 26px; padding: 0; background: var(--bg); border-color: var(--grid); color: var(--note); }
 .level-atlas li.mine > .actions .btn:hover { border-color: var(--cyan); color: var(--cyan); }
 .level-atlas li.mine > .actions .btn.danger:hover { border-color: var(--red); color: var(--red); }
+/* Levels not reached yet: blurred under tracing paper, so the drawing teases without spoiling. */
+.level-fig.unseen canvas.mini { filter: blur(4px); opacity: 0.5; }
+.level-fig.unseen .thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(45deg, transparent 0 6px, rgba(127, 255, 212, 0.08) 6px 7px);
+}
+.level-atlas li.fading {
+  -webkit-mask-image: linear-gradient(to right, #000 10%, transparent 95%);
+  mask-image: linear-gradient(to right, #000 10%, transparent 95%);
+}
+.level-atlas li.more { grid-column: 1 / -1; height: 0; }
+.level-atlas li.tip-card { align-self: start; display: grid; gap: 6px; justify-items: start; padding: 10px; border: 1px dashed var(--cyan); background: var(--bg); font-size: 12px; }
+.tip-card .tip-title { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan); }
+.tip-card p { margin: 0; }
+.tip-card .link { display: inline-flex; gap: 6px; align-items: center; padding: 0; border: 0; background: none; color: var(--cyan); font: inherit; cursor: pointer; text-align: left; }
+.tip-card .link:hover, .tip-card .link:focus-visible { text-decoration: underline; }
+.tip-card .link svg { width: 14px; height: 14px; flex: none; }
+.level-finale {
+  max-width: 960px;
+  margin: 0 auto 28px;
+  padding: 18px 20px;
+  border: 1px solid var(--yellow);
+  background: var(--bg);
+  box-shadow: 0 0 12px rgba(255, 207, 90, 0.25);
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.level-finale .title { margin: 0; font-size: 22px; color: var(--yellow); }
+.level-finale p { margin: 0; color: var(--note); }
+.level-finale .btn.primary { padding: 8px 22px; letter-spacing: 0.14em; text-transform: uppercase; }
 @media (max-width: 640px) {
   .level-next { grid-template-columns: 1fr; }
   .level-atlas { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
