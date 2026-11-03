@@ -273,6 +273,35 @@ const loopVoices: Record<LoopName, (c: Ctx) => Loop> = {
   }),
 }
 
+/**
+ * End-of-level tune at 144 bpm: G4 dotted eighth held, C#5 tied smoothly into D5, then D5 and [G5 + B5] staccato. `at` is
+ * when a note starts and `len` how long it sounds (s). Humanized by hand: `late` nudges each onset,
+ * `vel` its loudness, and `roll` spreads the chord from the lower note up.
+ */
+const WIN_Q = 60 / 144
+const WIN_TUNE: { at: number; len: number; freqs: number[]; late: number; vel: number; roll?: number }[] = [
+  { at: 0, len: 0.75 * WIN_Q, freqs: [392], late: 0, vel: 0.9 },
+  { at: 0.75 * WIN_Q, len: 0.5 * WIN_Q, freqs: [554.37], late: 0.006, vel: 0.75 },
+  { at: 1.25 * WIN_Q, len: 0.1, freqs: [587.33], late: 0, vel: 0.85 },
+  { at: 2 * WIN_Q, len: 0.1, freqs: [783.99, 987.77], late: 0.015, vel: 1, roll: 0.018 },
+]
+
+/** Soft piano: harmonics 1 to 5 with fast attacks, the high ones dying faster, as on a struck string. */
+function pianoNote(c: Ctx, out: AudioNode, freq: number, t: number, len: number): void {
+  ;[1, 0.45, 0.25, 0.12, 0.06].forEach((amp, i) => {
+    const decay = 2.2 / (1 + i * 0.8)
+    const o = c.createOscillator()
+    const g = c.createGain()
+    o.frequency.value = freq * (i + 1) * (1 + i * 0.0008)
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(amp, t + 0.006)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + decay)
+    o.connect(g).connect(out)
+    o.start(t)
+    o.stop(t + Math.min(len, decay) + 0.02)
+  })
+}
+
 export const sound = {
   /** Listens for the first click or keypress to create the AudioContext (browsers require a gesture). */
   arm(): void {
@@ -327,10 +356,24 @@ export const sound = {
   stopLoops(): void {
     sound.setLoops(new Set())
   },
+  /** Guillaume's end-of-level tune on a soft additive piano (see WIN_TUNE). */
   win(): void {
     safe(() => {
-      const notes = [523.25, 659.25, 783.99, 1046.5]
-      notes.forEach((f, i) => blip(f, i === notes.length - 1 ? 0.5 : 0.14, 0.22, 'triangle', i * 0.11))
+      const c = live()
+      if (!c || !master) return
+      const t0 = c.currentTime + 0.02
+      for (const n of WIN_TUNE) {
+        for (const [i, f] of n.freqs.entries()) {
+          const t = t0 + n.at + n.late + i * (n.roll ?? 0)
+          const level = (0.44 * n.vel) / Math.sqrt(n.freqs.length)
+          const g = c.createGain()
+          g.gain.setValueAtTime(level, t)
+          g.gain.setValueAtTime(level, t + n.len)
+          g.gain.exponentialRampToValueAtTime(0.0001, t + n.len + 0.12)
+          g.connect(master)
+          pianoNote(c, g, f, t, n.len + 0.15)
+        }
+      }
     })
   },
 }
