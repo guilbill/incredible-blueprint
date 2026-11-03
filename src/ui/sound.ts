@@ -274,9 +274,9 @@ const loopVoices: Record<LoopName, (c: Ctx) => Loop> = {
 }
 
 /**
- * End-of-level tune at 144 bpm: G4 dotted eighth held, C#5 tied smoothly into D5, then D5 and [G5 + B5] staccato. `at` is
- * when a note starts and `len` how long it sounds (s). Humanized by hand: `late` nudges each onset,
- * `vel` its loudness, and `roll` spreads the chord from the lower note up.
+ * End-of-level tune at 144 bpm: G4 dotted eighth held, C#5 tied smoothly into D5, then [G5 + B5] staccato as a half note
+ * and a dry [D6 + G6]. `at` is when a note starts and `len` how long it sounds (s). Humanized by hand: `late` nudges each
+ * onset, `vel` its loudness, and `roll` spreads the chord from the lower note up.
  */
 const WIN_Q = 60 / 144
 const WIN_TUNE: { at: number; len: number; freqs: number[]; late: number; vel: number; roll?: number }[] = [
@@ -284,6 +284,7 @@ const WIN_TUNE: { at: number; len: number; freqs: number[]; late: number; vel: n
   { at: 0.75 * WIN_Q, len: 0.5 * WIN_Q, freqs: [554.37], late: 0.006, vel: 0.75 },
   { at: 1.25 * WIN_Q, len: 0.1, freqs: [587.33], late: 0, vel: 0.85 },
   { at: 2 * WIN_Q, len: 0.1, freqs: [783.99, 987.77], late: 0.015, vel: 1, roll: 0.018 },
+  { at: 4 * WIN_Q, len: 0.06, freqs: [1174.66, 1567.98], late: 0.008, vel: 0.85, roll: 0.012 },
 ]
 
 /** Soft piano: harmonics 1 to 5 with fast attacks, the high ones dying faster, as on a struck string. */
