@@ -41,11 +41,11 @@ describe('dictionaries', () => {
 
   it('translate the title of every shipped level', () => {
     const levels = loadLevels()
-    expect(levels).toHaveLength(30)
+    expect(levels).toHaveLength(32)
     for (const l of levels) {
       expect(LEVELS_EN[l.id]?.title, l.id).toBeTruthy()
     }
-    expect(LEVELS_EN['10-la-grande-machine'].title).toBe('The Big Machine')
+    expect(LEVELS_EN['12-la-grande-machine'].title).toBe('The Big Machine')
   })
 })
 
@@ -61,11 +61,11 @@ describe('t', () => {
   it('shows English names and shipped level text in English, custom levels as authored', () => {
     setLang('en')
     expect(partLabel('ramp')).toBe('Ramp')
-    expect(levelTitle({ id: '10-la-grande-machine', title: 'La grande machine' })).toBe('The Big Machine')
+    expect(levelTitle({ id: '12-la-grande-machine', title: 'La grande machine' })).toBe('The Big Machine')
     expect(levelTitle({ id: 'niveau-x', title: 'Mon niveau' })).toBe('Mon niveau')
     setLang('fr')
     expect(partLabel('ramp')).toBe('Planche inclinée')
-    expect(levelTitle({ id: '10-la-grande-machine', title: 'La grande machine' })).toBe('La grande machine')
+    expect(levelTitle({ id: '12-la-grande-machine', title: 'La grande machine' })).toBe('La grande machine')
   })
 })
 

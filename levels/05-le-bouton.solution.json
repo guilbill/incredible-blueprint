@@ -1,0 +1,24 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "ramp",
+        "x": 770,
+        "y": 630,
+        "rot": 21,
+        "flip": false,
+        "settings": {
+          "length": 4
+        }
+      }
+    ],
+    "links": []
+  },
+  "step": 511,
+  "hash": "f0455014",
+  "notes": {
+    "idea": "Une boule amenée sur le bouton allume l’aimant déjà relié, qui tire la barre.",
+    "difficulty": 2
+  }
+}

@@ -21,13 +21,14 @@ import { mousetrap } from './life/mousetrap'
 import { button } from './modern/button'
 import { fan } from './modern/fan'
 import { magnet } from './modern/magnet'
+import { metalBar } from './modern/metal-bar'
 import { portal } from './modern/portal'
 import { spring } from './modern/spring'
 import type { PartDef } from './types'
 
 /** Registered parts; later tasks add entries. */
 export const PART_DEFS: Partial<Record<PartKind, PartDef>> = {}
-for (const def of [...BALLS, ...WALLS, ramp, bucket, trampoline, seesaw, ...GEARS, pulley, conveyor, scissors, mouseCage, monkeyBike, candle, balloon, cat, mouse, cheese, mousetrap, fishbowl, magnet, button, portal, spring, fan]) PART_DEFS[def.kind] = def
+for (const def of [...BALLS, ...WALLS, ramp, bucket, trampoline, seesaw, ...GEARS, pulley, conveyor, scissors, mouseCage, monkeyBike, candle, balloon, cat, mouse, cheese, mousetrap, fishbowl, magnet, button, metalBar, portal, spring, fan]) PART_DEFS[def.kind] = def
 
 export function partDef(kind: PartKind): PartDef {
   const def = PART_DEFS[kind]

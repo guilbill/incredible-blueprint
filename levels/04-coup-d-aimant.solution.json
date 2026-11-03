@@ -1,0 +1,22 @@
+{
+  "solution": {
+    "placements": [
+      {
+        "id": "p1",
+        "kind": "magnet",
+        "x": 420,
+        "y": 310,
+        "rot": 0,
+        "flip": false,
+        "settings": {}
+      }
+    ],
+    "links": []
+  },
+  "step": 314,
+  "hash": "cec83635",
+  "notes": {
+    "idea": "Un aimant posé au bout de la barre la tire et libère la boule.",
+    "difficulty": 1
+  }
+}

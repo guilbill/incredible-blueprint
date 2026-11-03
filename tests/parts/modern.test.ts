@@ -79,10 +79,20 @@ describe('modern parts', () => {
     expect(part(s, 'magnet').glow).toBeGreaterThan(0)
   })
 
-  it('a magnet leaves metal beyond 6 cells alone', () => {
-    const s = new Simulation(level([...room(), P('magnet', 'magnet', 200, 480), P('steel', 'ball-base', 330, 482)]), empty)
+  it('a magnet pulls only in front of its poles, up to 7 cells', () => {
+    const s = new Simulation(
+      level([
+        P('floor', 'wall-brick', 300, 500, { rot: 6, settings: { length: 16 } }),
+        P('floor2', 'wall-brick', 620, 500, { rot: 6, settings: { length: 16 } }),
+        P('magnet', 'magnet', 300, 480),
+        P('far', 'ball-base', 470, 482),
+        P('behind', 'ball-base', 220, 482),
+      ]),
+      empty,
+    )
     run(s, 30)
-    expect(xOf(s, 'steel')).toBeCloseTo(330, 3)
+    expect(xOf(s, 'far')).toBeCloseTo(470, 3)
+    expect(xOf(s, 'behind')).toBeCloseTo(220, 3)
     expect(part(s, 'magnet').glow).toBe(0)
   })
 

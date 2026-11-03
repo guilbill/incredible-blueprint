@@ -78,6 +78,29 @@ describe('button and wire', () => {
   })
 })
 
+describe('metal bar', () => {
+  it('is a metal part with a length setting, and a magnet pulls it', () => {
+    expect(partDef('metal-bar').sizeOf!(P('b', 'metal-bar', 0, 0, { settings: { length: 6 } }))).toEqual({ w: 6, h: 1 })
+    const s = new Simulation(level([P('floor', 'wall-brick', 300, 500, { rot: 6, settings: { length: 16 } }), P('magnet', 'magnet', 380, 480, { rot: 12 }), P('bar', 'metal-bar', 280, 482)]), empty)
+    run(s, 240)
+    // Pulled right, it stops against the magnet (its left face is at x 360).
+    expect(xOf(s, 'bar')).toBeGreaterThan(300)
+    expect(xOf(s, 'bar')).toBeLessThan(321)
+  })
+
+  it('lies still between two planks until a magnet pulls it', () => {
+    const s = new Simulation(level([
+      P('top', 'wall-wood', 470, 290, { rot: 6, settings: { length: 2 } }),
+      P('bottom', 'wall-wood', 470, 330, { rot: 6, settings: { length: 2 } }),
+      P('post', 'wall-wood', 380, 340, { settings: { length: 2 } }),
+      P('bar', 'metal-bar', 420, 310),
+      P('ball', 'ball-bowling', 420, 280),
+    ]), empty)
+    run(s, 600)
+    expect(xOf(s, 'bar')).toBeCloseTo(420, 0)
+  })
+})
+
 describe('link tools in the drawer', () => {
   it('shows only the tools the level parts can use', () => {
     expect(usefulLinkTools(level([P('w', 'wall-brick', 0, 0)]))).toEqual([])

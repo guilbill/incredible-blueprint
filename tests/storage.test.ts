@@ -18,6 +18,15 @@ function memoryStorage(): Storage {
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe('storage', () => {
+  it('moves progress saved under a renumbered level id to its new id', () => {
+    vi.stubGlobal('localStorage', memoryStorage())
+    const sol = { placements: [], links: [] }
+    storage.set('tim.progress', { solved: ['01-premier-plan', '04-petit-moteur', '30-la-machine-infernale'], drafts: { '05-engrenages': sol, 'custom-1': sol } })
+    const p = loadProgress()
+    expect(p.solved).toEqual(['01-premier-plan', '06-petit-moteur', '32-la-machine-infernale'])
+    expect(Object.keys(p.drafts).sort()).toEqual(['07-engrenages', 'custom-1'])
+  })
+
   it('returns false and the fallback when localStorage throws, without throwing (Review Focus 5)', () => {
     const broken = memoryStorage()
     broken.setItem = () => { throw new Error('QuotaExceededError') }

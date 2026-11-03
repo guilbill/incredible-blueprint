@@ -1,0 +1,30 @@
+{
+  "v": 1,
+  "id": "05-le-bouton",
+  "title": "Le bouton",
+  "fixed": [
+    {"id": "floor", "kind": "wall-brick", "x": 440, "y": 770, "rot": 6, "flip": false, "settings": {"length": 16}},
+    {"id": "bucket", "kind": "bucket", "x": 530, "y": 740, "rot": 0, "flip": false, "settings": {}},
+    {"id": "plank-top", "kind": "wall-wood", "x": 470, "y": 290, "rot": 6, "flip": false, "settings": {"length": 2}},
+    {"id": "plank-bottom", "kind": "wall-wood", "x": 470, "y": 330, "rot": 6, "flip": false, "settings": {"length": 2}},
+    {"id": "bar", "kind": "metal-bar", "x": 520, "y": 310, "rot": 0, "flip": false, "settings": {"length": 4}},
+    {"id": "post", "kind": "wall-wood", "x": 560, "y": 340, "rot": 0, "flip": false, "settings": {"length": 2}},
+    {"id": "ball", "kind": "ball-bowling", "x": 520, "y": 280, "rot": 0, "flip": false, "settings": {}},
+    {"id": "magnet", "kind": "magnet", "x": 420, "y": 310, "rot": 0, "flip": false, "settings": {}},
+    {"id": "button", "kind": "button", "x": 680, "y": 750, "rot": 0, "flip": true, "settings": {}},
+    {"id": "floor-left", "kind": "wall-brick", "x": 740, "y": 770, "rot": 6, "flip": false, "settings": {"length": 14}},
+    {"id": "pocket-left", "kind": "wall-wood", "x": 710, "y": 740, "rot": 0, "flip": false, "settings": {"length": 2}},
+    {"id": "pocket-right", "kind": "wall-wood", "x": 650, "y": 740, "rot": 0, "flip": false, "settings": {"length": 2}},
+    {"id": "weight", "kind": "ball-bowling", "x": 780, "y": 120, "rot": 0, "flip": false, "settings": {}}
+  ],
+  "fixedLinks": [
+    {"id": "l1", "kind": "wire", "a": {"part": "button", "anchor": "wire"}, "b": {"part": "magnet", "anchor": "wire"}}
+  ],
+  "inventory": [
+    {"kind": "ramp", "count": 1},
+    {"kind": "trampoline", "count": 1}
+  ],
+  "goals": [
+    {"type": "inZone", "part": "ball", "zone": {"x": 510, "y": 720, "w": 40, "h": 40}}
+  ]
+}

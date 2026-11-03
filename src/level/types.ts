@@ -2,7 +2,7 @@ export type PartKind =
   | 'ball-bowling' | 'ball-base' | 'ball-basket' | 'ball-tennis' | 'wall-brick' | 'wall-wood' | 'ramp'
   | 'bucket' | 'trampoline' | 'seesaw' | 'gear-small' | 'gear-large' | 'pulley' | 'conveyor' | 'scissors'
   | 'mouse-cage' | 'monkey-bike' | 'candle' | 'balloon' | 'cat' | 'mouse' | 'cheese' | 'mousetrap'
-  | 'fishbowl' | 'magnet' | 'portal' | 'spring' | 'fan' | 'button'
+  | 'fishbowl' | 'magnet' | 'portal' | 'spring' | 'fan' | 'button' | 'metal-bar'
 
 /** x, y: centre of the part's footprint in units. rot: 0..23 in 15° steps (clockwise, y down). flip mirrors local x. */
 export interface Placement {
