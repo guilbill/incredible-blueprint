@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { setLang } from '../src/i18n'
 import type { Goal, Level, Placement } from '../src/level/types'
-import { objectiveText } from '../src/objectives'
+import { goalParts, objectiveText } from '../src/objectives'
 
 const P = (id: string, kind: Placement['kind'], x: number, y: number): Placement => ({ id, kind, x, y, rot: 0, flip: false, settings: {} })
 const inZone = (part: string, x: number, y: number): Goal => ({ type: 'inZone', part, zone: { x: x - 16, y: y - 16, w: 32, h: 32 } })
@@ -33,5 +33,17 @@ describe('objectiveText', () => {
     setLang('en')
     const fixed = [P('ball', 'ball-base', 0, 0), P('l', 'bucket', 300, 300), P('r', 'bucket', 300, 700)]
     expect(objectiveText(level(fixed, [inZone('ball', 300, 700)]))).toBe('Get the steel ball into the bottom bucket.')
+  })
+})
+
+describe('goalParts', () => {
+  it('names the target and the bucket its zone sits in, not the other ball', () => {
+    const fixed = [P('ball', 'ball-bowling', 520, 280), P('weight', 'ball-bowling', 780, 120), P('b', 'bucket', 600, 600)]
+    expect(goalParts(level(fixed, [inZone('ball', 600, 600)]))).toEqual({ targets: ['ball'], places: ['b'] })
+  })
+
+  it('has no place for a bare zone and nothing for an event', () => {
+    const g: Goal = { type: 'event', event: 'cheese-eaten', part: 'cheese' }
+    expect(goalParts(level([P('ball', 'ball-tennis', 100, 100)], [inZone('ball', 600, 600), g]))).toEqual({ targets: ['ball'], places: [] })
   })
 })

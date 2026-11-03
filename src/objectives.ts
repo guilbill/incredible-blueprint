@@ -59,11 +59,16 @@ function placeName(c: Placement, parts: Placement[]): string {
   return t(`objective.${side}`, { name })
 }
 
+/** The part a goal zone sits in and is named after ("dans le seau"), if any. */
+function containerOf(level: Pick<Level, 'fixed'>, g: Extract<Goal, { type: 'inZone' }>): Placement | undefined {
+  const centre = { x: g.zone.x + g.zone.w / 2, y: g.zone.y + g.zone.h / 2 }
+  return level.fixed.find((p) => p.id !== g.part && CONTAINERS.includes(p.kind) && contains(p, centre))
+}
+
 function sentence(level: Pick<Level, 'fixed'>, g: Goal): string {
   if (g.type === 'event') return t(`objective.${g.event}`)
   const target = level.fixed.find((p) => p.id === g.part)
-  const centre = { x: g.zone.x + g.zone.w / 2, y: g.zone.y + g.zone.h / 2 }
-  const container = level.fixed.find((p) => p.id !== g.part && CONTAINERS.includes(p.kind) && contains(p, centre))
+  const container = containerOf(level, g)
   return t('objective.inZone', {
     part: target ? noun(target.kind) : t('objective.anyPart'),
     place: container ? placeName(container, level.fixed) : t('objective.zone'),
@@ -73,4 +78,17 @@ function sentence(level: Pick<Level, 'fixed'>, g: Goal): string {
 /** What the player must achieve, written from the goals alone: no hint on how to do it. */
 export function objectiveText(level: Pick<Level, 'fixed' | 'goals'>): string {
   return [...new Set(level.goals.map((g) => sentence(level, g)))].join(' ')
+}
+
+/** Locked parts the goal sentence names: each target, then the container its zone sits in. */
+export function goalParts(level: Pick<Level, 'fixed' | 'goals'>): { targets: string[]; places: string[] } {
+  const targets: string[] = []
+  const places: string[] = []
+  for (const g of level.goals) {
+    if (g.type !== 'inZone') continue
+    if (level.fixed.some((p) => p.id === g.part) && !targets.includes(g.part)) targets.push(g.part)
+    const c = containerOf(level, g)
+    if (c && !places.includes(c.id)) places.push(c.id)
+  }
+  return { targets, places }
 }

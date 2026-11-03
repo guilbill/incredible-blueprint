@@ -64,6 +64,11 @@ export interface RenderView {
   dial?: { center: Vec; radius: number; step: number; current: number; needle: number; offset: number; bad?: boolean }
   /** Level title block (play mode only), drawn under the parts. */
   brief?: Brief
+  /**
+   * Parts the goal names, shown in yellow over a dimmed board with the title block (when the level opens,
+   * and while the brief is hovered); `k` 0..1 is the strength, `targets` get a ring.
+   */
+  focus?: { targets: string[]; places: string[]; k: number }
   zoom: number
 }
 
@@ -563,6 +568,60 @@ function drawTrails(pen: Pen, sim: Simulation): void {
   pen.reset()
 }
 
+/** Draws every part in one colour: the part keeps its widths and dashes, every `reset` takes the tint. */
+class TintPen extends Pen {
+  constructor(ctx: CanvasRenderingContext2D, private readonly tint: string) {
+    super(ctx)
+  }
+
+  override reset(_color?: string, width = 1.5): void {
+    super.reset(this.tint, width)
+  }
+}
+
+/** Room (units) between a goal target and its ring. */
+const FOCUS_RING_PAD = 10
+
+function drawFocus(
+  ctx: CanvasRenderingContext2D,
+  focus: NonNullable<RenderView['focus']>,
+  brief: { brief: Brief; avoid: Rect[] } | undefined,
+  placements: Placement[],
+  links: { roped: Set<string>; wired: Set<string>; phases: Map<string, number> },
+): void {
+  const { k } = focus
+  ctx.save()
+  ctx.globalAlpha = 0.6 * k
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, FIELD.w, FIELD.h)
+  ctx.restore()
+  const pen = new Pen(ctx)
+  if (brief) drawBrief(pen, brief.brief, brief.avoid, false, k)
+  const tint = new TintPen(ctx, COLORS.yellow)
+  ctx.save()
+  ctx.globalAlpha = k
+  for (const id of [...focus.places, ...focus.targets]) {
+    const placement = placements.find((p) => p.id === id)
+    if (placement) drawPart(tint, { placement, phase: links.phases.get(id), roped: links.roped.has(id), wired: links.wired.has(id) })
+  }
+  pen.reset(COLORS.yellow, 2)
+  for (const id of focus.targets) {
+    const p = placements.find((q) => q.id === id)
+    if (!p) continue
+    const fp = footprint(p)
+    const xs = fp.map((q) => q.x)
+    const ys = fp.map((q) => q.y)
+    const x0 = Math.min(...xs) - FOCUS_RING_PAD
+    const y0 = Math.min(...ys) - FOCUS_RING_PAD
+    const x1 = Math.max(...xs) + FOCUS_RING_PAD
+    const y1 = Math.max(...ys) + FOCUS_RING_PAD
+    if (p.kind.startsWith('ball')) pen.circle(v((x0 + x1) / 2, (y0 + y1) / 2), Math.max(x1 - x0, y1 - y0) / 2)
+    else pen.poly([v(x0, y0), v(x1, y0), v(x1, y1), v(x0, y1)])
+  }
+  ctx.restore()
+  pen.reset()
+}
+
 export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   const { level, sol, sim } = view
   const pen = new Pen(ctx)
@@ -571,7 +630,8 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
   ctx.scale(view.zoom, view.zoom)
   if (!cached) drawGrid(ctx)
   // a part being carried (the welcome plank) does not push the block to another corner
-  if (view.brief) drawBrief(pen, view.brief, obstacles({ ...level, fixed: level.fixed.filter((p) => !view.selected?.includes(p.id)) }), !!sim)
+  const avoid = obstacles({ ...level, fixed: level.fixed.filter((p) => !view.selected?.includes(p.id)) })
+  if (view.brief) drawBrief(pen, view.brief, avoid, !!sim)
   drawGoals(pen, level, view.won ?? false)
   const placements = [...level.fixed, ...sol.placements]
   const { roped, wired } = drawLinks(pen, [...level.fixedLinks, ...sol.links], placements, sim, view.selectedLink)
@@ -584,6 +644,7 @@ export function render(ctx: CanvasRenderingContext2D, view: RenderView): void {
     if (view.locked?.has(placement.id)) drawPadlock(pen, placement)
   }
   if (sim) drawTrails(pen, sim)
+  if (!sim && view.focus && view.focus.k > 0) drawFocus(ctx, view.focus, view.brief && { brief: view.brief, avoid }, placements, { roped, wired, phases })
   const ghosts = [...(view.ghost ? [view.ghost] : []), ...(view.ghosts ?? [])]
   if (ghosts.length) {
     const moved = new Set(ghosts.map((g) => g.placement.id))

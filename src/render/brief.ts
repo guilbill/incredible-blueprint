@@ -86,18 +86,22 @@ function text(pen: Pen, s: string, x: number, y: number, size: number, color: st
   c.fillText(s, x, y)
 }
 
-/** Draws the title block; `dim` while the machine runs, so it stays out of the way. */
-export function drawBrief(pen: Pen, b: Brief, avoid: Rect[], dim: boolean): void {
+/**
+ * Draws the title block; `dim` while the machine runs, so it stays out of the way.
+ * `focus` (0..1) draws it again over the dimmed board, framed in yellow, while the goal parts are shown.
+ */
+export function drawBrief(pen: Pen, b: Brief, avoid: Rect[], dim: boolean, focus?: number): void {
   const { box, lines } = briefLayout(b, avoid)
   const { x, y, w, h } = box
   const c = pen.ctx
+  const k = focus ?? 1
   c.save()
   // the grid shows through faintly so the block reads as drawn on the plan, not stuck on it
-  c.globalAlpha = dim ? 0.3 : 0.85
+  c.globalAlpha = (dim ? 0.3 : 0.85) * k
   c.fillStyle = COLORS.bg
   c.fillRect(x, y, w, h)
-  c.globalAlpha = dim ? 0.35 : 1
-  pen.reset(COLORS.line, 2)
+  c.globalAlpha = (dim ? 0.35 : 1) * k
+  pen.reset(focus === undefined ? COLORS.line : COLORS.yellow, 2)
   pen.poly([{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }])
   pen.reset(COLORS.line, 1)
   pen.line({ x, y: y + HEAD }, { x: x + w, y: y + HEAD })

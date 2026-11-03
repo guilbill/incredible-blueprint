@@ -10,8 +10,8 @@ import { ROT_ANGLE, angleOf, setting } from '../parts/common'
 import { gearRadius, gearsMesh } from '../parts/mech/gear'
 import { partDef } from '../parts/registry'
 import type { PartDrawState } from '../render/pen'
-import { objectiveText } from '../objectives'
-import { levelNumber } from '../render/brief'
+import { goalParts, objectiveText } from '../objectives'
+import { type Brief, briefLayout, levelNumber, obstacles } from '../render/brief'
 import { NUDGE_MS, labelDone, PULSE_MS, render, type RenderView } from '../render/renderer'
 import { loadProgress, markSolved, saveDraft } from '../storage'
 import { addLink, addPart, anchorAt, draftPlacement, drawerDefaults, flipped, freeAngle, grow, HANDLE_HIT, handlesOf, hitAnyPart, hitHandle, hitLink, hitPart, linkTargets, LINK_TOOLS, nearPart, nextId, pickAnchor, remaining, removeLink, removePart, resizeToward, rotateToward, rotated, rotHandleOffset, sanitizeDraft, updatePart, usefulLinkTools, withSetting, type HandleGaps, type HandleKind, type LinkTool } from './edit'
@@ -29,6 +29,7 @@ import { createLongPress, fingerLift, handleGaps, handleTolerance, touchUi } fro
 import { sound } from './sound'
 import { copyGroup, groupBox, inStock, groupNotches, groupRotHandle, groupRotStep, guidesFor, moveGroup, moveZone, pasteClip, removeGroup, resizeZone, rotateGroup, rotationBlockers, selectInRect, turnedParts, zoneAt, zoneCorner, type Clip, type Corner } from './selection'
 import { activeLoops, createImpactTracker, impactVoice, startedParts } from './soundLogic'
+import { focusStep } from './goalFocus'
 import { anyMoving, createStallWatch, type StallReason } from './stall'
 
 export interface PlayOpts {
@@ -188,6 +189,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
   let targetsCache: { tool: LinkTool; first?: Anchor; sol: Solution; list: Anchor[] } | undefined
   /** Part under the pointer and when the hover on it started (performance.now). */
   let hover: { id: string; since: number } | undefined
+  /** Parts the goal names, shown in yellow when the level opens and while the brief is hovered or tapped (play only). */
+  const named = author ? undefined : goalParts(level)
+  const focusParts = named && named.targets.length + named.places.length ? named : undefined
+  const openedAt = performance.now()
+  let focus = { k: 1, t: openedAt, hot: false, pinned: false }
   /** Last pointer position on the field, in units (end of the pending link line). */
   let pointer: Vec | undefined
   let stall = createStallWatch()
@@ -1129,8 +1135,9 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     }
     // a fingertip is wider than a ball: it also takes the part right beside it, unless it is on a link or a zone
     const hit = hitPart(sol, pt) ?? (finger && !hitLink(level, sol, pt) && (!author || zoneAt(author.goals(), pt) === undefined) ? nearPart(sol, pt, hitTol, selection) : undefined)
-    // no hover for a finger: the label shows on the part it touched
+    // no hover for a finger: the label shows on the part it touched, a tap on the brief keeps the goal parts shown
     if (finger) hover = hit ? { id: hit.id, since: performance.now() } : undefined
+    focus.pinned = finger && !hit && overBrief(pt) ? !focus.pinned : false
     if (hit) {
       e.preventDefault()
       selectedLink = undefined
@@ -1277,6 +1284,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       const pt = unitsAt(e)
       const over = hitAnyPart(level, sol, pt)
       if (over?.id !== hover?.id) hover = over ? { id: over.id, since: performance.now() } : undefined
+      if (e.pointerType !== 'touch') focus.hot = !over && overBrief(pt)
       canvas.classList.toggle('tracing', !!author?.tracing())
       const sp = !tool ? single() : undefined
       const handle = sp && !isLocked(sp.id) && hitHandle(sp, pt, HANDLE_HIT, gaps())
@@ -1342,6 +1350,7 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
 
   function onPointerLeave(e: PointerEvent): void {
     hoverEnd = undefined
+    focus.hot = false
     // a lifted finger leaves the board: the label of the part it touched stays
     if (e.pointerType !== 'touch') hover = undefined
     pointer = undefined
@@ -1696,6 +1705,11 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     lastT = t
     // Idle frames are skipped, except while targets pulse or a hover label is still drawing in.
     const now = performance.now()
+    if (focusParts) {
+      const k = sim ? 0 : focusStep(focus.k, now - focus.t, now - openedAt, focus.hot || focus.pinned)
+      if (k !== focus.k) dirty = true
+      focus = { ...focus, k, t: now }
+    }
     const one = single()?.id
     const nudging = !!one && !sim && (nudgeFor !== one || now - selectedSince < NUDGE_MS)
     const animating = !!tool || nudging || !!hoverEnd || !!grip?.moved || !!spin?.moved || (hover !== undefined && !labelDone(now - hover.since))
@@ -1717,6 +1731,18 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
     const top = at.y - stageRect.top
     zoneTag.style.left = `${at.x - stageRect.left}px`
     zoneTag.style.top = `${top >= zoneTag.offsetHeight ? top - zoneTag.offsetHeight : top}px`
+  }
+
+  function brief(): Brief | undefined {
+    return author ? undefined : { number: levelNumber(level.id), title: levelTitle(level), heading: t('brief.goal'), goal: objectiveText(level) }
+  }
+
+  /** The point is on the title block (laid out as the renderer does). */
+  function overBrief(pt: Vec): boolean {
+    const b = brief()
+    if (!b) return false
+    const { x, y, w, h } = briefLayout(b, obstacles({ ...level, fixed: level.fixed.filter((p) => !selection.includes(p.id)) })).box
+    return pt.x >= x && pt.x <= x + w && pt.y >= y && pt.y <= y + h
   }
 
   function draw(): void {
@@ -1763,7 +1789,8 @@ export function mountPlay(root: HTMLElement, level: Level, opts: PlayOpts): () =
       hover: hover && !drag?.started ? { id: hover.id, t: now - hover.since } : undefined,
       meshMarks: drag?.started ? drag.meshMarks : undefined,
       handles: sp ? { at: handlesOf(sp, gaps()), t: now - selectedSince, hover: hoverEnd && { end: hoverEnd.end, t: now - hoverEnd.since }, finger: finger && { ...finger, tether: handlesOf(sp, { rot: 0, end: 0 }).rot } } : gh ? { at: { rot: gh }, t: now - selectedSince, finger } : undefined,
-      brief: author ? undefined : { number: levelNumber(level.id), title: levelTitle(level), heading: t('brief.goal'), goal: objectiveText(level) },
+      brief: brief(),
+      focus: focusParts && focus.k > 0 ? { ...focusParts, k: focus.k } : undefined,
       dial: sp && grip?.kind === 'rot' && grip.moved ? dialFor(sp, grip.free ?? angleOf(sp)) : spin?.moved ? spinDial(spin) : undefined,
     })
   }
